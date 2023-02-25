@@ -1,0 +1,3 @@
+#ifndef HIKARI_SPINLOCK_H
+#define HIKARI_SPINLOCK_H
+#endif
