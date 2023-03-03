@@ -1,6 +1,5 @@
-#ifndef HIKARI_MACRO_H
-#define HIKARI_MACRO_H
-#include <cstdint>
+#ifndef HIKARI_BASE_PREPROCESSOR__H
+#define HIKARI_BASE_PREPROCESSOR__H
 
 #if __cplusplus >= 202002L
 #define HIKARI_CXX20_CONSTEXPR constexpr
@@ -26,5 +25,10 @@
 #define HIKARI_CXX11_CONSTEXPR 
 #endif
 
+#ifdef __CUDA_ARCH__
+#define HIKARI_INLINE __forceinline__
+#else
+#define HIKARI_INLINE inline
 #endif
 
+#endif

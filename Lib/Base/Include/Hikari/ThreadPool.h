@@ -1,3 +1,0 @@
-#ifndef HIKARI_THREADPOOL_H
-#define HIKARI_THREADPOOL_H
-#endif
