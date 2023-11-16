@@ -41,7 +41,7 @@ namespace hikari {
                     uint32_t              pbo;
                     int32_t               tex_loc;
                 };
-                typedef void* (*GLloadproc)(const char* name);
+                typedef void*   (*GLloadproc)(const char* name);
                 bool loadGLLoader(GLloadproc load_proc);
             }
         }

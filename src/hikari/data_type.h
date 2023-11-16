@@ -27,6 +27,24 @@ typedef unsigned char HKByte;
 
 typedef const char*   HKCStr;
 typedef void*         HKVPtr;
+
+typedef HKI8  HKCI8;
+typedef HKI16 HKCI16;
+typedef HKI32 HKCI32;
+typedef HKI64 HKCI64;
+
+typedef HKU8  HKCU8;
+typedef HKU16 HKCU16;
+typedef HKU32 HKCU32;
+typedef HKU64 HKCU64;
+
+typedef HKF32 HKCF32;
+typedef HKF64 HKCF64;
+
+typedef HKChar HKCChar;
+typedef HKByte HKCByte;
+typedef HKBool HKCBool;
+
 //   Signed Int
 HK_COMPILE_TIME_ASSERT(sizeof(HKI8 )==1);
 HK_COMPILE_TIME_ASSERT(sizeof(HKI16)==2);

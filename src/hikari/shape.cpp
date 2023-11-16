@@ -1,12 +1,19 @@
 #define HK_DLL_EXPORT
 #include "shape.h"
+#include "ref_cnt_object.h"
+#include <vector>
 
-HK_EXTERN_C HK_DLL HKCAabb HK_API HKShape_getAabb(const HKShape* shape)
+HK_EXTERN_C HK_DLL HKCAabb HK_API HKShape_getAabb(const HKShape *shape)
 {
-	if (shape) {
+	if (shape)
+	{
 		return shape->getAabb();
 	}
-	else {
+	else
+	{
 		return HKAabb();
 	}
 }
+
+
+HK_SHAPE_ARRAY_IMPL_DEFINE(Shape);

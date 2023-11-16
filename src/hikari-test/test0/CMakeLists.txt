@@ -39,3 +39,9 @@ COMMAND
 ${CMAKE_COMMAND} -E copy_if_different 
 $<TARGET_RUNTIME_DLLS:hikari-test-test0_cxx17> $<TARGET_FILE_DIR:hikari-test-test0_cxx17> 
 COMMAND_EXPAND_LISTS)
+
+
+set_target_properties(hikari-test-test0        PROPERTIES FOLDER "src/hikari-test/test0")
+set_target_properties(hikari-test-test0_c11    PROPERTIES FOLDER "src/hikari-test/test0")
+set_target_properties(hikari-test-test0_cxx11  PROPERTIES FOLDER "src/hikari-test/test0")
+set_target_properties(hikari-test-test0_cxx17  PROPERTIES FOLDER "src/hikari-test/test0")

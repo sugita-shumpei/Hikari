@@ -13,7 +13,8 @@
 #if defined(__cplusplus) 
 struct HK_DLL HKSampleObject : public HKUnknown, protected HKRefCntObject {
 	static HK_INLINE HK_CXX_CONSTEXPR auto TypeID() HK_CXX_NOEXCEPT -> HKUUID { return HK_OBJECT_TYPEID_SampleObject; }
-	HK_API HKSampleObject() HK_CXX_NOEXCEPT;
+
+	HKSampleObject() HK_CXX_NOEXCEPT;
 	virtual HK_API ~HKSampleObject() HK_CXX_NOEXCEPT;
 	virtual HKU32  HK_API release();
 	virtual HKU32  HK_API addRef ();

@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 project(hikari)
 enable_language(CUDA)
-# add_subdirectory(src)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+add_subdirectory(src)
 add_subdirectory(ext)
 add_subdirectory(test)

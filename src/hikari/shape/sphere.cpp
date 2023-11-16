@@ -2,23 +2,29 @@
 #include "sphere.h"
 #include "../ref_cnt_object.h"
 #include <shared_mutex>
+#include <vector>
 
 struct HK_DLL HKSphereImpl : public HKSphere, protected HKRefCntObject {
     // HKRefCntObject ����Čp������܂���
     HKSphereImpl() ;
     HKSphereImpl(const HKVec3& center_, HKF32 radius_);
     virtual ~HKSphereImpl();
-    virtual HKU32  HK_API addRef() override  { return HKRefCntObject::addRef(); }
-    virtual HKU32  HK_API release() override { return HKRefCntObject::release(); }
-    virtual HKBool HK_API queryInterface(HKUUID iid, void** ppvInterface) override
-    {
-        if (iid == HK_OBJECT_TYPEID_Unknown || iid == HK_OBJECT_TYPEID_Shape || iid == HK_OBJECT_TYPEID_Sphere) {
-            addRef();
-            *ppvInterface = this;
-            return true;
-        }
-        return false;
-    }
+    virtual HKSphere* HK_API clone()const override { return new HKSphereImpl(m_center, m_radius); }
+    virtual HKU32      HK_API addRef() override { return HKRefCntObject::addRef(); } 
+    virtual HKU32      HK_API release() override { return HKRefCntObject::release(); } 
+    virtual HKBool HK_API queryInterface(HKUUID iid, void** ppvInterface) override                             
+    {                                                                                                          
+        if (iid == HK_OBJECT_TYPEID_Unknown ||iid == HK_OBJECT_TYPEID_Shape || iid == HK_OBJECT_TYPEID_Sphere) 
+        {                                                                                                      
+            addRef();                                                                                          
+            * ppvInterface = this;                                                                             
+            return true;                                                                                       
+        }                                                                                                      
+        else                                                                                                   
+        {                                                                                                      
+            return false;                                                                                      
+        }                                                                                                      
+    }                                                                                                          
     virtual void   HK_API setCenter(const HKVec3& c) override
     {
         std::lock_guard<std::shared_mutex> lk{ m_mutex };
@@ -39,7 +45,7 @@ struct HK_DLL HKSphereImpl : public HKSphere, protected HKRefCntObject {
         std::shared_lock<std::shared_mutex> lk{ m_mutex };
         return m_radius;
     }
-    virtual HKAabb HK_API getAabb() const override {
+    virtual HKAabb HK_API getAabb()   const override {
         std::shared_lock<std::shared_mutex> lk{ m_mutex };
         return HKAabb(m_center - HKVec3(m_radius * 0.5f), m_center + HKVec3(m_radius * 0.5f));
     }
@@ -112,3 +118,16 @@ HK_EXTERN_C HK_DLL HKF32 HK_API HKSphere_getRadius(const HKSphere* sp)
         return 0.0f;
     }
 }
+
+HK_EXTERN_C HK_DLL HKSphere* HK_API HKSphere_clone(const HKSphere* sp) {
+    if (sp) {
+        return sp->cloneWithRef();
+    }
+    else {
+        return nullptr;
+    }
+}
+
+HK_SHAPE_ARRAY_IMPL_DEFINE(Sphere);
+
+

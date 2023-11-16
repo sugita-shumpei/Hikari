@@ -8,6 +8,10 @@ platform.h
 uuid.h
 object.h 
 object.cpp 
+object_array.h 
+object_array.cpp 
+value_array.h
+value_array.cpp
 ref_ptr.h
 ref_cnt_object.h
 ref_cnt_object.cpp
@@ -39,3 +43,5 @@ shape/cylinder.cpp
 target_include_directories(hikari PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../ PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(hikari::hikari ALIAS hikari)
+
+set_target_properties(hikari PROPERTIES FOLDER "src/hikari")

@@ -1,23 +1,45 @@
 #include "test0.h"
+#include <hikari/value_array.h>
+#include <hikari/object_array.h>
+#include <hikari/ref_ptr.h>
 #include <hikari/math/vec.h>
 #include <hikari/math/matrix.h>
+#include <hikari/shape/sphere.h>
+#include <hikari/shape/mesh.h>
+#include <cassert>
+#include <iostream>
 int main()
 {
-	auto ref  = HKRefPtr<HKSampleObject>(new HKSampleObject());
-	auto ref1 = HKRefPtr<HKSampleObject>();
-	ref1      = ref;
-	auto ref2 = std::move(ref1);
-	auto ref3 = HKRefPtr<HKSampleObject>(new HKSampleObject());
-	ref3      = ref2;
-	auto ref4 = HKRefPtr<HKUnknown>();
-	ref3.queryInterface(ref4);
-	constexpr auto v2 = HKVec2_create2(1.0f,2.0f);
-	constexpr auto m2 = HKMat2x2::identity();
-	constexpr auto m3 = HKMat3x3::identity();
-	constexpr auto m4 = HKMat4x4::identity();
-	constexpr auto m5 = HKMat2x2::zeros();
-	constexpr auto m6 = HKMat3x3::zeros();
-	constexpr auto m7 = HKMat4x4::zeros();
+	// 通常型のOBJECT用のRefPtr
+	HKRefPtr<HKMesh> mesh = HKRefPtr<HKMesh>::create();// 0->1->0
+	{
+		// 配列型のOBJECT用のRefPtr
+		auto vertices = HKArrayRefPtr<HKArrayVec3>::create();
+		vertices.resize(3);
+		vertices[0]   = HKVec3_create3(-1.0f, -1.0f, 0.0f);
+		vertices[1]   = HKVec3_create3(+3.0f, -1.0f, 0.0f);
+		vertices[2]   = HKVec3_create3(-1.0f, +3.0f, 0.0f);
+
+		// 配列型のOBJECT用のRefPtr
+		auto normals  = HKArrayRefPtr<HKArrayVec3>::create();
+		normals.resize(3);
+		normals[0]    = HKVec3_create3(0.0f, 0.0f, 1.0f);
+		normals[1]    = HKVec3_create3(0.0f, 0.0f, 1.0f);
+		normals[2]    = HKVec3_create3(0.0f, 0.0f, 1.0f);
+
+		mesh->setVertices(vertices.get());
+		mesh->setNormals(normals.get());
+	}
+	{
+		// 配列型のOBJECT用のRefPtr
+		auto vertices = HKArrayRefPtr<HKArrayVec3>(mesh->getVertices());
+		auto normals  = HKArrayRefPtr<HKArrayVec3>(mesh->getNormals() );
+	}
+	assert(mesh->getVertexCount() == 3);
+	assert(mesh->getTopologoy(0)  == HKMeshTopologyTriangles);
+	assert(mesh->getSubMeshCount()==1);
+	assert(mesh->hasNormal());
+	
 	return 0;
 }
 

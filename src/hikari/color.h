@@ -18,12 +18,7 @@ typedef struct HKColor {
     HK_CXX11_CONSTEXPR HKColor(HKF32 r_,HKF32 g_,HKF32 b_,HKF32 a_) HK_CXX_NOEXCEPT : r{r_},g{g_},b{b_},a{a_}{}
     HK_CXX11_CONSTEXPR HKColor(const HKColor&  c) HK_CXX_NOEXCEPT : r{c.r},g{c.g},b{c.b},a{c.a}{}
     HK_CXX11_CONSTEXPR HKColor(const HKCColor& c) HK_CXX_NOEXCEPT : r{c.r},g{c.g},b{c.b},a{c.a}{}
-    HK_CXX11_CONSTEXPR HKColor(const HKColor8& c) HK_CXX_NOEXCEPT : 
-        r{static_cast<HKF32>(c.r)/255.0f},
-        g{static_cast<HKF32>(c.g)/255.0f},
-        b{static_cast<HKF32>(c.b)/255.0f},
-        a{static_cast<HKF32>(c.a)/255.0f}
-    {}
+    HK_INLINE HK_CXX11_CONSTEXPR HKColor(const HKColor8& c) HK_CXX_NOEXCEPT ;
     HK_CXX11_CONSTEXPR HKColor(const HKVec4  & v) HK_CXX_NOEXCEPT : r{v.x},g{v.y},b{v.z},a{v.w}{}
 
     HK_INLINE HK_CXX14_CONSTEXPR HKColor& operator=(const HKColor&  c) HK_CXX_NOEXCEPT ;
@@ -88,6 +83,13 @@ typedef struct HKColor8 {
     HKU8 b;
     HKU8 a;
 } HKColor8;
+
+HK_INLINE HK_CXX11_CONSTEXPR HKColor::HKColor(const HKColor8& c) HK_CXX_NOEXCEPT :
+r{ static_cast<HKF32>(c.r) / 255.0f },
+g{ static_cast<HKF32>(c.g) / 255.0f },
+b{ static_cast<HKF32>(c.b) / 255.0f },
+a{ static_cast<HKF32>(c.a) / 255.0f }
+{}
 #else
 typedef struct HKCColor8 HKColor8;
 #endif
