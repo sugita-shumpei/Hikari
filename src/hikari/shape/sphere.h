@@ -19,10 +19,11 @@ struct HKSphere : public HKShape {
 	virtual HKF32     HK_API getRadius() const = 0;
 	HK_INLINE HKSphere* cloneWithRef()const { HKSphere* ptr = clone(); ptr->addRef(); return ptr; }
 };
-
 #else
 typedef struct HKSphere HKSphere;
 #endif
+HK_NAMESPACE_TYPE_ALIAS(Sphere);
+
 HK_EXTERN_C HK_DLL HKSphere* HK_API HKSphere_create ();
 HK_EXTERN_C HK_DLL HKSphere* HK_API HKSphere_clone(const HKSphere* sphere);
 HK_EXTERN_C HK_DLL HKSphere* HK_API HKSphere_create2(HKCVec3 c, HKF32 r);
@@ -34,5 +35,7 @@ HK_EXTERN_C HK_DLL HKF32     HK_API HKSphere_getRadius(const HKSphere*       sp)
 HK_INLINE HKSphere* HKSphere::create()                         { return HKSphere_create(); }
 HK_INLINE HKSphere* HKSphere::create(const HKVec3& c, HKF32 r) { return HKSphere_create2(HKCVec3(c),r); }
 #endif
+
 HK_SHAPE_ARRAY_DEFINE(Sphere);
+
 #endif

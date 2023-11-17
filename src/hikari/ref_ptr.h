@@ -127,16 +127,7 @@ private:
 };
 
 template<typename T>
-HK_INLINE HKRefPtr<T> HKRefPtr_makeRef(T* ptr) {
-    if (!ptr) { return nullptr; }
-    else {
-        ptr->addRef();
-        return HKRefPtr<T>(ptr);
-    }
-}
-
-template<typename T>
-struct HKArrayRefPtr {
+struct    HKArrayRefPtr {
     typedef typename T::value_type value_type; 
     HKArrayRefPtr() HK_CXX_NOEXCEPT : m_ptr{nullptr}{}
     HKArrayRefPtr(T* ptr) HK_CXX_NOEXCEPT : m_ptr{ ptr } {}
@@ -277,6 +268,15 @@ struct HKArrayRefPtr {
 private:
     T* m_ptr;
 };
+template<typename T>
+
+HK_INLINE HKRefPtr<T>      HKRefPtr_makeRef(T* ptr) {
+    if (!ptr) { return nullptr; }
+    else {
+        ptr->addRef();
+        return HKRefPtr<T>(ptr);
+    }
+}
 
 template<typename T>
 HK_INLINE HKArrayRefPtr<T> HKArrayRefPtr_makeRef(T* ptr) {
@@ -285,6 +285,34 @@ HK_INLINE HKArrayRefPtr<T> HKArrayRefPtr_makeRef(T* ptr) {
         ptr->addRef();
         return HKArrayRefPtr<T>(ptr);
     }
+}
+
+template<typename T>
+struct HKTypeArrayRefPtrTraits {
+    typedef HKArrayRefPtr<typename HKArrayTraits<T>::type> type;
+};
+
+#if __cplusplus >= 201103L
+template<typename T>
+using HKTypeArrayRefPtr = typename ::HKTypeArrayRefPtrTraits<T>::type;
+#endif
+
+namespace hk {
+#if __cplusplus >= 201103L
+    template<typename T>
+    using RefPtr      = ::HKRefPtr<T>;
+    template<typename T>
+    using ArrayRefPtr = ::HKArrayRefPtr<T>;
+    template<typename T>
+    using TypeArrayRefPtr = typename ::HKTypeArrayRefPtrTraits<T>::type;
+#endif
+    
+    template<typename T>
+    struct RefPtrTraits      { typedef ::HKRefPtr<T>      type; };
+    template<typename T>
+    struct ArrayRefPtrTraits { typedef ::HKArrayRefPtr<T> type; };
+    template<typename T>
+    struct TypeArrayRefPtrTraits { typedef typename ::HKTypeArrayRefPtrTraits<T>::type type; };
 }
 
 #endif

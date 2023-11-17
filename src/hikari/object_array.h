@@ -17,7 +17,8 @@
     HK_EXTERN_C HK_DLL const HK##TYPE *const *HK_API HKArray##TYPE##_internal_getPointer_const(const HKArray##TYPE *p);   \
     HK_EXTERN_C HK_DLL HK##TYPE **HK_API HKArray##TYPE##_internal_getPointer(HKArray##TYPE *p);                           \
     HK_INLINE HKBool HKArray##TYPE##_isEmpty(const HKArray##TYPE *p) { return HKArray##TYPE##_getCount(p) == 0; }         \
-    HK_INLINE void HKArray##TYPE##_clear(HKArray##TYPE *p) { HKArray##TYPE##_setCount(p, 0); }
+    HK_INLINE void HKArray##TYPE##_clear(HKArray##TYPE *p) { HKArray##TYPE##_setCount(p, 0); }                            \
+    HK_NAMESPACE_TYPE_ALIAS(Array##TYPE)
 
 #define HK_OBJECT_ARRAY_METHOD_DEFINE(TYPE)                                                     \
         static inline HK_CXX_CONSTEXPR HKUUID TypeID() { return HK_OBJECT_TYPEID_Array##TYPE; } \
@@ -54,7 +55,8 @@
         HK_OBJECT_ARRAY_METHOD_DEFINE(TYPE);                                                    \
     };                                                                                          \
     HK_OBJECT_ARRAY_DEFINE_COMMON(TYPE);                                                        \
-    HK_INLINE HKArray##TYPE *HKArray##TYPE::create() { return HKArray##TYPE##_create(); }
+    HK_INLINE HKArray##TYPE *HKArray##TYPE::create() { return HKArray##TYPE##_create(); }       \
+    template<>  struct HKArrayTraits<HK##TYPE> { typedef HKArray##TYPE type; }
 
 #else
 #define HK_OBJECT_ARRAY_DEFINE(TYPE)            \

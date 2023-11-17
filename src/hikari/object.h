@@ -20,6 +20,8 @@ struct HKUnknown {
 typedef struct HKUnknown HKUnknown;
 #endif
 
+HK_NAMESPACE_TYPE_ALIAS(Unknown);
+
 HK_EXTERN_C HK_DLL HKU32  HK_API HKUnknown_addRef (HKUnknown* pObj) ;
 HK_EXTERN_C HK_DLL HKU32  HK_API HKUnknown_release(HKUnknown* pObj) ;
 HK_EXTERN_C HK_DLL HKBool HK_API HKUnknown_queryInterface(HKUnknown* pObj,HKUUID iid, void** ppvInterface) ;

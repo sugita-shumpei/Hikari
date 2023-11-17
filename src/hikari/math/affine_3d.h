@@ -42,6 +42,9 @@ typedef struct HKAffine3D {
 // C�ł�CAffine3D��Affine3D�Ƃ��Ĉ���
 typedef struct HKCAffine3D HKAffine3D;
 #endif
+
+HK_NAMESPACE_TYPE_ALIAS(Affine3D);
+
 HK_INLINE HK_CXX11_CONSTEXPR HKBool     HKAffine3D_equal_withEps(const HKAffine3D* af1, const HKAffine3D* af2, HKF32 eps) HK_CXX_NOEXCEPT {
     return HKVec3_equal_withEps(&af1->position, &af2->position, eps) && HKVec3_equal_withEps(&af1->scaling, &af2->scaling, eps) && HKQuat_equal_withEps(&af1->rotation, &af2->rotation, eps);
 }

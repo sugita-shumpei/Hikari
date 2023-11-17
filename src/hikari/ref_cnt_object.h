@@ -12,6 +12,7 @@ struct HK_DLL HKRefCntObject {
 private:
 	std::atomic_ulong m_ref_cnt{ 0 };
 };
+namespace hk { typedef ::HKRefCntObject RefCntObject; }
 #endif
 
 #endif

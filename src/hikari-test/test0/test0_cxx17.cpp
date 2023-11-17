@@ -11,17 +11,17 @@
 int main()
 {
 	// 通常型のOBJECT用のRefPtr
-	HKRefPtr<HKMesh> mesh = HKRefPtr<HKMesh>::create();// 0->1->0
+	HKRefPtr<HKMesh> mesh = HKRefPtr<hk::Mesh>::create();// 0->1->0
 	{
 		// 配列型のOBJECT用のRefPtr
-		auto vertices = HKArrayRefPtr<HKArrayVec3>::create();
+		auto vertices = hk::TypeArrayRefPtr<hk::Vec3>::create();
 		vertices.resize(3);
 		vertices[0]   = HKVec3_create3(-1.0f, -1.0f, 0.0f);
 		vertices[1]   = HKVec3_create3(+3.0f, -1.0f, 0.0f);
 		vertices[2]   = HKVec3_create3(-1.0f, +3.0f, 0.0f);
 
 		// 配列型のOBJECT用のRefPtr
-		auto normals  = HKArrayRefPtr<HKArrayVec3>::create();
+		auto normals  = hk::ArrayRefPtr<hk::Array<hk::Vec3>>::create();
 		normals.resize(3);
 		normals[0]    = HKVec3_create3(0.0f, 0.0f, 1.0f);
 		normals[1]    = HKVec3_create3(0.0f, 0.0f, 1.0f);
@@ -32,8 +32,9 @@ int main()
 	}
 	{
 		// 配列型のOBJECT用のRefPtr
-		auto vertices = HKArrayRefPtr<HKArrayVec3>(mesh->getVertices());
-		auto normals  = HKArrayRefPtr<HKArrayVec3>(mesh->getNormals() );
+		auto vertices  = hk::TypeArrayRefPtr<hk::Vec3>(mesh->getVertices());
+		auto normals   = hk::TypeArrayRefPtr<hk::Vec3>(mesh->getNormals() );
+		auto submeshes = hk::TypeArrayRefPtr<hk::SubMesh>(mesh->getSubMeshes());
 	}
 	assert(mesh->getVertexCount() == 3);
 	assert(mesh->getTopologoy(0)  == HKMeshTopologyTriangles);

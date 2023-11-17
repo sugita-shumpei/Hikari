@@ -47,10 +47,11 @@ typedef struct HKQuat {
 	HKF32 x;
 	HKF32 y;
 	HKF32 z;
-} HKQuat; 
+} HKQuat;
 #else
 typedef struct HKCQuat HKQuat;
 #endif
+HK_NAMESPACE_TYPE_ALIAS(Quat);
 
 HK_INLINE HK_CXX11_CONSTEXPR HKQuat HKQuat_create() HK_CXX_NOEXCEPT { return HK_TYPE_INITIALIZER(HKQuat,0.0f,0.0f,0.0f,0.0f); }
 HK_INLINE HK_CXX11_CONSTEXPR HKQuat HKQuat_create1(HKF32 w) HK_CXX_NOEXCEPT { return HK_TYPE_INITIALIZER(HKQuat, w, 0.0f, 0.0f, 0.0f); }

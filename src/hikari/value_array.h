@@ -17,7 +17,8 @@
 	HK_EXTERN_C HK_DLL const HKC##TYPE *HK_API HKArray##TYPE##_internal_getPointer_const(const HKArray##TYPE *p); \
 	HK_EXTERN_C HK_DLL HKC##TYPE *HK_API HKArray##TYPE##_internal_getPointer(HKArray##TYPE *p);                   \
 	HK_INLINE HKBool HKArray##TYPE##_isEmpty(const HKArray##TYPE *p) { return HKArray##TYPE##_getCount(p) == 0; } \
-	HK_INLINE void HKArray##TYPE##_clear(HKArray##TYPE *p) { HKArray##TYPE##_setCount(p, 0); }
+	HK_INLINE void HKArray##TYPE##_clear(HKArray##TYPE *p) { HKArray##TYPE##_setCount(p, 0); }                    \
+	HK_NAMESPACE_TYPE_ALIAS(Array##TYPE)
 
 #if defined(__cplusplus)
 #define HK_VALUE_ARRAY_DEFINE(TYPE)                                                             \
@@ -110,5 +111,11 @@ HK_VALUE_ARRAY_DEFINE(Mat4x4);
 
 HK_VALUE_ARRAY_DEFINE(Color);
 HK_VALUE_ARRAY_DEFINE(Color8);
+
+#if defined(__cplusplus)
+template<>  struct HKArrayTraits<HKVec2> { typedef HKArrayVec2 type; };
+template<>  struct HKArrayTraits<HKVec3> { typedef HKArrayVec3 type; };
+template<>  struct HKArrayTraits<HKVec4> { typedef HKArrayVec4 type; };
+#endif
 
 #endif

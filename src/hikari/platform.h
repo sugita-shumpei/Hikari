@@ -78,4 +78,12 @@
 #define HK_COMPILE_TIME_ASSERT(X) \
     HK_COMPILE_TIME_ASSERT_2(X,__LINE__)
 
+
+#if defined(__cplusplus)
+#define HK_NAMESPACE_TYPE_ALIAS(TYPE) namespace hk { typedef ::HK##TYPE TYPE; }
+#else
+#define HK_NAMESPACE_TYPE_ALIAS(TYPE) 
+#endif
+
+
 #endif

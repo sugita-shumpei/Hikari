@@ -45,6 +45,39 @@ typedef HKChar HKCChar;
 typedef HKByte HKCByte;
 typedef HKBool HKCBool;
 
+HK_NAMESPACE_TYPE_ALIAS(I8);
+HK_NAMESPACE_TYPE_ALIAS(I16);
+HK_NAMESPACE_TYPE_ALIAS(I32);
+HK_NAMESPACE_TYPE_ALIAS(I64);
+
+HK_NAMESPACE_TYPE_ALIAS(U8);
+HK_NAMESPACE_TYPE_ALIAS(U16);
+HK_NAMESPACE_TYPE_ALIAS(U32);
+HK_NAMESPACE_TYPE_ALIAS(U64);
+
+HK_NAMESPACE_TYPE_ALIAS(F32);
+HK_NAMESPACE_TYPE_ALIAS(F64);
+
+HK_NAMESPACE_TYPE_ALIAS(Bool);
+HK_NAMESPACE_TYPE_ALIAS(Byte);
+HK_NAMESPACE_TYPE_ALIAS(Char);
+
+HK_NAMESPACE_TYPE_ALIAS(CStr);
+HK_NAMESPACE_TYPE_ALIAS(VPtr);
+
+
+#if defined(__cplusplus)
+template<typename T>
+struct HKArrayTraits;
+
+#if __cplusplus>=201103L
+template<typename T>
+using  HKArray = typename HKArrayTraits<T>::type;
+namespace hk { template<typename T> using Array = HKArray<T>; }
+#endif
+
+#endif
+
 //   Signed Int
 HK_COMPILE_TIME_ASSERT(sizeof(HKI8 )==1);
 HK_COMPILE_TIME_ASSERT(sizeof(HKI16)==2);

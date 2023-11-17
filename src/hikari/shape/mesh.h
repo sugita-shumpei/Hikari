@@ -49,6 +49,9 @@ typedef struct HKMesh    HKMesh;
 typedef struct HKSubMesh HKSubMesh;
 #endif
 
+HK_NAMESPACE_TYPE_ALIAS(Mesh);
+HK_NAMESPACE_TYPE_ALIAS(SubMesh);
+
 HK_SHAPE_ARRAY_DEFINE(Mesh);
 HK_SHAPE_ARRAY_DEFINE(SubMesh);
 
