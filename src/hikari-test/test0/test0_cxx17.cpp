@@ -32,8 +32,8 @@ int main()
 	}
 	{
 		// ”z—ñŒ^‚ÌOBJECT—p‚ÌRefPtr
-		auto vertices  = hk::TypeArrayRefPtr<hk::Vec3>(mesh->getVertices());
-		auto normals   = hk::TypeArrayRefPtr<hk::Vec3>(mesh->getNormals() );
+		auto vertices  = hk::TypeArrayRefPtr<hk::Vec3>   (mesh->getVertices() );
+		auto normals   = hk::TypeArrayRefPtr<hk::Vec3>   (mesh->getNormals()  );
 		auto submeshes = hk::TypeArrayRefPtr<hk::SubMesh>(mesh->getSubMeshes());
 	}
 	assert(mesh->getVertexCount() == 3);
