@@ -5,41 +5,29 @@
 #include <hikari/math/aabb.h>
 #include <hikari/shape/sphere.h>
 #include <hikari/shape/mesh.h>
-#include <hikari/transform_graph.h>
+#include <hikari/shape/obj_mesh.h>
 #include <stdio.h>
 #include <assert.h>
 int main() {
-	// ’ÊíŒ^‚ÌOBJECT—p‚ÌRefPtr
-	HKMesh* mesh = HKMesh_create();// 0->1->0
-	{
-		// ”z—ñŒ^‚ÌOBJECT—p‚ÌRefPtr
-		HKArrayVec3* vertices = HKArrayVec3_create();
-		HKArrayVec3_setCount(vertices,3);
-		HKArrayVec3_internal_getPointer(vertices)[0] = HKVec3_create3(-1.0f, -1.0f, 0.0f);
-		HKArrayVec3_internal_getPointer(vertices)[1] = HKVec3_create3(+3.0f, -1.0f, 0.0f);
-		HKArrayVec3_internal_getPointer(vertices)[2] = HKVec3_create3(-1.0f, +3.0f, 0.0f);
+	HKObjMesh* obj_mesh           = HKObjMesh_create();
+	HKBool res                    = HKObjMesh_loadFile(obj_mesh, "D:\\Users\\shumpei\\Document\\Github\\RTLib\\Data\\Models\\Sponza\\sponza.obj");
+	if (res){
+		HKArrayVec3   * vertices  = HKObjMesh_getVertices(obj_mesh);
+		HKArrayVec3   * normals   = HKObjMesh_getNormals (obj_mesh);
+		HKArrayVec4   * tangents  = HKObjMesh_getTangents(obj_mesh);
+		HKArrayVec2   * uvs       = HKObjMesh_getUVs(obj_mesh,0 );
+		HKArraySubMesh* submeshes = HKObjMesh_getSubMeshes(obj_mesh);
 
-		// ”z—ñŒ^‚ÌOBJECT—p‚ÌRefPtr
-		HKArrayVec3* normals = HKArrayVec3_create();
-		HKArrayVec3_setCount(normals, 3);
-		HKArrayVec3_internal_getPointer(normals)[0] = HKVec3_create3(0.0f, 0.0f, 1.0f);
-		HKArrayVec3_internal_getPointer(normals)[1] = HKVec3_create3(0.0f, 0.0f, 1.0f);
-		HKArrayVec3_internal_getPointer(normals)[2] = HKVec3_create3(0.0f, 0.0f, 1.0f);
+		for (HKU32 i = 0; i < HKArraySubMesh_getCount(submeshes); ++i) {
+			printf("submeshes: %s\n", HKObjSubMesh_getName((const HKObjSubMesh*)HKArraySubMesh_internal_getPointer_const(submeshes)[i]));
+		}
 
-		HKMesh_setVertices(mesh,vertices);
-		HKMesh_setNormals(mesh, normals);
-
-		HKUnknown_release((HKUnknown*)vertices);
-		HKUnknown_release((HKUnknown*)normals);
+		HKArraySubMesh_release(submeshes);
+		HKArrayVec3_release(vertices);
+		HKArrayVec3_release(normals);
+		HKArrayVec4_release(tangents);
+		HKArrayVec2_release(uvs);
 	}
-	{
-		// ”z—ñŒ^‚ÌOBJECT—p‚ÌRefPtr
-		HKArrayVec3* vertices = HKMesh_getVertices(mesh);
-		HKArrayVec3* normals  = HKMesh_getNormals(mesh);
-
-		HKUnknown_release((HKUnknown*)vertices);
-		HKUnknown_release((HKUnknown*)normals );
-	}
-	HKUnknown_release((HKUnknown*)mesh);
+	HKObjMesh_release(obj_mesh);
 	return 0;
 }

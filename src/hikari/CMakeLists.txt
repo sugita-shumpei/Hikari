@@ -1,47 +1,63 @@
 add_library(hikari SHARED)
-
 target_compile_features(hikari PRIVATE cxx_std_17)
 target_compile_options(hikari PRIVATE "/Zc:__cplusplus")
 target_sources(hikari PRIVATE 
-data_type.h
-platform.h
-uuid.h
-object.h 
-object.cpp 
-object_array.h 
-object_array.cpp 
-value_array.h
-value_array.cpp
-ref_ptr.h
-ref_cnt_object.h
-ref_cnt_object.cpp
-transform_graph.h
-transform_graph.cpp
-shape.h
-shape.cpp
-math/common.h
-math/common.cpp
-math/affine_3d.h
-math/matrix.h
-math/quat.h
-math/vec.h
-math/aabb.h
-shape/circle.h
-shape/circle.cpp
-shape/sphere.h
-shape/sphere.cpp
-shape/mesh.h
-shape/mesh.cpp
-shape/quad.h
-shape/quad.cpp
-shape/cube.h
-shape/cube.cpp
-shape/cylinder.h
-shape/cylinder.cpp
+
+interface/hikari/data_type.h
+interface/hikari/platform.h
+interface/hikari/uuid.h
+interface/hikari/object.h 
+interface/hikari/object_array.h 
+interface/hikari/value_array.h
+interface/hikari/ref_ptr.h
+interface/hikari/transform_graph.h
+interface/hikari/shape.h
+
+interface/hikari/math/common.h
+interface/hikari/math/affine_3d.h
+interface/hikari/math/matrix.h
+interface/hikari/math/quat.h
+interface/hikari/math/vec.h
+interface/hikari/math/aabb.h
+
+include/hikari/ref_cnt_object.h
+
+src/hikari/object.cpp 
+src/hikari/object_array.cpp 
+src/hikari/value_array.cpp
+src/hikari/ref_cnt_object.cpp
+src/hikari/transform_graph.cpp
+src/hikari/shape.cpp
+src/hikari/math/common.cpp
+)
+target_include_directories(hikari PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/interface PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(hikari::hikari ALIAS hikari)
+set_target_properties(hikari PROPERTIES FOLDER "src/hikari")
+
+add_library(hikari-shape SHARED)
+find_package(tinyobjloader CONFIG REQUIRED)
+target_compile_features(hikari-shape PRIVATE cxx_std_17)
+target_compile_options(hikari-shape PRIVATE "/Zc:__cplusplus")
+target_sources(hikari-shape PRIVATE 
+
+interface/hikari/shape/circle.h
+interface/hikari/shape/sphere.h
+interface/hikari/shape/mesh.h
+interface/hikari/shape/obj_mesh.h
+interface/hikari/shape/quad.h
+interface/hikari/shape/cube.h
+interface/hikari/shape/cylinder.h
+
+src/hikari/shape/circle.cpp
+src/hikari/shape/sphere.cpp
+src/hikari/shape/mesh.cpp
+src/hikari/shape/obj_mesh.cpp
+src/hikari/shape/quad.cpp
+src/hikari/shape/cube.cpp
+src/hikari/shape/cylinder.cpp
 )
 
-target_include_directories(hikari PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../ PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
-add_library(hikari::hikari ALIAS hikari)
-
-set_target_properties(hikari PROPERTIES FOLDER "src/hikari")
+target_include_directories(hikari-shape PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/interface PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(hikari-shape PRIVATE hikari tinyobjloader::tinyobjloader)
+add_library(hikari::shape ALIAS hikari-shape)
+set_target_properties(hikari-shape PROPERTIES FOLDER "src/hikari/shape")

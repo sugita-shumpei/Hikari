@@ -2,7 +2,7 @@
 #define HK_TEST_TEST0__H
 
 #include <hikari/object.h>
-#include <hikari/ref_cnt_object.h>
+#include <../include/hikari/ref_cnt_object.h>
 #include <hikari/ref_ptr.h>
 #ifdef __cplusplus
 #include <string>

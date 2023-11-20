@@ -3,7 +3,7 @@ target_compile_features(hikari-test-test0 PRIVATE cxx_std_17)
 target_compile_options(hikari-test-test0 PRIVATE "/Zc:__cplusplus")
 target_sources(hikari-test-test0 PRIVATE test0.h test0.cpp)
 target_include_directories(hikari-test-test0 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(hikari-test-test0 PUBLIC hikari::hikari)
+target_link_libraries(hikari-test-test0 PUBLIC hikari::hikari hikari::shape)
 
 add_executable(hikari-test-test0_c11 )
 target_compile_features(hikari-test-test0_c11  PUBLIC c_std_11)
