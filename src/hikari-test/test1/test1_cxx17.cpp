@@ -12,9 +12,8 @@ int main()
 {
 	// Hikariñ{ëÃÇÃPluginì«Ç›çûÇ›Ç…ÇÃÇ›égÇ§Ç±Ç∆
 	HKDynamicLoader     loader_core(R"(D:\Users\shumpei\Document\CMake\Hikari\build\src\hikari\Debug\hikari.dll)");
-	auto plugin_core  = HKRefPtr<HKPlugin>(loader_core.getPlugin());
-	auto arr_1        = HKRefPtr<HKArrayVec3>(plugin_core->createObject<HKArrayVec3>());
-	auto arr_2        = HKRefPtr<HKArrayVec3>(plugin_core->createObject<HKArrayVec3>());
+	auto arr_1        = HKRefPtr<HKArrayVec3>(HK_DYNAMIC_LOADER_GET_PROC_ADDRESS(loader_core,HKArrayVec3_create)());
+	auto arr_2        = HKRefPtr<HKArrayVec3>(HK_DYNAMIC_LOADER_GET_PROC_ADDRESS(loader_core,HKArrayVec3_create)());
 	return 0;
 }
 
