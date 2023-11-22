@@ -16,8 +16,6 @@ HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKSphere,getRadius,HKF32)
 #if defined(__cplusplus)
 struct HKSphere : public HKShape {
 	static HK_CXX11_CONSTEXPR HKUUID TypeID() HK_CXX_NOEXCEPT { return HK_OBJECT_TYPEID_Sphere; }
-	static HK_INLINE HKSphere* create();
-	static HK_INLINE HKSphere* create(const HKVec3& c, HKF32 r);
 	virtual HKSphere* HK_API clone()const = 0;
 	virtual void      HK_API setCenter(const HKVec3& c) = 0;
 	virtual HKVec3    HK_API getCenter() const = 0;
@@ -30,18 +28,17 @@ typedef struct HKSphere HKSphere;
 #endif
 HK_NAMESPACE_TYPE_ALIAS(Sphere);
 
-HK_EXTERN_C HK_DLL HKSphere* HK_API HKSphere_create ();
-HK_EXTERN_C HK_DLL HKSphere* HK_API HKSphere_clone(const HKSphere* sphere);
-HK_EXTERN_C HK_DLL HKSphere* HK_API HKSphere_create2(HKCVec3 c, HKF32 r);
-HK_EXTERN_C HK_DLL void      HK_API HKSphere_setCenter(HKSphere* sp, HKCVec3  c);
-HK_EXTERN_C HK_DLL HKCVec3   HK_API HKSphere_getCenter(const HKSphere*       sp);
-HK_EXTERN_C HK_DLL void      HK_API HKSphere_setRadius(HKSphere* sp, HKF32    r);
-HK_EXTERN_C HK_DLL HKF32     HK_API HKSphere_getRadius(const HKSphere*       sp);
+HK_EXTERN_C HK_DLL_FUNCTION HKSphere* HK_DLL_FUNCTION_NAME(HKSphere_create   )();
+HK_EXTERN_C HK_DLL_FUNCTION HKSphere* HK_DLL_FUNCTION_NAME(HKSphere_clone    )(const HKSphere* sphere);
+HK_EXTERN_C HK_DLL_FUNCTION HKSphere* HK_DLL_FUNCTION_NAME(HKSphere_create2  )(HKCVec3 c, HKF32 r);
+HK_EXTERN_C HK_DLL_FUNCTION void      HK_DLL_FUNCTION_NAME(HKSphere_setCenter)(HKSphere* sp, HKCVec3  c);
+HK_EXTERN_C HK_DLL_FUNCTION HKCVec3   HK_DLL_FUNCTION_NAME(HKSphere_getCenter)(const HKSphere*       sp);
+HK_EXTERN_C HK_DLL_FUNCTION void      HK_DLL_FUNCTION_NAME(HKSphere_setRadius)(HKSphere* sp, HKF32    r);
+HK_EXTERN_C HK_DLL_FUNCTION HKF32     HK_DLL_FUNCTION_NAME(HKSphere_getRadius)(const HKSphere*       sp);
 HK_SHAPE_C_DERIVE_METHODS(HKSphere);
 
 #if defined(__cplusplus)
-HK_INLINE HKSphere* HKSphere::create()                         { return HKSphere_create(); }
-HK_INLINE HKSphere* HKSphere::create(const HKVec3& c, HKF32 r) { return HKSphere_create2(HKCVec3(c),r); }
+HK_OBJECT_CREATE_TRAITS(HKSphere);
 #endif
 
 HK_SHAPE_ARRAY_DEFINE(Sphere);

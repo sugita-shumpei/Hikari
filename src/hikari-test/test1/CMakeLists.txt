@@ -1,0 +1,20 @@
+add_executable(hikari-test-test1_c11 )
+target_compile_features(hikari-test-test1_c11  PUBLIC c_std_11)
+target_sources(hikari-test-test1_c11 PUBLIC test1_c11.c)
+target_link_libraries(hikari-test-test1_c11 PRIVATE hikari::headers)
+
+add_executable(hikari-test-test1_cxx11 )
+target_compile_features(hikari-test-test1_cxx11  PUBLIC cxx_std_11)
+target_compile_options(hikari-test-test1_cxx11 PUBLIC "/Zc:__cplusplus")
+target_sources(hikari-test-test1_cxx11 PUBLIC test1_cxx11.cpp)
+target_link_libraries(hikari-test-test1_cxx11 PRIVATE hikari::headers)
+
+add_executable(hikari-test-test1_cxx17 )
+target_compile_features(hikari-test-test1_cxx17  PUBLIC cxx_std_17)
+target_compile_options(hikari-test-test1_cxx17 PUBLIC "/Zc:__cplusplus")
+target_sources(hikari-test-test1_cxx17 PUBLIC test1_cxx17.cpp)
+target_link_libraries(hikari-test-test1_cxx17 PRIVATE hikari::headers)
+
+set_target_properties(hikari-test-test1_c11    PROPERTIES FOLDER "src/hikari-test/test1")
+set_target_properties(hikari-test-test1_cxx11  PROPERTIES FOLDER "src/hikari-test/test1")
+set_target_properties(hikari-test-test1_cxx17  PROPERTIES FOLDER "src/hikari-test/test1")

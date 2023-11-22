@@ -120,7 +120,7 @@ struct HKRefPtr {
 
     template<typename ...Args>
     static HK_INLINE HKRefPtr<T> create(Args&& ...args) {
-        return HKRefPtr<T>(T::create(args...));
+        return HKRefPtr<T>(typename HKObjectCreateTraits<T>::create(args...));
     }
 
     template<typename ...Args>
@@ -272,7 +272,7 @@ struct    HKArrayRefPtr {
 
     template<typename ...Args>
     static HK_INLINE HKArrayRefPtr<T> create(Args&& ...args) {
-        return HKArrayRefPtr<T>(T::create(args...));
+        return HKArrayRefPtr<T>(typename HKObjectCreateTraits<T>::create(args...));
     }
 
     static HK_INLINE auto makeRef(T* ptr) -> HKArrayRefPtr<T> {

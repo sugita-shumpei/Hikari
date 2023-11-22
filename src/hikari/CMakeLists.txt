@@ -1,6 +1,11 @@
+add_library(hikari-headers INTERFACE)
+target_include_directories(hikari-headers INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/interface)
+add_library(hikari::headers ALIAS hikari-headers)
+
 add_library(hikari SHARED)
 target_compile_features(hikari PRIVATE cxx_std_17)
 target_compile_options(hikari PRIVATE "/Zc:__cplusplus")
+target_compile_definitions(hikari PRIVATE -DHK_MATH_USE_STD_CXX)
 target_sources(hikari PRIVATE 
 
 interface/hikari/data_type.h
@@ -10,8 +15,26 @@ interface/hikari/object.h
 interface/hikari/object_array.h 
 interface/hikari/value_array.h
 interface/hikari/ref_ptr.h
-interface/hikari/transform_graph.h
+interface/hikari/dynamic_loader.h
 interface/hikari/shape.h
+
+include/hikari/ref_cnt_object.h
+
+src/hikari/object.cpp 
+src/hikari/object_array.cpp 
+src/hikari/value_array.cpp
+src/hikari/ref_cnt_object.cpp
+src/hikari/shape.cpp
+)
+target_include_directories(hikari PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/interface PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(hikari::hikari ALIAS hikari)
+set_target_properties(hikari PROPERTIES FOLDER "src/hikari")
+
+
+add_library(hikari-math SHARED)
+target_compile_features(hikari-math PRIVATE cxx_std_17)
+target_compile_options(hikari-math  PRIVATE "/Zc:__cplusplus")
+target_sources(hikari-math PRIVATE 
 
 interface/hikari/math/common.h
 interface/hikari/math/affine_3d.h
@@ -20,19 +43,11 @@ interface/hikari/math/quat.h
 interface/hikari/math/vec.h
 interface/hikari/math/aabb.h
 
-include/hikari/ref_cnt_object.h
-
-src/hikari/object.cpp 
-src/hikari/object_array.cpp 
-src/hikari/value_array.cpp
-src/hikari/ref_cnt_object.cpp
-src/hikari/transform_graph.cpp
-src/hikari/shape.cpp
 src/hikari/math/common.cpp
 )
-target_include_directories(hikari PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/interface PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-add_library(hikari::hikari ALIAS hikari)
-set_target_properties(hikari PROPERTIES FOLDER "src/hikari")
+target_include_directories(hikari-math PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/interface PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(hikari::math ALIAS hikari)
+set_target_properties(hikari-math PROPERTIES FOLDER "src/hikari/math")
 
 add_library(hikari-shape SHARED)
 find_package(tinyobjloader CONFIG REQUIRED)

@@ -1,15 +1,23 @@
 #ifndef HK_PLATFORM__H
 #define HK_PLATFORM__H
 
+#if !defined(__CUDACC__)
+#if defined(_WIN32) || defined(_WIN64)
+#include <Windows.h>
+#endif
 #if !defined(HK_STATIC)
 #define HK_DYNAMIC
 #endif
+#else
+#define HK_STATIC
+#undef  HK_DYNAMIC
+#endif
 
+#if !defined(__CUDACC__)
 #if defined(_WIN32) || defined(_WIN64)
-
-#define HK_API __stdcall
-
-#if defined(HK_DYNAMIC) 
+#define HK_API      __stdcall
+#define HK_PFN_PROC FARPROC
+#if defined(HK_DYNAMIC) && !defined(HK_RUNTIME_LOAD)
 #if defined(HK_DLL_EXPORT)
 #define HK_DLL __declspec(dllexport)
 #else
@@ -18,11 +26,30 @@
 #else
 #define HK_DLL
 #endif
-
 #else
 #define HK_API 
+#define HK_PFN_PROC 
 #define HK_DLL
 #endif
+#else
+#define HK_API 
+#define HK_PFN_PROC 
+#define HK_DLL 
+#endif
+
+#if defined(HK_DYNAMIC)
+#if defined(HK_RUNTIME_LOAD)
+#define HK_DLL_FUNCTION            typedef
+#define HK_DLL_FUNCTION_NAME(NAME) (HK_API*Pfn_##NAME)
+#else
+#define HK_DLL_FUNCTION            HK_DLL
+#define HK_DLL_FUNCTION_NAME(NAME) HK_API NAME
+#endif
+#else
+#define HK_DLL_FUNCTION            
+#define HK_DLL_FUNCTION_NAME(NAME) HK_API NAME
+#endif
+
 // CUDA
 #ifndef __CUDACC__
 #define HK_INLINE inline
@@ -78,12 +105,13 @@
 #define HK_COMPILE_TIME_ASSERT(X) \
     HK_COMPILE_TIME_ASSERT_2(X,__LINE__)
 
-
 #if defined(__cplusplus)
 #define HK_NAMESPACE_TYPE_ALIAS(TYPE) namespace hk { typedef ::HK##TYPE TYPE; }
 #else
 #define HK_NAMESPACE_TYPE_ALIAS(TYPE) 
 #endif
 
+#define HK_MATH_FUNCTION_TABLE_MEMBER_DEFINITION(FUNCTION) \
+Pfn##_##FUNCTION pfn_##FUNCTION
 
 #endif

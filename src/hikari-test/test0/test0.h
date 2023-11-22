@@ -30,7 +30,7 @@ typedef struct HKSampleObject HKSampleObject;
 #endif
 
 HK_EXTERN_C HK_DLL HKSampleObject* HK_API HKSampleObject_create();
-HK_EXTERN_C HK_DLL void   HK_API HKSampleObject_setName(HKSampleObject* pObj,HKCStr name);
-HK_EXTERN_C HK_DLL HKCStr HK_API HKSampleObject_getName(const HKSampleObject* pObj);
+HK_EXTERN_C HK_DLL void   HK_API          HKSampleObject_setName(HKSampleObject* pObj,HKCStr name);
+HK_EXTERN_C HK_DLL HKCStr HK_API          HKSampleObject_getName(const HKSampleObject* pObj);
 
 #endif

@@ -1,5 +1,6 @@
 #ifndef HK_SHAPE_OBJ_MESH__H
 #define HK_SHAPE_OBJ_MESH__H
+#if !defined(__CUDACC__)
 #include "mesh.h"
 // {4817E141-01F5-4D49-AB31-B535BC91BFE5}
 #define HK_OBJECT_TYPEID_ObjMesh         HK_UUID_DEFINE(0x4817e141, 0x1f5 , 0x4d49, 0xab, 0x31, 0xb5, 0x35, 0xbc, 0x91, 0xbf, 0xe5)
@@ -10,10 +11,11 @@
 #if defined(__cplusplus)
 struct HKObjMesh;
 struct HKObjSubMesh : public HKSubMesh {
+	static HK_CXX11_CONSTEXPR HKUUID TypeID() { return HK_OBJECT_TYPEID_ObjSubMesh; }
 	virtual HKCStr HK_API getName() const = 0;
 };
 struct HKObjMesh    : public HKMesh    {
-	static HK_INLINE HKObjMesh* create() ;
+	static HK_CXX11_CONSTEXPR HKUUID TypeID() { return HK_OBJECT_TYPEID_ObjMesh; }
 	virtual void   HK_API setFilename(HKCStr filename)            = 0;
 	virtual HKCStr HK_API getFilename() const                     = 0;
 	virtual HKBool HK_API loadFile(HKCStr filename)               = 0;
@@ -27,22 +29,22 @@ typedef struct HKObjMesh    HKObjMesh;
 HK_SHAPE_ARRAY_DEFINE(ObjMesh);
 HK_SHAPE_ARRAY_DEFINE(ObjSubMesh);
 
-HK_EXTERN_C HK_DLL HKCStr     HK_API HKObjSubMesh_getName(const HKObjSubMesh* obj_mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKCStr     HK_DLL_FUNCTION_NAME(HKObjSubMesh_getName)(const HKObjSubMesh* obj_mesh);
 HK_OBJSUBMESH_C_DERIVE_METHODS(HKObjSubMesh);
 
-HK_EXTERN_C HK_DLL HKObjMesh* HK_API HKObjMesh_create();
-HK_EXTERN_C HK_DLL HKCStr     HK_API HKObjMesh_getFilename(const HKObjMesh* obj_mesh);
-HK_EXTERN_C HK_DLL void       HK_API HKObjMesh_setFilename(      HKObjMesh* obj_mesh,HKCStr filename);
-HK_EXTERN_C HK_DLL HKBool     HK_API HKObjMesh_loadFile(HKObjMesh* obj_mesh, HKCStr filename);
-HK_EXTERN_C HK_DLL HKCStr     HK_API HKObjMesh_getSubMeshName(const HKObjMesh* obj_mesh, HKU32 submesh_idx) ;
+HK_EXTERN_C HK_DLL_FUNCTION HKObjMesh* HK_DLL_FUNCTION_NAME(HKObjMesh_create)();
+HK_EXTERN_C HK_DLL_FUNCTION HKCStr     HK_DLL_FUNCTION_NAME(HKObjMesh_getFilename)(const HKObjMesh* obj_mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void       HK_DLL_FUNCTION_NAME(HKObjMesh_setFilename)(      HKObjMesh* obj_mesh,HKCStr filename);
+HK_EXTERN_C HK_DLL_FUNCTION HKBool     HK_DLL_FUNCTION_NAME(HKObjMesh_loadFile)(HKObjMesh* obj_mesh, HKCStr filename);
+HK_EXTERN_C HK_DLL_FUNCTION HKCStr     HK_DLL_FUNCTION_NAME(HKObjMesh_getSubMeshName)(const HKObjMesh* obj_mesh, HKU32 submesh_idx) ;
 HK_OBJMESH_C_DERIVE_METHODS(HKObjMesh);
-
-#if defined(__cplusplus)
-HK_INLINE HKObjMesh* HKObjMesh::create() { return HKObjMesh_create(); }
-#endif
 
 HK_NAMESPACE_TYPE_ALIAS(ObjMesh);
 HK_NAMESPACE_TYPE_ALIAS(ObjSubMesh);
 
+#if defined(__cplusplus)
+HK_OBJECT_CREATE_TRAITS(HKObjMesh);
+#endif
 
+#endif
 #endif

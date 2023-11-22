@@ -16,7 +16,6 @@ int main()
 	if (objmesh->loadFile(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)")) {
 
 	}
-
 	HKRefPtr<HKMesh>    mesh    = HKRefPtr<hk::Mesh>::create();
 	mesh->copy(objmesh.get());
 

@@ -1,6 +1,8 @@
 #ifndef HK_SHAPE_MESH__H
 #define HK_SHAPE_MESH__H
 #if !defined(__CUDACC__)
+
+#include "mesh_utils.h"
 #include "../shape.h"
 #include "../value_array.h"
 #include "../object_array.h"
@@ -10,53 +12,6 @@
 #define HK_OBJECT_TYPEID_SubMesh      HK_UUID_DEFINE(0x83fbfb86, 0x2150, 0x4dd2, 0x81, 0xd6, 0x2f, 0x62, 0xe2, 0x1f,  0x0, 0xa8)
 #define HK_OBJECT_TYPEID_ArrayMesh    HK_UUID_DEFINE(0x9f715414, 0xa630, 0x44cc, 0x86, 0xb7, 0x4f, 0x52, 0xe5, 0xdf, 0x67, 0x2f)
 #define HK_OBJECT_TYPEID_ArraySubMesh HK_UUID_DEFINE(0x3aa4c7e4, 0x70b0, 0x4daa, 0xb2, 0xbd, 0xbb, 0xec, 0x4 , 0x3e, 0x7 , 0xbc)
-
-#define HK_OBJSUBMESH_C_DERIVE_METHODS(TYPE) \
-HK_SHAPE_C_DERIVE_METHODS(TYPE); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1(TYPE,HKSubMesh,internal_getMesh,HKMesh*);  \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKSubMesh,internal_getMesh_const, const HKMesh*); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_VOID(TYPE,HKSubMesh,clear); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_5_VOID(TYPE,HKSubMesh,setIndices,const HKArrayU32*,indices,HKMeshTopology,topology,HKU32,base_vertex,HKBool,calc_bounds); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_CONST(TYPE,HKSubMesh,getIndices,HKArrayU32*,HKBool,add_base_vertex); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKSubMesh,getVertexCount,HKU32); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKSubMesh,getIndexCount ,HKU32); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKSubMesh,getBaseVertex ,HKU32); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKSubMesh,getTopology   ,HKMeshTopology); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKSubMesh,getFirstVertex,HKU32)
-
-#define HK_OBJMESH_C_DERIVE_METHODS(TYPE) \
-HK_SHAPE_C_DERIVE_METHODS(TYPE); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_VOID( TYPE,HKMesh,clear); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,getSubMeshCount,HKU32); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_VOID( TYPE,HKMesh,setSubMeshCount,HKU32,count); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1(TYPE,HKMesh,getSubMeshes,HKArraySubMesh*); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_CONST(TYPE,HKMesh,getSubMeshTopology,HKMeshTopology,HKU32,submesh_idx); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_CONST(TYPE,HKMesh,getSubMeshIndexCount,HKU32,HKU32,submesh_idx); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_CONST(TYPE,HKMesh,getSubMeshBaseVertex,HKU32,HKU32,submesh_idx); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,getVertexCount,HKU32); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_VOID( TYPE,HKMesh,setVertexCount,HKU32,count); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,getVertices,HKArrayVec3*); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_VOID( TYPE,HKMesh,setVertices,const HKArrayVec3*,arr); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_CONST(TYPE,HKMesh,getVertex ,HKVec3,HKU32,idx); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,getNormals,HKArrayVec3*); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_VOID( TYPE,HKMesh,setNormals,const HKArrayVec3*,arr); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,hasNormal,HKBool); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,getTangents,HKArrayVec4*); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_VOID( TYPE,HKMesh,setTangents,const HKArrayVec4*,arr); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,hasTangent,HKBool); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,getColors,HKArrayColor*); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_VOID( TYPE,HKMesh,setColors,const HKArrayColor*,arr); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,getColor8s,HKArrayColor8*); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_VOID( TYPE,HKMesh,setColor8s ,const HKArrayColor8*,arr); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_CONST(TYPE,HKMesh,hasColor,HKBool); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_CONST(TYPE,HKMesh,getUVs,HKArrayVec2*,HKU32,idx); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_3_VOID( TYPE,HKMesh,setUVs,HKU32,idx,const HKArrayVec2*,arr); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_CONST(TYPE,HKMesh,hasUV,HKBool,HKU32,idx); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_2_CONST(TYPE,HKMesh,getIndices,HKArrayU32*,HKBool,add_base_vertex); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_1_VOID( TYPE,HKMesh,updateAabb); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_3_CONST(TYPE,HKMesh,getSubMeshIndices,HKArrayU32*,HKU32,submesh_idx,HKBool,add_base_vertex); \
-HK_OBJECT_C_DERIVE_METHOD_DECL_6_VOID( TYPE,HKMesh,setSubMeshIndices,HKU32,submesh_idx,const HKArrayU32*,indices,HKMeshTopology,topology,HKU32,base_vertex,HKBool,calc_bounds)
-
 
 typedef enum HKMeshTopology {
 	HKMeshTopologyTriangles,
@@ -89,6 +44,7 @@ struct HKArrayMesh;
 struct HKArraySubMesh;
 struct HKMesh;
 struct HKSubMesh : public HKShape {
+	static HK_CXX11_CONSTEXPR HKUUID TypeID() { return HK_OBJECT_TYPEID_SubMesh; }
 	virtual void           HK_API clear() = 0;
 	virtual void           HK_API setIndices(const HKArrayU32* indices, HKMeshTopology topology, HKU32 base_vertex, HKBool calc_bounds) = 0;
 	virtual HKArrayU32*    HK_API getIndices(HKBool add_base_vertex) const = 0;
@@ -111,7 +67,7 @@ struct HKSubMesh : public HKShape {
 	HK_INLINE const HKMesh*       getMesh() const { return internal_getMesh_const(); }
 };
 struct HKMesh    : public HKShape {
-	static  HK_INLINE       HKMesh* create();
+	static HK_CXX11_CONSTEXPR HKUUID TypeID() { return HK_OBJECT_TYPEID_Mesh; }
 	virtual void            HK_API clear() = 0;
 	virtual HKMesh*         HK_API clone() const = 0;
 	virtual void            HK_API copy (const HKMesh* mesh) = 0;
@@ -184,53 +140,53 @@ HK_NAMESPACE_TYPE_ALIAS(SubMesh);
 HK_SHAPE_ARRAY_DEFINE(Mesh);
 HK_SHAPE_ARRAY_DEFINE(SubMesh);
 
-HK_EXTERN_C HK_DLL HKMesh*          HK_API HKSubMesh_internal_getMesh(HKSubMesh* mesh);
-HK_EXTERN_C HK_DLL const HKMesh*    HK_API HKSubMesh_internal_getMesh_const(const HKSubMesh* mesh);
-HK_EXTERN_C HK_DLL void             HK_API HKSubMesh_clear(HKSubMesh* mesh);
-HK_EXTERN_C HK_DLL void             HK_API HKSubMesh_setIndices(HKSubMesh* mesh, const HKArrayU32* indices, HKMeshTopology topology, HKU32 base_vertex, HKBool calc_bounds);
-HK_EXTERN_C HK_DLL HKArrayU32*      HK_API HKSubMesh_getIndices(const HKSubMesh* mesh, HKBool add_base_vertex);
-HK_EXTERN_C HK_DLL HKU32            HK_API HKSubMesh_getVertexCount(const HKSubMesh* mesh);
-HK_EXTERN_C HK_DLL HKU32            HK_API HKSubMesh_getIndexCount(const HKSubMesh* mesh) ;
-HK_EXTERN_C HK_DLL HKMeshTopology   HK_API HKSubMesh_getTopology(const HKSubMesh* mesh)  ;
-HK_EXTERN_C HK_DLL HKU32            HK_API HKSubMesh_getBaseVertex(const HKSubMesh* mesh) ;
-HK_EXTERN_C HK_DLL HKU32            HK_API HKSubMesh_getFirstVertex(const HKSubMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKMesh*          HK_DLL_FUNCTION_NAME(HKSubMesh_internal_getMesh)(HKSubMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION const HKMesh*    HK_DLL_FUNCTION_NAME(HKSubMesh_internal_getMesh_const)(const HKSubMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKSubMesh_clear)(HKSubMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKSubMesh_setIndices)(HKSubMesh* mesh, const HKArrayU32* indices, HKMeshTopology topology, HKU32 base_vertex, HKBool calc_bounds);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayU32*      HK_DLL_FUNCTION_NAME(HKSubMesh_getIndices)(const HKSubMesh* mesh, HKBool add_base_vertex);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKSubMesh_getVertexCount)(const HKSubMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKSubMesh_getIndexCount)(const HKSubMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKMeshTopology   HK_DLL_FUNCTION_NAME(HKSubMesh_getTopology)(const HKSubMesh* mesh) ;
+HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKSubMesh_getBaseVertex)(const HKSubMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKSubMesh_getFirstVertex)(const HKSubMesh* mesh);
 HK_SHAPE_C_DERIVE_METHODS(HKSubMesh);
 
-HK_EXTERN_C HK_DLL HKMesh*          HK_API HKMesh_create(void);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_clear(HKMesh* mesh);
-HK_EXTERN_C HK_DLL HKU32            HK_API HKMesh_getSubMeshCount(const HKMesh* mesh);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setSubMeshCount(HKMesh* mesh, HKU32 count);
-HK_EXTERN_C HK_DLL HKArraySubMesh*  HK_API HKMesh_getSubMeshes(HKMesh* mesh);
-HK_EXTERN_C HK_DLL HKMeshTopology   HK_API HKMesh_getSubMeshTopology( const HKMesh* mesh, HKU32 submesh_idx);
-HK_EXTERN_C HK_DLL HKU32            HK_API HKMesh_getSubMeshIndexCount(const HKMesh* mesh, HKU32 submesh_idx);
-HK_EXTERN_C HK_DLL HKU32            HK_API HKMesh_getSubMeshBaseVertex(const HKMesh* mesh, HKU32 submesh_idx);
-HK_EXTERN_C HK_DLL HKU32            HK_API HKMesh_getVertexCount(const HKMesh* mesh) ;
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setVertexCount(HKMesh* mesh,HKU32) ;
-HK_EXTERN_C HK_DLL HKArrayVec3*     HK_API HKMesh_getVertices (const HKMesh* mesh);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setVertices(HKMesh* mesh, const HKArrayVec3*);
-HK_EXTERN_C HK_DLL HKCVec3          HK_API HKMesh_getVertex(const HKMesh* mesh, HKU32 idx);
-HK_EXTERN_C HK_DLL HKArrayVec3*     HK_API HKMesh_getNormals (const HKMesh* mesh);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setNormals(HKMesh* mesh, const HKArrayVec3*);
-HK_EXTERN_C HK_DLL HKBool           HK_API HKMesh_hasNormal(const HKMesh* mesh);
-HK_EXTERN_C HK_DLL HKArrayVec4*     HK_API HKMesh_getTangents(const HKMesh* mesh);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setTangents(HKMesh* mesh, const HKArrayVec4*);
-HK_EXTERN_C HK_DLL HKBool           HK_API HKMesh_hasTangent(const HKMesh* mesh);
-HK_EXTERN_C HK_DLL HKArrayColor*    HK_API HKMesh_getColors(const HKMesh* mesh);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setColors(HKMesh* mesh, const HKArrayColor*);
-HK_EXTERN_C HK_DLL HKArrayColor8*   HK_API HKMesh_getColor8s(const HKMesh* mesh);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setColor8s(HKMesh* mesh, const HKArrayColor8*);
-HK_EXTERN_C HK_DLL HKBool           HK_API HKMesh_hasColor(const HKMesh* mesh);
-HK_EXTERN_C HK_DLL HKBool           HK_API HKMesh_hasUV(const HKMesh* mesh,HKU32 idx);
-HK_EXTERN_C HK_DLL HKArrayVec2*     HK_API HKMesh_getUVs(const HKMesh* mesh,HKU32 idx);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setUVs(HKMesh* mesh, HKU32 idx,const HKArrayVec2*);
-HK_EXTERN_C HK_DLL HKArrayU32*      HK_API HKMesh_getIndices(const HKMesh* mesh, HKBool add_base_vertex) ;
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_updateAabb(HKMesh* mesh);
-HK_EXTERN_C HK_DLL HKArrayU32*      HK_API HKMesh_getSubMeshIndices(const HKMesh* mesh, HKU32 submesh_idx, HKBool add_base_vertex);
-HK_EXTERN_C HK_DLL void             HK_API HKMesh_setSubMeshIndices(HKMesh* mesh, HKU32 submesh_idx, const HKArrayU32* indices, HKMeshTopology topology, HKU32 base_vertex, HKBool calc_bounds);
+HK_EXTERN_C HK_DLL_FUNCTION HKMesh*          HK_DLL_FUNCTION_NAME(HKMesh_create)(void);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_clear)(HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKMesh_getSubMeshCount)(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setSubMeshCount)(HKMesh* mesh, HKU32 count);
+HK_EXTERN_C HK_DLL_FUNCTION HKArraySubMesh*  HK_DLL_FUNCTION_NAME(HKMesh_getSubMeshes)(HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKMeshTopology   HK_DLL_FUNCTION_NAME(HKMesh_getSubMeshTopology)( const HKMesh* mesh, HKU32 submesh_idx);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKMesh_getSubMeshIndexCount)(const HKMesh* mesh, HKU32 submesh_idx);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKMesh_getSubMeshBaseVertex)(const HKMesh* mesh, HKU32 submesh_idx);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKMesh_getVertexCount)(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setVertexCount)(HKMesh* mesh,HKU32);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayVec3*     HK_DLL_FUNCTION_NAME(HKMesh_getVertices )(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setVertices)(HKMesh* mesh, const HKArrayVec3*);
+HK_EXTERN_C HK_DLL_FUNCTION HKCVec3          HK_DLL_FUNCTION_NAME(HKMesh_getVertex)(const HKMesh* mesh, HKU32 idx);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayVec3*     HK_DLL_FUNCTION_NAME(HKMesh_getNormals )(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setNormals)(HKMesh* mesh, const HKArrayVec3*);
+HK_EXTERN_C HK_DLL_FUNCTION HKBool           HK_DLL_FUNCTION_NAME(HKMesh_hasNormal)(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayVec4*     HK_DLL_FUNCTION_NAME(HKMesh_getTangents)(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setTangents)(HKMesh* mesh, const HKArrayVec4*);
+HK_EXTERN_C HK_DLL_FUNCTION HKBool           HK_DLL_FUNCTION_NAME(HKMesh_hasTangent)(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayColor*    HK_DLL_FUNCTION_NAME(HKMesh_getColors)(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setColors)(HKMesh* mesh, const HKArrayColor*);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayColor8*   HK_DLL_FUNCTION_NAME(HKMesh_getColor8s)(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setColor8s)(HKMesh* mesh, const HKArrayColor8*);
+HK_EXTERN_C HK_DLL_FUNCTION HKBool           HK_DLL_FUNCTION_NAME(HKMesh_hasColor)(const HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKBool           HK_DLL_FUNCTION_NAME(HKMesh_hasUV)(const HKMesh* mesh,HKU32 idx);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayVec2*     HK_DLL_FUNCTION_NAME(HKMesh_getUVs)(const HKMesh* mesh,HKU32 idx);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setUVs)(HKMesh* mesh, HKU32 idx,const HKArrayVec2*);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayU32*      HK_DLL_FUNCTION_NAME(HKMesh_getIndices)(const HKMesh* mesh, HKBool add_base_vertex);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_updateAabb)(HKMesh* mesh);
+HK_EXTERN_C HK_DLL_FUNCTION HKArrayU32*      HK_DLL_FUNCTION_NAME(HKMesh_getSubMeshIndices)(const HKMesh* mesh, HKU32 submesh_idx, HKBool add_base_vertex);
+HK_EXTERN_C HK_DLL_FUNCTION void             HK_DLL_FUNCTION_NAME(HKMesh_setSubMeshIndices)(HKMesh* mesh, HKU32 submesh_idx, const HKArrayU32* indices, HKMeshTopology topology, HKU32 base_vertex, HKBool calc_bounds);
 HK_SHAPE_C_DERIVE_METHODS(HKMesh);
 
 #if defined(__cplusplus)
-HK_INLINE HKMesh* HKMesh::create() { return HKMesh_create(); }
+HK_OBJECT_CREATE_TRAITS(HKMesh);
 #endif
 
 #endif

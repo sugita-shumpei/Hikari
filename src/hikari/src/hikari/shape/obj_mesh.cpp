@@ -213,7 +213,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 		return;
 	}
 	virtual HKArraySubMesh* HK_API getSubMeshes() override {
-		auto res = HKArraySubMesh::create();
+		auto res = HKArraySubMesh_create();
 		res->resize(m_submeshes.size());
 		HKU32 i = 0;
 		for (auto& submesh : m_submeshes) {
@@ -233,7 +233,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 	virtual HKArrayVec3*    HK_API getVertices() const override
 	{
 		// �Q�ƃJ�E���g1
-		auto res = HKArrayVec3::create();
+		auto res = HKArrayVec3_create();
 		res->setCount(m_vertex_count);
 		for (auto i = 0; i < m_vertex_count; ++i) {
 			res->setValue(i, m_vertices[i]);
@@ -254,7 +254,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 	}
 	virtual HKArrayVec3*    HK_API getNormals() const override
 	{
-		auto res = HKArrayVec3::create();
+		auto res = HKArrayVec3_create();
 		if (m_has_normal) {
 			res->setCount(m_vertex_count);
 			for (auto i = 0; i < m_normals.size(); ++i) {
@@ -273,7 +273,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 	}
 	virtual HKArrayVec4*    HK_API getTangents()const override
 	{
-		auto res = HKArrayVec4::create();
+		auto res = HKArrayVec4_create();
 		if (m_has_tangent) {
 			res->setCount(m_vertex_count);
 			for (auto i = 0; i < m_tangents.size(); ++i) {
@@ -291,7 +291,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 		return m_has_tangent;
 	}
 	virtual HKArrayColor*   HK_API getColors()const override {
-		auto res = HKArrayColor::create();
+		auto res = HKArrayColor_create();
 		if (m_has_color) {
 			res->setCount(m_vertex_count);
 			for (auto i = 0; i < m_colors.size(); ++i) {
@@ -304,7 +304,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 		return;
 	}
 	virtual HKArrayColor8*  HK_API getColor8s()const override {
-		auto res = HKArrayColor8::create();
+		auto res = HKArrayColor8_create();
 		if (m_has_color) {
 			res->setCount(m_vertex_count);
 			for (auto i = 0; i < m_colors.size(); ++i) {
@@ -323,7 +323,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 	}
 	virtual HKArrayVec2*    HK_API getUVs(HKU32 idx)const override {
 		// �Q�ƃJ�E���g1
-		auto res = HKArrayVec2::create();
+		auto res = HKArrayVec2_create();
 		if (idx >= 8) { return res; }
 		if (!m_has_uvs[idx]) {
 			return res;
@@ -341,7 +341,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 	}
 	virtual HKArrayU32*     HK_API getIndices(HKBool add_base_vertex) const override {
 		if (m_submeshes.size() == 0) {
-			return HKArrayU32::create();
+			return HKArrayU32_create();
 		}
 		if (m_submeshes.size() == 1) {
 			return m_submeshes[0]->getIndices(add_base_vertex);
@@ -351,7 +351,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 			for (auto i = 0; i < m_submeshes.size(); ++i) {
 				count += m_submeshes[i]->getIndexCount();
 			}
-			auto res = HKArrayU32::create();
+			auto res = HKArrayU32_create();
 			res->resize(count);
 
 			HKU32 offset = 0;
@@ -373,7 +373,7 @@ struct HKObjMeshImpl : public HKObjMesh, protected HKRefCntObject {
 			return m_submeshes[submesh_idx]->getIndices(add_base_vertex);
 		}
 		else {
-			return HKArrayU32::create();
+			return HKArrayU32_create();
 		}
 	}
 	virtual void            HK_API setSubMeshIndices(HKU32 submesh_idx, const HKArrayU32* indices, HKMeshTopology topology, HKU32 base_vertex, HKBool calc_bounds) override {
