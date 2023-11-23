@@ -44,6 +44,12 @@ struct     HKDynamicLoader {
 		return *this;
 	}
 
+	HK_PFN_PROC internal_getProcAddress(HKCStr func_name) {
+#if defined(_WIN32)
+ 		return GetProcAddress(module, func_name);
+#endif
+		return nullptr;
+	}
 	template<typename PFN_Type>
 	PFN_Type getProcAddress(HKCStr func_name) {
 #if defined(_WIN32)

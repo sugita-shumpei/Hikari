@@ -23,14 +23,14 @@ struct HKPlugin : public HKUnknown {
 	virtual HKU32       HK_API getDependedCount()             const = 0;
 	virtual HKUUID      HK_API getDependedID(HKU32 idx)       const = 0;
 	virtual HKUnknown*  HK_API createObject(HKUUID iid)             = 0;
-	virtual HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) = 0;
+	// virtual HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) = 0;
 
 	template<typename T>
 	HK_INLINE T*               createObject() { return (T*)createObject(T::TypeID()); }
-	template<typename FunctionPtr>
-	HK_INLINE FunctionPtr      getProcAddress(HKCStr name) {
-		return reinterpret_cast<FunctionPtr>(internal_getProcAddress(name));
-	}
+	//template<typename FunctionPtr>
+	//HK_INLINE FunctionPtr      getProcAddress(HKCStr name) {
+	//	return reinterpret_cast<FunctionPtr>(internal_getProcAddress(name));
+	//}
 };
 struct HKPluginManager : public HKUnknown {
 	static HK_CXX11_CONSTEXPR HKUUID TypeID() { return HK_OBJECT_TYPEID_PluginManager; }
@@ -122,7 +122,7 @@ HK_EXTERN_C HK_DLL_FUNCTION HKUUID           HK_DLL_FUNCTION_NAME(HKPlugin_getID
 HK_EXTERN_C HK_DLL_FUNCTION HKU32            HK_DLL_FUNCTION_NAME(HKPlugin_getDependedCount)(const HKPlugin*);
 HK_EXTERN_C HK_DLL_FUNCTION HKUUID           HK_DLL_FUNCTION_NAME(HKPlugin_getDependedID)(const HKPlugin*,HKU32);
 HK_EXTERN_C HK_DLL_FUNCTION HKUnknown*       HK_DLL_FUNCTION_NAME(HKPlugin_createObject)(HKPlugin*, HKUUID);
-HK_EXTERN_C HK_DLL_FUNCTION HK_PFN_PROC      HK_DLL_FUNCTION_NAME(HKPlugin_internal_getProcAddress)(HKPlugin*, HKCStr);
+//HK_EXTERN_C HK_DLL_FUNCTION HK_PFN_PROC      HK_DLL_FUNCTION_NAME(HKPlugin_internal_getProcAddress)(HKPlugin*, HKCStr);
 
 #if defined(__cplusplus)
 HK_OBJECT_CREATE_TRAITS(HKPluginManager);

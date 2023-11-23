@@ -62,47 +62,47 @@ struct HK_DLL HKPluginCoreImpl : public HKPlugin, protected HKRefCntObject {
 	{
 		return;
 	}
-	HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) override
-	{
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKUnknown_addRef);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKUnknown_release);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKUnknown_queryInterface);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_createObject);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_getID);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_getDependedCount);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_getDependedID);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_internal_getProcAddress);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_load);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_unload);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_contain);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_createObject);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_createObjectFromPlugin);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_getDependedCount);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_getDependedID);
-		HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_internal_getProcAddressFromPlugin);
-		HK_OBJECT_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Unknown);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), U8);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), U16);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), U32);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), U64);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), I8);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), I16);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), I32);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), I64);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), F32);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), F64);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Byte);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Char);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Vec2);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Vec3);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Vec4);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Mat2x2);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Mat3x3);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Mat4x4);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Color);
-		HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Color8);
-		return nullptr;
-	}
+	//HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) override
+	//{
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKUnknown_addRef);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKUnknown_release);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKUnknown_queryInterface);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_createObject);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_getID);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_getDependedCount);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_getDependedID);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPlugin_internal_getProcAddress);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_load);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_unload);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_contain);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_createObject);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_createObjectFromPlugin);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_getDependedCount);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_getDependedID);
+	//	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), HKPluginManager_internal_getProcAddressFromPlugin);
+	//	HK_OBJECT_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Unknown);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), U8);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), U16);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), U32);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), U64);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), I8);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), I16);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), I32);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), I64);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), F32);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), F64);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Byte);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Char);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Vec2);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Vec3);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Vec4);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Mat2x2);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Mat3x3);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Mat4x4);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Color);
+	//	HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(std::string(name), Color8);
+	//	return nullptr;
+	//}
 	// HKPlugin ‚ð‰î‚µ‚ÄŒp³‚³‚ê‚Ü‚µ‚½
 	HKUUID      HK_API getID() const override
 	{
@@ -127,6 +127,7 @@ struct HK_DLL HKPluginWrapper {
 	HKPluginWrapper(HKPluginWrapper&) = delete;
 	HKPluginWrapper& operator= (HKPluginWrapper&&) = delete;
 
+	HKDynamicLoader& getLoader() { return m_dll; }
 	HKPlugin* getPlugin() { return m_plugin; }
 	HKU32     getDependedCount() const { if (m_plugin) { return m_plugin->getDependedCount(); } else { return 0u; } }
 	HKUUID    getDependedID(HKU32 idx)const { if (m_plugin) { return m_plugin->getDependedID(idx); } else { return HK_OBJECT_TYPEID_Unknown; } }
@@ -239,9 +240,8 @@ struct HK_DLL HKPluginManagerImpl :public HKPluginManager, protected HKRefCntObj
 	}
 	HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) override
 	{
-		auto proc = m_plugin_core->internal_getProcAddress(name);
 		for (auto& [id, wrapper] : m_plugins) {
-			proc = wrapper->getPlugin()->internal_getProcAddress(name);
+			auto proc = wrapper->getLoader().internal_getProcAddress(name);
 			if (proc) { return proc; }
 		}
 		return nullptr;
@@ -249,13 +249,12 @@ struct HK_DLL HKPluginManagerImpl :public HKPluginManager, protected HKRefCntObj
 	HK_PFN_PROC HK_API internal_getProcAddressFromPlugin(HKUUID pluginid, HKCStr name) override
 	{
 		if (pluginid == HK_OBJECT_TYPEID_PluginCore) {
-			auto proc = m_plugin_core->internal_getProcAddress(name);
-			if (proc) { return proc; }
+			return nullptr;
 		}
 		else {
 			auto iter = m_plugins.find(pluginid);
 			if (iter != m_plugins.end()) {
-				return iter->second->getPlugin()->internal_getProcAddress(name);
+				return iter->second->getLoader().internal_getProcAddress(name);
 			}
 		}
 		return nullptr;
@@ -332,11 +331,6 @@ HK_EXTERN_C HK_DLL HKUUID           HK_API HKPlugin_getDependedID(const HKPlugin
 }
 HK_EXTERN_C HK_DLL HKUnknown*       HK_API HKPlugin_createObject(HKPlugin* pl, HKUUID uuid){
 	if (pl) { return pl->createObject(uuid); }
-	else { return nullptr; }
-}
-HK_EXTERN_C HK_DLL HK_PFN_PROC      HK_API HKPlugin_internal_getProcAddress(HKPlugin* pl, HKCStr name)
-{
-	if (pl) { return pl->internal_getProcAddress(name); }
 	else { return nullptr; }
 }
 
