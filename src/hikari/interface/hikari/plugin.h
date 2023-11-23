@@ -1,6 +1,7 @@
 #ifndef HK_PLUGIN__H
 #define HK_PLUGIN__H
 #if !defined(__CUDACC__)
+// TODO ŠO•”‚ÌDLL‚ðˆµ‚¤•û–@
 
 #include "platform.h"
 #include "data_type.h"
@@ -9,7 +10,11 @@
 
 #define HK_OBJECT_TYPEID_Plugin        HK_UUID_DEFINE(0xe34cbdbc, 0x4446, 0x422e, 0xb3, 0xe1, 0x37, 0x7b, 0x64, 0xf7, 0x2e, 0x4d)
 #define HK_OBJECT_TYPEID_PluginManager HK_UUID_DEFINE(0xbd6e8acd, 0x33c4, 0x4e09, 0xa0, 0x78, 0xbe, 0xea, 0x43, 0xad, 0x84, 0x95)
-#define HK_OBJECT_TYPEID_PluginCore    HK_UUID_DEFINE(0x8fcff72f, 0xbe0c, 0x4cdd, 0x9d, 0x8, 0xae, 0x14, 0x5d, 0xa3, 0x6, 0x86)
+#define HK_OBJECT_TYPEID_PluginCore    HK_UUID_DEFINE(0x8fcff72f, 0xbe0c, 0x4cdd, 0x9d, 0x8 , 0xae, 0x14, 0x5d, 0xa3, 0x6 , 0x86)
+
+#define HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME, FUNC) \
+do { if (NAME == #FUNC) { return reinterpret_cast<HK_PFN_PROC>(FUNC); } } while(false)
+
 #if defined(__cplusplus)
 
 struct HKPlugin : public HKUnknown {
@@ -66,10 +71,25 @@ struct HKPluginManager : public HKUnknown {
 		return reinterpret_cast<FunctionPtr>(internal_getProcAddressFromPlugin(pluginid,name));
 	}
 };
-
+#define HK_PLUGIN_MANAGER_GET_PROC_ADDRESS(PLUGIN_MANAGER, FUNCTION) \
+	PLUGIN_MANAGER->getProcAddress<Pfn##_##FUNCTION>(#FUNCTION)
+#define HK_PLUGIN_MANAGER_INIT_FUNCTION(PLUGIN_MANAGER, FUNCTION) \
+	Pfn_##FUNCTION FUNCTION = HK_PLUGIN_MANAGER_GET_PROC_ADDRESS(PLUGIN_MANAGER, FUNCTION)
+#define HK_PLUGIN_MANAGER_GET_PROC_ADDRESS_FROM_PLUGIN(PLUGIN_MANAGER, UUID, FUNCTION) \
+	PLUGIN_MANAGER->getProcAddressFromPlugin<Pfn##_##FUNCTION>(UUID,#FUNCTION)
+#define HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(PLUGIN_MANAGER, UUID, FUNCTION) \
+	Pfn_##FUNCTION FUNCTION = HK_PLUGIN_MANAGER_GET_PROC_ADDRESS_FROM_PLUGIN(PLUGIN_MANAGER, UUID,  FUNCTION)
 #else
 typedef struct HKPlugin        HKPlugin;
-typedef struct HKPluginManager HKPluginManager;
+typedef struct HKPluginManager HKPluginManager; 
+#define HK_PLUGIN_MANAGER_GET_PROC_ADDRESS(PLUGIN_MANAGER, FUNCTION) \
+	(Pfn_##FUNCTION)HKPluginManager_internal_getProcAddress(PLUGIN_MANAGER,#FUNCTION)
+#define HK_PLUGIN_MANAGER_INIT_FUNCTION(PLUGIN_MANAGER, FUNCTION) \
+	Pfn_##FUNCTION FUNCTION = HK_PLUGIN_MANAGER_GET_PROC_ADDRESS(PLUGIN_MANAGER, FUNCTION)
+#define HK_PLUGIN_MANAGER_GET_PROC_ADDRESS_FROM_PLUGIN(PLUGIN_MANAGER, UUID, FUNCTION) \
+	(Pfn_##FUNCTION)HKPluginManager_internal_getProcAddressFromPlugin(PLUGIN_MANAGER,UUID,#FUNCTION)
+#define HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(PLUGIN_MANAGER, UUID, FUNCTION) \
+	Pfn_##FUNCTION FUNCTION = HK_PLUGIN_MANAGER_GET_PROC_ADDRESS_FROM_PLUGIN(PLUGIN_MANAGER,UUID, FUNCTION)
 #endif
 HK_NAMESPACE_TYPE_ALIAS(Plugin);
 HK_NAMESPACE_TYPE_ALIAS(PluginManager);
@@ -86,7 +106,6 @@ HK_OBJECT_C_DERIVE_METHODS(HKPlugin);
 
 HK_NAMESPACE_TYPE_ALIAS(PluginManager);
 HK_OBJECT_C_DERIVE_METHODS(HKPluginManager);
-
 
 HK_EXTERN_C HK_DLL_FUNCTION HKPluginManager* HK_DLL_FUNCTION_NAME(HKPluginManager_create)();
 HK_EXTERN_C HK_DLL_FUNCTION HKBool           HK_DLL_FUNCTION_NAME(HKPluginManager_load)(HKPluginManager*,HKCStr);

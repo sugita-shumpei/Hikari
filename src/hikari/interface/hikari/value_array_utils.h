@@ -2,6 +2,19 @@
 #define HK_VALUE_ARRAY_UTILS__H
 #include "object.h"
 
+#include <hikari/plugin.h>
+
+#define HK_VALUE_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,TYPE) \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_create); \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_clone);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_getCapacity);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_setCapacity);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_getCount);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_setCount);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_setValue);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_getValue);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_internal_getPointer_const);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_internal_getPointer)
 
 #define HK_VALUE_ARRAY_DEFINE_COMMON_DLL(TYPE)                                                                                             \
     HK_EXTERN_C HK_DLL_FUNCTION HKArray##TYPE*   HK_DLL_FUNCTION_NAME(HKArray##TYPE##_create)();                                           \

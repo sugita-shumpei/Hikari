@@ -1,6 +1,21 @@
 #ifndef HK_OBJECT_ARRAY_UTILS__H
 #define HK_OBJECT_ARRAY_UTILS__H
 
+#include <hikari/plugin.h>
+
+#define HK_OBJECT_ARRAY_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,TYPE) \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_create); \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_clone);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_getCapacity);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_setCapacity);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_getCount);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_setCount);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_setValue);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_internal_getValue_const);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_internal_getValue);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_internal_getPointer_const);  \
+	HK_PLUGIN_DEFINE_GET_PROC_ADDRESS(NAME,HKArray##TYPE##_internal_getPointer)
+
 #define HK_OBJECT_ARRAY_DEFINE_COMMON_DLL(TYPE)                                                                                                                   \
     HK_EXTERN_C HK_DLL_FUNCTION HKArray##TYPE*        HK_DLL_FUNCTION_NAME(HKArray##TYPE##_create)();                                                             \
     HK_EXTERN_C HK_DLL_FUNCTION HKArray##TYPE*        HK_DLL_FUNCTION_NAME(HKArray##TYPE##_clone )(const HKArray##TYPE *p);                                       \
@@ -13,6 +28,7 @@
     HK_EXTERN_C HK_DLL_FUNCTION HK##TYPE*             HK_DLL_FUNCTION_NAME(HKArray##TYPE##_internal_getValue)(HKArray##TYPE *p, HKU64 idx);                       \
     HK_EXTERN_C HK_DLL_FUNCTION const HK##TYPE*const* HK_DLL_FUNCTION_NAME(HKArray##TYPE##_internal_getPointer_const)(const HKArray##TYPE *p);                    \
     HK_EXTERN_C HK_DLL_FUNCTION HK##TYPE**            HK_DLL_FUNCTION_NAME(HKArray##TYPE##_internal_getPointer)(HKArray##TYPE *p)
+    
 
 #if !defined(HK_RUNTIME_LOAD)
 #define HK_OBJECT_ARRAY_DEFINE_COMMON_INLINE(TYPE)                                                                                                                \
