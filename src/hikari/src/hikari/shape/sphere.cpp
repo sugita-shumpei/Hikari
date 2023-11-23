@@ -1,8 +1,9 @@
 #define HK_DLL_EXPORT
 #include <hikari/shape/sphere.h>
-#include <hikari/ref_cnt_object.h>
 #include <shared_mutex>
 #include <vector>
+
+#include <hikari/ref_cnt_object.h>
 
 struct HK_DLL HKSphereImpl : public HKSphere, protected HKRefCntObject {
     // HKRefCntObject ����Čp������܂���

@@ -16,6 +16,7 @@ interface/hikari/object_array.h
 interface/hikari/value_array.h
 interface/hikari/ref_ptr.h
 interface/hikari/dynamic_loader.h
+interface/hikari/plugin.h
 interface/hikari/shape.h
 
 include/hikari/ref_cnt_object.h
@@ -24,6 +25,7 @@ src/hikari/object.cpp
 src/hikari/object_array.cpp 
 src/hikari/value_array.cpp
 src/hikari/ref_cnt_object.cpp
+src/hikari/plugin.cpp
 src/hikari/shape.cpp
 )
 target_include_directories(hikari PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/interface PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -62,6 +64,7 @@ interface/hikari/shape/obj_mesh.h
 interface/hikari/shape/quad.h
 interface/hikari/shape/cube.h
 interface/hikari/shape/cylinder.h
+interface/hikari/shape/plugin.h
 
 src/hikari/shape/circle.cpp
 src/hikari/shape/sphere.cpp
@@ -70,6 +73,7 @@ src/hikari/shape/obj_mesh.cpp
 src/hikari/shape/quad.cpp
 src/hikari/shape/cube.cpp
 src/hikari/shape/cylinder.cpp
+src/hikari/shape/plugin.cpp
 )
 
 target_include_directories(hikari-shape PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/interface PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

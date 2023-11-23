@@ -1,8 +1,8 @@
 #define HK_DLL_EXPORT
 #include <hikari/shape/mesh.h>
-#include <hikari/ref_cnt_object.h>
 #include <unordered_set>
 #include <vector>
+#include <hikari/ref_cnt_object.h>
 
 struct HK_DLL HKSubMeshImpl : public HKSubMesh, protected HKRefCntObject {
 	HKSubMeshImpl(HKMesh* base) noexcept :HKSubMesh(), HKRefCntObject(), 

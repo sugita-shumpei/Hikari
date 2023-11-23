@@ -51,6 +51,7 @@ struct     HKDynamicLoader {
 #endif
 	}
 
+
 	void reset() {
 #if defined(_WIN32)
 		if (module) {
@@ -68,7 +69,7 @@ struct     HKDynamicLoader {
 HK_INLINE  HKDynamicLoader HKDynamicLoader_load(HKCStr filename) {
 	return HKDynamicLoader(filename);
 }
-HK_INLINE void            HKDynamicLoader_unload(HKDynamicLoader* pl) {
+HK_INLINE void             HKDynamicLoader_unload(HKDynamicLoader* pl) {
 	if (pl) pl->reset();
 }
 
