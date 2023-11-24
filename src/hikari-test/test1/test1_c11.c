@@ -17,7 +17,7 @@
 
 int main()
 {
-	HKDynamicLoader dl_hikari = HKDynamicLoader_load("D:\\Users\\shumpei\\Document\\CMake\\Hikari\\build\\src\\hikari\\Debug\\hikari.dll");
+	HKDynamicLoader dl_hikari = HKDynamicLoader_load("D:\\Users\\shumpei\\Document\\CMake\\Hikari\\build\\src\\hikari\\core\\Debug\\hikari-core.dll");
 	HK_DYNAMIC_LOADER_INIT_FUNCTION(dl_hikari, HKUnknown_addRef);
 	HK_DYNAMIC_LOADER_INIT_FUNCTION(dl_hikari, HKUnknown_release);
 	HK_DYNAMIC_LOADER_INIT_FUNCTION(dl_hikari, HKUnknown_queryInterface);
@@ -30,7 +30,7 @@ int main()
 	HK_DYNAMIC_LOADER_INIT_FUNCTION(dl_hikari, HKPluginManager_internal_getProcAddressFromPlugin);
 
 	HKPluginManager *pl_manager = HKPluginManager_create();
-	if (HKPluginManager_load(pl_manager, "D:\\Users\\shumpei\\Document\\CMake\\Hikari\\build\\src\\hikari\\Debug\\hikari-shape.dll"))
+	if (HKPluginManager_load(pl_manager, "D:\\Users\\shumpei\\Document\\CMake\\Hikari\\build\\src\\hikari\\shape\\Debug\\hikari-shape.dll"))
 	{
 		 HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginShape), HKObjMesh_setFilename);
 		 HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginShape), HKObjSubMesh_getName);

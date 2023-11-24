@@ -7,7 +7,7 @@ add_executable(hikari-test-test1_cxx11 )
 target_compile_features(hikari-test-test1_cxx11  PUBLIC cxx_std_11)
 target_compile_options(hikari-test-test1_cxx11 PUBLIC "/Zc:__cplusplus")
 target_sources(hikari-test-test1_cxx11 PUBLIC test1_cxx11.cpp)
-target_link_libraries(hikari-test-test1_cxx11 PRIVATE hikari::hikari)
+target_link_libraries(hikari-test-test1_cxx11 PRIVATE hikari::core hikari::shape::headers)
 
 add_executable(hikari-test-test1_cxx17 )
 target_compile_features(hikari-test-test1_cxx17  PUBLIC cxx_std_17)

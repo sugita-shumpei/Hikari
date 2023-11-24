@@ -1,7 +1,7 @@
 #define  HK_DLL_EXPORT
-#include <hikari/plugin.h>
 #include <hikari/shape/plugin.h>
 
+#include <hikari/plugin.h>
 #include <hikari/ref_cnt_object.h>
 #include <hikari/shape/sphere.h>
 #include <hikari/shape/mesh.h>
@@ -42,10 +42,6 @@ struct HK_DLL HKPluginShapeImpl : public HKPlugin, protected HKRefCntObject {
 	void        HK_API destroyObject()     override
 	{
 		return;
-	}
-	HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) override
-	{
-		return nullptr;
 	}
 	// HKPlugin ÇâÓÇµÇƒåpè≥Ç≥ÇÍÇ‹ÇµÇΩ
 	HKUUID      HK_API getID() const override

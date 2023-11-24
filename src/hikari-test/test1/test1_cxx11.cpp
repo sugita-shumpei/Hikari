@@ -13,7 +13,7 @@ int main()
 {
 	// Hikariñ{ëÃÇÃPluginì«Ç›çûÇ›Ç…ÇÃÇ›égÇ§Ç±Ç∆
 	HKRefPtr<HKPluginManager> manager = HKRefPtr<HKPluginManager>::create();
-	if (manager->load(R"(D:\Users\shumpei\Document\CMake\Hikari\build\src\hikari\Debug\hikari-shape.dll)")) {
+	if (manager->load(R"(D:\Users\shumpei\Document\CMake\Hikari\build\src\hikari\shape\Debug\hikari-shape.dll)")) {
 		HKRefPtr<HKObjMesh> obj_mesh = manager->createObjectFromPlugin<HKObjMesh>(HK_OBJECT_TYPEID_PluginShape);
 	}
 	HKRefPtr<HKArrayVec3>   arr_vec3 = manager->createObjectFromPlugin<HKArrayVec3>(HK_OBJECT_TYPEID_PluginCore);
