@@ -274,19 +274,6 @@ struct HK_DLL HKPluginManagerImpl :public HKPluginManager, protected HKRefCntObj
 		}
 		return nullptr;
 	}
-	std::vector<HKPlugin*> HK_API getDependedPlugins(HKUUID pluginid)
-	{
-		auto iter = m_plugins.find(pluginid);
-		if (iter != m_plugins.end()) {
-			std::vector<HKPlugin*> res = {};
-			res.resize(iter->second->getDependedCount());
-			for (HKU32 i = 0; i < res.size(); ++i) {
-				res[i] = getPlugin(iter->second->getDependedID(i));
-			}
-			return res;
-		}
-		return {};
-	}
 private:
 	// Å‰‚É“Ç‚Ýž‚Ü‚ê, ÅŒã‚ÉŠJ•ú‚³‚ê‚é
 	HKPlugin* m_plugin_core = nullptr;
@@ -299,13 +286,17 @@ HKPluginWrapper:: HKPluginWrapper(HKPluginManagerImpl* manager, const std::strin
 		HKPlugin* plugin = pfn_HKPlugin_create(manager);
 		if (plugin) {
 			m_plugin = plugin;
-			m_depended_plugins = manager->getDependedPlugins(plugin->getID());
+			m_depended_plugins.resize(plugin->getDependedCount());
+			for (HKU64 i = 0; i < m_depended_plugins.size(); ++i) {
+				m_depended_plugins[i] = manager->getPlugin(plugin->getDependedID(i));
+			}
 			for (auto& plugin : m_depended_plugins) {
 				if (plugin) { plugin->addRef(); }
 			}
 		}
 	}
 }
+
 HKPluginWrapper::~HKPluginWrapper() {
 	for (auto& plugin : m_depended_plugins) {
 		if (plugin) { plugin->release(); }

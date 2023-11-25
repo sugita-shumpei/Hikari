@@ -23,8 +23,8 @@ struct HKPlugin : public HKUnknown {
 	virtual HKU32       HK_API getDependedCount()             const = 0;
 	virtual HKUUID      HK_API getDependedID(HKU32 idx)       const = 0;
 	virtual HKUnknown*  HK_API createObject(HKUUID iid)             = 0;
-	// virtual HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) = 0;
 
+	// virtual HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) = 0;
 	template<typename T>
 	HK_INLINE T*               createObject() { return (T*)createObject(T::TypeID()); }
 	//template<typename FunctionPtr>
@@ -34,27 +34,14 @@ struct HKPlugin : public HKUnknown {
 };
 struct HKPluginManager : public HKUnknown {
 	static HK_CXX11_CONSTEXPR HKUUID TypeID() { return HK_OBJECT_TYPEID_PluginManager; }
-	// �v���O�C����ǂݍ���. �������n���̃v���O�C�������łɓǂݍ��܂�Ă����, 
-	// �����ɊJ������.
 	virtual HKBool      HK_API load   (HKCStr  filename)      = 0;
-	// �v���O�C�����}�l�[�W���Ɋ܂܂�Ă��邩�ǂ����m�F
 	virtual HKBool      HK_API contain(HKUUID  pluginid)const = 0;
-	// �v���O�C�����J������, �ˑ��֌W�ɂ���v���O�C��������ꍇ  
-	// �ˑ��֌W�ɂ���v���O�C�����S�ĉ�������܂ł̊ԕێ������
 	virtual void        HK_API unload (HKUUID  pluginid)      = 0;
-	// �ˑ��֌W�ɂ���v���O�C���̐��𒲂ׂ�
 	virtual HKU32       HK_API getDependedCount(HKUUID pluginid)        const = 0;
-	// �ˑ��֌W�ɂ���v���O�C�����擾����
 	virtual HKUUID      HK_API getDependedID(HKUUID pluginid,HKU32 idx) const = 0;
-	// �C�ӂ̃v���O�C������I�u�W�F�N�g���쐬����
-	// �ˑ�������������createObject�����s��, �����ł���܂ŌJ��Ԃ�
 	virtual HKUnknown*  HK_API createObject(HKUUID iid) = 0;
-	// ����̃v���O�C������I�u�W�F�N�g���쐬����
 	virtual HKUnknown*  HK_API createObjectFromPlugin(HKUUID pluginid, HKUUID iid)  = 0;
-	// �C�ӂ̃v���O�C������֐��|�C���^���쐬����
-	// �ˑ�������������internal_getProcAddress�����s��, �擾�ł���܂ŌJ��Ԃ�
 	virtual HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) = 0;
-	// ����̃v���O�C������֐��|�C���^���쐬����
 	virtual HK_PFN_PROC HK_API internal_getProcAddressFromPlugin(HKUUID pluginid, HKCStr name)  = 0;
 
 	template<typename T>

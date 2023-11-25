@@ -1,0 +1,4 @@
+#ifndef HK_TEST1_CONFIG__H
+#define HK_TEST1_CONFIG__H
+#define HK_BUILD_ROOT "@HK_BUILD_ROOT@"
+#endif

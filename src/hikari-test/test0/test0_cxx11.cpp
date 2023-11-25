@@ -3,7 +3,6 @@
 #include <hikari/math/quat.h>
 #include <hikari/math/matrix.h>
 #include <hikari/shape/sphere.h>
-#include <hikari/transform_graph.h>
 #include <iostream>
 int main()
 {
