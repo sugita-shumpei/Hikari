@@ -16,6 +16,7 @@
 #include <hikari/graphics/instance.h>
 #include <hikari/graphics/vulkan/plugin.h>
 #include <hikari/graphics/vulkan/entry.h>
+#include <hikari/graphics/opengl/plugin.h>
 int main()
 {
 	// Hikari–{‘Ì‚ÌPlugin“Ç‚Ýž‚Ý‚É‚Ì‚ÝŽg‚¤‚±‚Æ
@@ -50,6 +51,8 @@ int main()
 				printf("Vulkan Extension Name[%d] \"%s\"\n", idx, entry->getExtensionName(idx));
 			}
 		}
+	}
+	if (manager->load(HK_BUILD_ROOT R"(\src\hikari\graphics\opengl\Debug\hikari-graphics-opengl.dll)")) {
 	}
 	HKRefPtr<HKArrayVec3>     arr_vec3 = manager->createObjectFromPlugin<HKArrayVec3>(HK_OBJECT_TYPEID_PluginCore);
 	return 0;

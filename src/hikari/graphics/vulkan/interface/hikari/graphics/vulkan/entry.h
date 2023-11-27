@@ -11,10 +11,9 @@
 #if  defined(__cplusplus)
 struct HKGraphicsVulkanEntry : public HKGraphicsEntry
 {
-
 	static HK_INLINE HK_CXX11_CONSTEXPR HKUUID TypeID() { return HK_OBJECT_TYPEID_GraphicsVulkanEntry; }
 
-	virtual Pfn_HKGraphicsVulkan_VoidFunction HK_API getProcAddress(const char* name) const = 0;
+	virtual Pfn_HKGraphicsVulkan_VoidFunction HK_API getProcAddress(HKCStr name)      const = 0;
 	virtual HKU32                             HK_API getVersion()                     const = 0;
 	virtual HKBool                            HK_API hasExtensionName(HKCStr name)    const = 0;
 	virtual HKCStr                            HK_API getExtensionName(HKU32 idx)      const = 0;
@@ -31,6 +30,14 @@ struct HKGraphicsVulkanEntry : public HKGraphicsEntry
 #else
 typedef struct HKGraphicsVulkanEntry HKGraphicsVulkanEntry;
 #endif
+HK_EXTERN_C HK_DLL_FUNCTION Pfn_HKGraphicsVulkan_VoidFunction HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getProcAddress)(const HKGraphicsVulkanEntry* entry, HKCStr name);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32                             HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getVersion    )(const HKGraphicsVulkanEntry* entry);
+HK_EXTERN_C HK_DLL_FUNCTION HKBool                            HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_hasExtensionName)(const HKGraphicsVulkanEntry* entry, HKCStr name);
+HK_EXTERN_C HK_DLL_FUNCTION HKCStr                            HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getExtensionName)(const HKGraphicsVulkanEntry* entry, HKU32 idx);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32                             HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getExtensionCount)(const HKGraphicsVulkanEntry* entry);
+HK_EXTERN_C HK_DLL_FUNCTION HKBool                            HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_hasLayerName)(const HKGraphicsVulkanEntry* entry, HKCStr name);
+HK_EXTERN_C HK_DLL_FUNCTION HKCStr                            HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getLayerName)(const HKGraphicsVulkanEntry* entry, HKU32 idx);
+HK_EXTERN_C HK_DLL_FUNCTION HKU32                             HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getLayerCount)(const HKGraphicsVulkanEntry* entry);
 
 #endif
 #endif

@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <assert.h>
-
+#include <test1_config.h>
 #include <hikari/dynamic_loader.h>
 #include <hikari/plugin.h>
 #include <hikari/math/vec.h>
@@ -14,10 +14,14 @@
 #include <hikari/shape/sphere.h>
 #include <hikari/shape/mesh.h>
 #include <hikari/shape/obj_mesh.h>
+#include <hikari/graphics/plugin.h>
+#include <hikari/graphics/vulkan/plugin.h>
+#include <hikari/graphics/vulkan/entry.h>
+#include <hikari/graphics/vulkan/common.h>
 
 int main()
 {
-	HKDynamicLoader dl_hikari = HKDynamicLoader_load("D:\\Users\\shumpei\\Document\\CMake\\Hikari\\build\\src\\hikari\\core\\Debug\\hikari-core.dll");
+	HKDynamicLoader dl_hikari = HKDynamicLoader_load(HK_BUILD_ROOT "\\src\\hikari\\core\\Debug\\hikari-core.dll");
 	HK_DYNAMIC_LOADER_INIT_FUNCTION(dl_hikari, HKUnknown_addRef);
 	HK_DYNAMIC_LOADER_INIT_FUNCTION(dl_hikari, HKUnknown_release);
 	HK_DYNAMIC_LOADER_INIT_FUNCTION(dl_hikari, HKUnknown_queryInterface);
@@ -30,7 +34,7 @@ int main()
 	HK_DYNAMIC_LOADER_INIT_FUNCTION(dl_hikari, HKPluginManager_internal_getProcAddressFromPlugin);
 
 	HKPluginManager *pl_manager = HKPluginManager_create();
-	if (HKPluginManager_load(pl_manager, "D:\\Users\\shumpei\\Document\\CMake\\Hikari\\build\\src\\hikari\\shape\\Debug\\hikari-shape.dll"))
+	if (HKPluginManager_load(pl_manager, HK_BUILD_ROOT "\\src\\hikari\\shape\\Debug\\hikari-shape.dll"))
 	{
 		 HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginShape), HKObjMesh_setFilename);
 		 HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginShape), HKObjSubMesh_getName);
@@ -72,6 +76,39 @@ int main()
 		HKVec3 unit_z = HKVec3_cross(&unit_x, &unit_y);
 
 		printf("%f %f %f\n", unit_z.x, unit_z.y, unit_z.z);
+	}
+	if (HKPluginManager_load(pl_manager, HK_BUILD_ROOT "\\src\\hikari\\graphics\\common\\Debug\\hikari-graphics-common.dll")) {
+		// HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginGraphicsCommon), HKPlugin_create);
+
+	}
+	if (HKPluginManager_load(pl_manager, HK_BUILD_ROOT "\\src\\hikari\\graphics\\vulkan\\Debug\\hikari-graphics-vulkan.dll")) {
+		HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginGraphicsVulkan), HKGraphicsEntry_create);
+		HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginGraphicsVulkan), HKGraphicsVulkanEntry_getVersion);
+		HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginGraphicsVulkan), HKGraphicsVulkanEntry_getExtensionCount);
+		HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginGraphicsVulkan), HKGraphicsVulkanEntry_getLayerCount);
+		HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginGraphicsVulkan), HKGraphicsVulkanEntry_getExtensionName);
+		HK_PLUGIN_MANAGER_INIT_FUNCTION_FROM_PLUGIN(pl_manager, (HK_OBJECT_TYPEID_PluginGraphicsVulkan), HKGraphicsVulkanEntry_getLayerName);
+
+		HKGraphicsVulkanEntry* entry = (HKGraphicsVulkanEntry*)HKGraphicsEntry_create();
+		HKU32 version                =  HKGraphicsVulkanEntry_getVersion(entry);
+		HKU32 version_variant        =  HK_GRAPHICS_VULKAN_VERSION_VARIANT(version);
+		HKU32 version_major          =  HK_GRAPHICS_VULKAN_VERSION_MAJOR(version);
+		HKU32 version_minor          =  HK_GRAPHICS_VULKAN_VERSION_MINOR(version);
+		HKU32 version_patch          =  HK_GRAPHICS_VULKAN_VERSION_PATCH(version);
+		printf("Vulkan %d.%d.%d.%d\n", version_variant, version_major, version_minor, version_patch);
+		{
+			auto layer_count = HKGraphicsVulkanEntry_getLayerCount(entry);
+			for (HKU32 idx = 0; idx < layer_count; ++idx) {
+				printf("Vulkan Layer Name[%d] \"%s\"\n", idx, HKGraphicsVulkanEntry_getLayerName(entry,idx));
+			}
+		}
+		{
+			auto extension_count = HKGraphicsVulkanEntry_getExtensionCount(entry);
+			for (HKU32 idx = 0; idx < extension_count; ++idx) {
+				printf("Vulkan Extension Name[%d] \"%s\"\n", idx, HKGraphicsVulkanEntry_getExtensionName(entry,idx));
+			}
+		}
+		HKUnknown_release((HKUnknown*)entry);
 	}
 	HKUnknown_release((HKUnknown *)pl_manager);
 	HKDynamicLoader_unload(&dl_hikari);

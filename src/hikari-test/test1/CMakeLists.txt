@@ -4,7 +4,7 @@ add_executable(hikari-test-test1_c11 )
 target_compile_features(hikari-test-test1_c11  PUBLIC c_std_11)
 target_sources(hikari-test-test1_c11 PUBLIC test1_c11.c ${CMAKE_CURRENT_BINARY_DIR}/test1_config.h)
 target_include_directories(hikari-test-test1_c11 PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(hikari-test-test1_c11 PRIVATE hikari::headers)
+target_link_libraries(hikari-test-test1_c11 PRIVATE hikari::headers hikari::graphics::vulkan::headers)
 
 add_executable(hikari-test-test1_cxx11 )
 target_compile_features(hikari-test-test1_cxx11  PUBLIC cxx_std_11)
@@ -18,7 +18,7 @@ target_compile_features(hikari-test-test1_cxx17  PUBLIC cxx_std_17)
 target_compile_options(hikari-test-test1_cxx17 PUBLIC "/Zc:__cplusplus")
 target_sources(hikari-test-test1_cxx17 PUBLIC test1_cxx17.cpp ${CMAKE_CURRENT_BINARY_DIR}/test1_config.h)
 target_include_directories(hikari-test-test1_cxx17 PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(hikari-test-test1_cxx17 PRIVATE hikari::headers hikari::graphics::vulkan::headers Vulkan::Headers)
+target_link_libraries(hikari-test-test1_cxx17 PRIVATE hikari::headers hikari::graphics::vulkan::headers hikari::graphics::opengl::headers Vulkan::Headers)
 
 add_custom_command(TARGET hikari-test-test1_cxx11 
 COMMAND

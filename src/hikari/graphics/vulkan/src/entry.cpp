@@ -123,3 +123,68 @@ HK_EXTERN_C HK_DLL HKGraphicsEntry* HK_API HKGraphicsEntry_create() {
 	res->addRef();
 	return res;
 }
+
+HK_EXTERN_C HK_DLL_FUNCTION Pfn_HKGraphicsVulkan_VoidFunction HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getProcAddress)(const HKGraphicsVulkanEntry* entry, HKCStr name) {
+	if (entry) {
+		return entry->getProcAddress(name);
+	}
+	else {
+		return nullptr;
+	}
+}
+HK_EXTERN_C HK_DLL_FUNCTION HKU32                             HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getVersion)(const HKGraphicsVulkanEntry* entry) {
+	if (entry) {
+		return entry->getVersion();
+	}
+	else {
+		return 0;
+	}
+}
+HK_EXTERN_C HK_DLL_FUNCTION HKBool                            HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_hasExtensionName)(const HKGraphicsVulkanEntry* entry, HKCStr name) {
+	if (entry) {
+		return entry->hasExtensionName(name);
+	}
+	else {
+		return false;
+	}
+}
+HK_EXTERN_C HK_DLL_FUNCTION HKCStr                            HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getExtensionName)(const HKGraphicsVulkanEntry* entry, HKU32 idx) {
+	if (entry) {
+		return entry->getExtensionName(idx);
+	}
+	else {
+		return "";
+	}
+}
+HK_EXTERN_C HK_DLL_FUNCTION HKU32                             HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getExtensionCount)(const HKGraphicsVulkanEntry* entry) {
+	if (entry) {
+		return entry->getExtensionCount();
+	}
+	else {
+		return 0;
+	}
+}
+HK_EXTERN_C HK_DLL_FUNCTION HKBool                            HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_hasLayerName)(const HKGraphicsVulkanEntry* entry, HKCStr name) {
+	if (entry) {
+		return entry->hasLayerName(name);
+	}
+	else {
+		return false;
+	}
+}
+HK_EXTERN_C HK_DLL_FUNCTION HKCStr                            HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getLayerName)(const HKGraphicsVulkanEntry* entry, HKU32 idx) {
+	if (entry) {
+		return entry->getLayerName(idx);
+	}
+	else {
+		return "";
+	}
+}
+HK_EXTERN_C HK_DLL_FUNCTION HKU32                             HK_DLL_FUNCTION_NAME(HKGraphicsVulkanEntry_getLayerCount)(const HKGraphicsVulkanEntry* entry) {
+	if (entry) {
+		return entry->getLayerCount();
+	}
+	else {
+		return 0;
+	}
+}
