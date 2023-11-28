@@ -30,9 +30,9 @@ struct HK_DLL HKPluginGraphicsOpenGLImpl : public HKPlugin, protected HKRefCntOb
 	}
 	HKUnknown* HK_API createObject(HKUUID iid)  override
 	{
-		//if (iid == HK_OBJECT_TYPEID_GraphicsOpenGLContextManager) {
-		//	return HKGraphicsOpenGLContextManager_create();
-		//}
+		if (iid == HK_OBJECT_TYPEID_GraphicsOpenGLContextManager) {
+			return HKGraphicsOpenGLContextManager_create();
+		}
 		return nullptr;
 	}
 	void        HK_API destroyObject()     override

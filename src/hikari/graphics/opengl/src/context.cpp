@@ -6,8 +6,8 @@
 
 struct HK_DLL HKGraphicsOpenGLContextManagerImpl : public HKGraphicsOpenGLContextManager, protected HKRefCntObject {
 	HKGraphicsOpenGLContextManagerImpl() :HKGraphicsOpenGLContextManager(), HKRefCntObject(), m_thread_id{}, m_context{ nullptr } {
-		auto hash = std::hash<std::thread::id>();
-		m_thread_id = hash(std::this_thread::get_id());
+		auto hsh = std::hash<std::thread::id>();
+		m_thread_id = hsh (std::this_thread::get_id());
 	}
 	virtual HK_API ~HKGraphicsOpenGLContextManagerImpl(){}
 	
@@ -28,7 +28,7 @@ struct HK_DLL HKGraphicsOpenGLContextManagerImpl : public HKGraphicsOpenGLContex
 		}
 		return false;
 	}
-	virtual HKU64                    HK_API getThreadID() const override { return 0; }
+	virtual HKU64                    HK_API getThreadID() const override { return m_thread_id; }
 	virtual HKGraphicsOpenGLContext* HK_API setContext(HKGraphicsOpenGLContext* context) override { 
 		if (!context) {
 			HKGraphicsOpenGLContext* old = m_context;

@@ -6,6 +6,7 @@
 #include <string>
 
 #include <hikari/ref_cnt_object.h>
+#include <hikari/ref_ptr.h>
 #include <hikari/object_array.h>
 #include <hikari/value_array.h>
 #include <hikari/shape.h>
@@ -118,191 +119,207 @@ struct HK_DLL HKPluginCoreImpl : public HKPlugin, protected HKRefCntObject {
 	}
 };
 struct HKPluginManagerImpl;
-struct HK_DLL HKPluginWrapper {
-	 HKPluginWrapper(HKPluginManagerImpl* manager, const std::string& filename);
-	~HKPluginWrapper();
+struct HK_DLL HKPluginWrapper : public HKUnknown , protected HKRefCntObject{
+	HKPluginWrapper(HKPluginManagerImpl* manager,HKCStr filename);
+	virtual HK_API ~HKPluginWrapper() {}
 
-	HKPluginWrapper(const HKPluginWrapper&) = delete;
-	HKPluginWrapper& operator=(const HKPluginWrapper&) = delete;
-	HKPluginWrapper(HKPluginWrapper&) = delete;
-	HKPluginWrapper& operator= (HKPluginWrapper&&) = delete;
-
-	HKDynamicLoader& getLoader() { return m_dll; }
-	HKPlugin* getPlugin() { return m_plugin; }
-	HKU32     getDependedCount() const { if (m_plugin) { return m_plugin->getDependedCount(); } else { return 0u; } }
-	HKUUID    getDependedID(HKU32 idx)const { if (m_plugin) { return m_plugin->getDependedID(idx); } else { return HK_OBJECT_TYPEID_Unknown; } }
-	HKUUID    getID()const { if (m_plugin) { return m_plugin->getID(); } else { return HK_OBJECT_TYPEID_Unknown; } }
-private:
-	HKPluginManagerImpl*   m_manager          = nullptr;
-	HKDynamicLoader        m_dll              = {};
-	HKPlugin*              m_plugin           = {};
-	std::vector<HKPlugin*> m_depended_plugins = {};
-};
-struct HK_DLL HKPluginManagerImpl :public HKPluginManager, protected HKRefCntObject {
-	HKPluginManagerImpl() {
-		m_plugin_core = new HKPluginCoreImpl();
-		m_plugin_core->addRef();
-	}
-	virtual     HK_API ~HKPluginManagerImpl() {
-		for (auto [id,plugin] : m_plugins) {
-			delete plugin;
+	void   HK_API destroyObject() override
+	{
+		// まず自分自身のDLLを開放
+		if (m_plugin) {
+			printf("%s unload\n", m_filename.c_str());
+			m_plugin->release();
+			m_plugin = nullptr;
 		}
-		m_plugin_core->release();
+		m_dll.reset();
+		// 次に依存ライブラリを開放
+		for (auto& wrapper : m_depended_wrappers) { wrapper->release(); }
+		m_depended_wrappers.clear();
+		return;
 	}
-	HKU32       HK_API addRef()  override
+	HKU32  HK_API addRef() override
 	{
 		return HKRefCntObject::addRef();
 	}
-	HKU32       HK_API release() override
+	HKU32  HK_API release() override
 	{
 		return HKRefCntObject::release();
 	}
-	HKBool      HK_API queryInterface(HKUUID iid, void** ppvInterface) override
+	HKBool HK_API queryInterface(HKUUID iid, void** ppvInterface) override
+	{
+		if (iid == HK_OBJECT_TYPEID_Unknown) {
+			addRef();
+			*ppvInterface = this;
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+
+	HKDynamicLoader               m_dll               = {};
+	std::string                   m_filename          = "";
+	HKPlugin*                     m_plugin            = nullptr;
+	std::vector<HKPluginWrapper*> m_depended_wrappers = {};
+};
+
+HK_INLINE HKPluginWrapper* HKPluginWrapper_create(HKPluginManagerImpl* manager, HKCStr filename) {
+	HKPluginWrapper* res = new HKPluginWrapper(manager, filename);
+	res->addRef();
+	return res;
+}
+
+struct HK_DLL HKPluginManagerImpl : public HKPluginManager, protected HKRefCntObject {
+	// HKPluginManager を介して継承されました
+	HKPluginManagerImpl() :m_plugin_core{}, m_plugins{} {
+		m_plugin_core = new HKPluginCoreImpl();
+		m_plugin_core->addRef();
+	}
+	virtual HK_API ~HKPluginManagerImpl() {
+
+	}
+	HKU32 HK_API addRef() override
+	{
+		return HKRefCntObject::addRef();
+	}
+	HKU32 HK_API release() override
+	{
+		return HKRefCntObject::release();
+	}
+	HKBool HK_API queryInterface(HKUUID iid, void** ppvInterface) override
 	{
 		if (iid == HK_OBJECT_TYPEID_Unknown || iid == HK_OBJECT_TYPEID_PluginManager) {
 			addRef();
 			*ppvInterface = this;
 			return true;
 		}
-		return false;
-	}
-	HKBool      HK_API load(HKCStr filename) override
-	{
-		auto plugin_wrapper = new HKPluginWrapper(this, filename);
-		if (!plugin_wrapper->getPlugin()) {
-			delete plugin_wrapper;
+		else {
 			return false;
 		}
-		m_plugins.insert({ plugin_wrapper->getID(),plugin_wrapper });
+	}
+	HKBool HK_API load(HKCStr filename) override
+	{
+		auto res = HKPluginWrapper_create(this,filename);
+		if (!res->m_plugin) {
+			res->release(); 
+			return false;
+		}
+		m_plugins.insert({ res->m_plugin->getID(),res });
 		return true;
 	}
-	HKBool      HK_API contain(HKUUID pluginid) const override
+	HKBool HK_API contain(HKUUID pluginid) const override
 	{
-		if (pluginid == HK_OBJECT_TYPEID_PluginCore) { return true; }
-		return m_plugins.count(pluginid);
+		if (pluginid == HK_OBJECT_TYPEID_PluginCore) { return true;  }
+		return m_plugins.count(pluginid) > 0;
 	}
-	void        HK_API unload(HKUUID pluginid) override
+	void   HK_API unload(HKUUID pluginid) override
 	{
 		if (pluginid == HK_OBJECT_TYPEID_PluginCore) { return; }
 		auto iter = m_plugins.find(pluginid);
-		if (iter!= m_plugins.end()) {
-			auto plugin_wrapper = iter->second;
+		if (iter != std::end(m_plugins)) {
+			iter->second->release();
 			m_plugins.erase(pluginid);
-			delete plugin_wrapper;
 		}
 	}
-	HKU32       HK_API getDependedCount(HKUUID pluginid) const override
+	HKU32  HK_API getDependedCount(HKUUID pluginid) const override
 	{
-		if (pluginid == HK_OBJECT_TYPEID_PluginCore) { return 0; }
 		auto iter = m_plugins.find(pluginid);
-		if (iter != m_plugins.end()) {
-			return iter->second->getDependedCount();
+		if (iter != std::end(m_plugins)) {
+			return iter->second->m_plugin->getDependedCount();
 		}
 		else {
 			return 0u;
 		}
 	}
-	HKUUID      HK_API getDependedID(HKUUID pluginid, HKU32 idx) const override
+	HKUUID HK_API getDependedID(HKUUID pluginid, HKU32 idx) const override
 	{
-		if (pluginid == HK_OBJECT_TYPEID_PluginCore) { return HK_OBJECT_TYPEID_Unknown; }
 		auto iter = m_plugins.find(pluginid);
-		if (iter != m_plugins.end()) {
-			return iter->second->getDependedID(idx);
+		if (iter != std::end(m_plugins)) {
+			return iter->second->m_plugin->getDependedID(idx);
 		}
 		else {
 			return HK_OBJECT_TYPEID_Unknown;
 		}
 	}
-	HKUnknown*  HK_API createObject(HKUUID iid) override
+	HKUnknown* HK_API createObject(HKUUID iid) override
 	{
-		auto object = m_plugin_core->createObject(iid);
-		if (object) { return object; }
-		for (auto& [id, wrapper] : m_plugins) {
-			object = wrapper->getPlugin()->createObject(iid);
-			if (object) { return object; }
+		if (m_plugin_core) {
+			auto res = m_plugin_core->createObject(iid);
+			if (res) { return res; }
+		}
+		for (auto& [uuid, plugin] : m_plugins) {
+			auto res = plugin->m_plugin->createObject(iid);
+			if (res) { return res; }
 		}
 		return nullptr;
 	}
-	HKUnknown*  HK_API createObjectFromPlugin(HKUUID pluginid, HKUUID iid) override
+	HKUnknown* HK_API createObjectFromPlugin(HKUUID pluginid, HKUUID iid) override
 	{
 		if (pluginid == HK_OBJECT_TYPEID_PluginCore) {
-			auto object = m_plugin_core->createObject(iid);
-			if (object) { return object; }
+			return m_plugin_core->createObject(iid);
+		}
+		auto iter = m_plugins.find(pluginid);
+		if (iter != std::end(m_plugins)) {
+			return iter->second->m_plugin->createObject(iid);
 		}
 		else {
-			auto iter = m_plugins.find(pluginid);
-			if (iter != m_plugins.end()) {
-				return iter->second->getPlugin()->createObject(iid);
-			}
+			return nullptr;
 		}
-
-		return nullptr;
 	}
 	HK_PFN_PROC HK_API internal_getProcAddress(HKCStr name) override
 	{
-		for (auto& [id, wrapper] : m_plugins) {
-			auto proc = wrapper->getLoader().internal_getProcAddress(name);
-			if (proc) { return proc; }
+		for (auto& [uuid, plugin_wrapper] : m_plugins) {
+			auto res = plugin_wrapper->m_dll.internal_getProcAddress(name);
+			if (res) { return res; }
 		}
 		return nullptr;
 	}
 	HK_PFN_PROC HK_API internal_getProcAddressFromPlugin(HKUUID pluginid, HKCStr name) override
 	{
-		if (pluginid == HK_OBJECT_TYPEID_PluginCore) {
-			return nullptr;
+		auto iter = m_plugins.find(pluginid);
+		if (iter != std::end(m_plugins)) {
+			return iter->second->m_dll.internal_getProcAddress(name);
 		}
 		else {
-			auto iter = m_plugins.find(pluginid);
-			if (iter != m_plugins.end()) {
-				return iter->second->getLoader().internal_getProcAddress(name);
-			}
+			return nullptr;
 		}
-		return nullptr;
 	}
-
-	// HKRefCntObject を介して継承されました
 	void HK_API destroyObject() override
 	{
+		{
+			// 
+			for (auto& [iid, wrapper] : m_plugins) {
+				wrapper->release();
+			}
+			m_plugins.clear();
+		}
+		if (m_plugin_core) {
+			m_plugin_core->release();
+			m_plugin_core = nullptr;
+		}
 		return;
 	}
 
-	HKPlugin*              HK_API getPlugin(HKUUID pluginid){
-		if (pluginid == HK_OBJECT_TYPEID_PluginCore) { return m_plugin_core; }
-		auto iter = m_plugins.find(pluginid);
-		if (iter != m_plugins.end()) {
-			return iter->second->getPlugin();
-		}
-		return nullptr;
-	}
-private:
-	// 最初に読み込まれ, 最後に開放される
-	HKPlugin* m_plugin_core = nullptr;
-	std::unordered_map<HKUUID, HKPluginWrapper*> m_plugins = {};
+	HKPlugin*                                    m_plugin_core  = nullptr;
+	std::unordered_map<HKUUID, HKPluginWrapper*> m_plugins      = {};
+
 };
 
-HKPluginWrapper:: HKPluginWrapper(HKPluginManagerImpl* manager, const std::string& filename) :m_manager{ manager }, m_dll(filename.c_str()) {
-	Pfn_HKPlugin_create pfn_HKPlugin_create = HK_DYNAMIC_LOADER_GET_PROC_ADDRESS(m_dll, HKPlugin_create);
-	if (pfn_HKPlugin_create && manager) {
-		HKPlugin* plugin = pfn_HKPlugin_create(manager);
-		if (plugin) {
-			m_plugin = plugin;
-			m_depended_plugins.resize(plugin->getDependedCount());
-			for (HKU64 i = 0; i < m_depended_plugins.size(); ++i) {
-				m_depended_plugins[i] = manager->getPlugin(plugin->getDependedID(i));
-			}
-			for (auto& plugin : m_depended_plugins) {
-				if (plugin) { plugin->addRef(); }
-			}
-		}
+HKPluginWrapper::HKPluginWrapper(HKPluginManagerImpl* manager, HKCStr filename) :
+	m_filename { filename },
+	m_dll{ filename }, 
+	m_plugin{ nullptr },
+	m_depended_wrappers{}
+{
+	Pfn_HKPlugin_create pfn_HKPlugin_create = m_dll.getProcAddress<Pfn_HKPlugin_create>("HKPlugin_create");
+	if (!pfn_HKPlugin_create) { return; }
+	m_plugin = pfn_HKPlugin_create(manager);
+	if (!m_plugin) { return;  }
+	m_depended_wrappers.resize(m_plugin->getDependedCount());
+	for (auto i = 0; i < m_depended_wrappers.size(); ++i) {
+		m_depended_wrappers[i] = manager->m_plugins.at(m_plugin->getDependedID(i));
+		m_depended_wrappers[i]->addRef();
 	}
-}
-
-HKPluginWrapper::~HKPluginWrapper() {
-	for (auto& plugin : m_depended_plugins) {
-		if (plugin) { plugin->release(); }
-	}
-	if (m_plugin) { m_plugin->release(); }
-	m_dll.reset();
 }
 
 HK_EXTERN_C HK_DLL HKPlugin*        HK_API HKPlugin_create(HKPluginManager* manager) {

@@ -5,6 +5,8 @@
 #include <cmath>
 #include <cstdio>
 #include <cassert>
+#include <utility>
+#include <thread>
 #include <hikari/dynamic_loader.h>
 #include <hikari/plugin.h>
 #include <hikari/ref_ptr.h>
@@ -17,6 +19,7 @@
 #include <hikari/graphics/vulkan/plugin.h>
 #include <hikari/graphics/vulkan/entry.h>
 #include <hikari/graphics/opengl/plugin.h>
+#include <hikari/graphics/opengl/context.h>
 int main()
 {
 	// Hikari–{‘Ì‚ÌPlugin“Ç‚Ýž‚Ý‚É‚Ì‚ÝŽg‚¤‚±‚Æ
@@ -53,7 +56,19 @@ int main()
 		}
 	}
 	if (manager->load(HK_BUILD_ROOT R"(\src\hikari\graphics\opengl\Debug\hikari-graphics-opengl.dll)")) {
+		printf("hikari-graphics-opengl.dll load!\n");
+		HKRefPtr<HKGraphicsOpenGLContextManager> context_manager = manager->createObject<HKGraphicsOpenGLContextManager>();
+		printf("threadid: %lld\n", context_manager->getThreadID());
+		printf("threadid: %lld\n", std::hash<std::thread::id>()(std::this_thread::get_id()));
+
+		std::thread th([&manager]() {
+			HKRefPtr<HKGraphicsOpenGLContextManager> context_manager2 = manager->createObject<HKGraphicsOpenGLContextManager>();
+			printf("threadid: %lld\n", context_manager2->getThreadID());
+			printf("threadid: %lld\n", std::hash<std::thread::id>()(std::this_thread::get_id()));
+		});
+		th.join();
 	}
+
 	HKRefPtr<HKArrayVec3>     arr_vec3 = manager->createObjectFromPlugin<HKArrayVec3>(HK_OBJECT_TYPEID_PluginCore);
 	return 0;
 }
