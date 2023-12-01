@@ -11,6 +11,7 @@ embed_ptx(
 )
 
 add_executable(         hikari-test-owl-test1 hostCode.h deviceCode.h hostCode.cpp)
+target_include_directories(hikari-test-owl-test1 PRIVATE ${Stb_INCLUDE_DIR})
 target_compile_features(hikari-test-owl-test1 PUBLIC  cxx_std_20)
 target_link_libraries(  hikari-test-owl-test1 PRIVATE hikari-test-owl-testlib hikari-test-owl-test1-ptx owl::owl glfw glm::glm)
 
