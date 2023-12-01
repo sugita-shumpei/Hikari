@@ -77,7 +77,7 @@ namespace hikari {
 						auto cos_f = std::cosf(theta);
 						auto sin_f = std::sinf(theta);
 
-						direction = len_w * (dir_w * cos_f + dir_u * sin_f);
+						direction = len_w * (dir_w * cos_f - dir_u * sin_f);
 					}
 					void processPressKeyRight(float delta) {
 						auto len_w = ::owl::length(direction);
@@ -89,7 +89,7 @@ namespace hikari {
 						auto cos_f = std::cosf(theta);
 						auto sin_f = std::sinf(theta);
 
-						direction = len_w * (dir_w * cos_f - dir_u * sin_f);
+						direction = len_w * (dir_w * cos_f + dir_u * sin_f);
 					}
 					::owl::vec3f origin = ::owl::vec3f(0.0f, 0.0f, -1.0f);
 					::owl::vec3f direction = ::owl::vec3f(0.0f, 0.0f, 1.0f);

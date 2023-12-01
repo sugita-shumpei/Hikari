@@ -30,7 +30,9 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	payload.color        = owl::vec3f(0.4f, 0.4f, 0.4f);
 	float px = ((float)idx.x + 0.5f) / ((float)dim.x);
 	float py = ((float)idx.y + 0.5f) / ((float)dim.y);
-	auto  ray_dir = rg_data.camera.getRayDirection(px, py);
+	float cx = 2.0f * px - 1.0f;
+	float cy = 2.0f * py - 1.0f;
+	auto  ray_dir = rg_data.camera.getRayDirection(cx, cy);
 
 	owl::RayT<0,1> ray(rg_data.camera.eye,
 		owl::normalize(ray_dir),
@@ -98,9 +100,9 @@ OPTIX_CLOSEST_HIT_PROGRAM(simpleCH)() {
 	if (vn2_l < 0.01f) { vn2 = f_normal; }
 
 	auto v_normal = owl::normalize((1.0f - (bary.x + bary.y)) * vn0 + bary.x * vn1 + bary.y * vn2);
-	payload.color.x = (v_normal.x + 1.0f) * 0.5f;
-	payload.color.y = (v_normal.y + 1.0f) * 0.5f;
-	payload.color.z = (v_normal.z + 1.0f) * 0.5f;
+	//color.x = (f_normal.x + 1.0f) * 0.5f;
+	//color.y = (f_normal.y + 1.0f) * 0.5f;
+	//color.z = (f_normal.z + 1.0f) * 0.5f;
 
 	//color.x = vt.x;
 	//color.y = vt.y;
@@ -109,9 +111,9 @@ OPTIX_CLOSEST_HIT_PROGRAM(simpleCH)() {
 	auto tmp_col = tex2D<float4>(ch_data.texture_ambient, vt.x, vt.y);
 
 	//color = ch_data.colors[pri_idx];
-	//payload.color.x = tmp_col.x;
-	//payload.color.y = tmp_col.y;
-	//payload.color.z = tmp_col.z;
+	payload.color.x = tmp_col.x;
+	payload.color.y = tmp_col.y;
+	payload.color.z = tmp_col.z;
 }
 
 OPTIX_DIRECT_CALLABLE_PROGRAM(simpleDC1)(owl::vec4f& c) {

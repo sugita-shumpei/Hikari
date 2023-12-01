@@ -15,24 +15,25 @@
 
 extern "C" char* deviceCode_ptx[];
 
+
 int main() {
+	hikari::test::owl::testlib::PinholeCamera camera;
+	camera.origin.y    =  1.0f;
+	camera.origin.z    =  3.0f;
+	camera.direction.z = -1.0f;
+
 	hikari::test::owl::testlib::ObjModel model;
-	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
-	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+	// model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
+	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
 	auto center = model.getBBox().getCenter();
 	auto range  = model.getBBox().getRange ();
-	// Cameraセッティング
-	hikari::test::owl::testlib::PinholeCamera camera;
-	camera.origin.x    = center.x;
-	camera.origin.y    = center.y;
-	camera.origin.z    =  5.0f;
-	camera.direction.z = -1.0f;
-	camera.speed.x     = range.x * 0.01f / 2.0f;
-	camera.speed.y     = range.z * 0.01f / 2.0f;
+	
+	camera.speed.x = range.x * 0.01f / 2.0f;
+	camera.speed.y = range.z * 0.01f / 2.0f;
 
-	auto bbox_len = std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
-	auto context  = owlContextCreate();
-	auto textures = std::vector<OWLTexture>();
+	auto bbox_len     = std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
+	auto context      = owlContextCreate();
+	auto textures     = std::vector<OWLTexture>();
 
 	{
 		// black
@@ -84,6 +85,7 @@ int main() {
 							pixel_data[(h - 1u - i) * w + j].z = pixels[4 * (i * w + j) + 2];
 							pixel_data[(h - 1u - i) * w + j].w = pixels[4 * (i * w + j) + 3];
 						}
+
 					}
 				}
 				auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, w, h, pixel_data.data());
@@ -128,7 +130,7 @@ int main() {
 		owlRayGenSetPointer(raygen            , "fb_data", nullptr);
 		owlRayGenSet2i(raygen , "fb_size"     , camera.width, camera.height);
 		owlRayGenSet1f(raygen , "min_depth"   , 0.001f);
-		owlRayGenSet1f(raygen , "max_depth"   , 2.0f*bbox_len);
+		owlRayGenSet1f(raygen , "max_depth"   , bbox_len);
 		owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&camera.origin);
 		owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&dir_u);
 		owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&dir_v);
