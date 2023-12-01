@@ -1,20 +1,24 @@
 #include <iostream>
 #include <string>
 #include <owl/owl.h>
+#include <owl/common/math/vec.h>
+#include <owl/common/math/constants.h>
 #include <GLFW/glfw3.h>
 #include <gl_viewer.h>
 #include <vector>
+#include <tuple>
 #include "hostCode.h"
 #include "deviceCode.h"
 
 extern "C" char* deviceCode_ptx[];
 
+
 int main() {
-	int width = 1024; int height = 1024;
+	PinholeCamera camera;
 
 	auto context      = owlContextCreate();
 	auto module       = owlModuleCreate(context, (const char*)deviceCode_ptx);
-	auto accum_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, width * height, nullptr);
+	auto accum_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, camera.width * camera.height, nullptr);
 	auto params       = static_cast<OWLParams>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
@@ -31,14 +35,23 @@ int main() {
 	auto raygen     = static_cast<OWLRayGen>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
-			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP      ,offsetof(LaunchParams,world)},
+			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP      ,offsetof(RayGenData,world)},
 			OWLVarDecl{"fb_data"     ,OWLDataType::OWL_RAW_POINTER,offsetof(RayGenData,fb_data)},
 			OWLVarDecl{"fb_size"     ,OWLDataType::OWL_INT2       ,offsetof(RayGenData,fb_size)},
+			OWLVarDecl{"camera.eye"  ,OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,eye)},
+			OWLVarDecl{"camera.dir_u",OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_u)},
+			OWLVarDecl{"camera.dir_v",OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_v)},
+			OWLVarDecl{"camera.dir_w",OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_w)},
 			OWLVarDecl{nullptr}
 		};
+		auto [dir_u, dir_v, dir_w] = camera.getUVW();
 		raygen = owlRayGenCreate(context, module, "simpleRG", sizeof(RayGenData), var_decls, -1);
-		owlRayGenSetPointer(raygen, "fb_data", nullptr);
-		owlRayGenSet2i(raygen, "fb_size"     , width, height);
+		owlRayGenSetPointer(raygen            , "fb_data", nullptr);
+		owlRayGenSet2i(raygen , "fb_size"     , camera.width, camera.height);
+		owlRayGenSet3fv(raygen, "camera.eye"  ,(const float*)&camera.origin);
+		owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&dir_u);
+		owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&dir_v);
+		owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&dir_w);
 	}
 
 	auto miss_prog  = static_cast<OWLMissProg>(nullptr);
@@ -116,28 +129,56 @@ int main() {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-		GLFWwindow* window = glfwCreateWindow(width, height, "title", nullptr, nullptr);
+		GLFWwindow* window = glfwCreateWindow(camera.width, camera.height, "title", nullptr, nullptr);
 		glfwMakeContextCurrent(window);
 		if (!hikari::test::owl::testlib::loadGLLoader((hikari::test::owl::testlib::GLloadproc)glfwGetProcAddress)){
 			return -1;
 		}
-		auto viewer = std::make_unique<hikari::test::owl::testlib::GLViewer>(context, width, height);
+		auto viewer = std::make_unique<hikari::test::owl::testlib::GLViewer>(context, camera.width, camera.height);
 		glfwShowWindow(window);
 		while (!glfwWindowShouldClose(window)) {
-			glfwGetWindowSize(window, &width, &height);
-			if (viewer->resize(width, height)) {
-				printf("%d %d\n", width, height);
-				owlBufferResize(accum_buffer, width * height);
-				owlParamsSetBuffer(params, "accum_buffer", accum_buffer);
-				owlParamsSet1i(    params, "accum_sample", 0);
-				owlRayGenSet2i(    raygen, "fb_size"     , width,height);
+			{
+				glfwPollEvents();
+				glfwGetWindowSize(window, &camera.width, &camera.height);
+				if (viewer->resize(camera.width, camera.height)) {
+					printf("%d %d\n", camera.width, camera.height);
+					owlBufferResize(accum_buffer, camera.width * camera.height);
+					owlParamsSetBuffer(params, "accum_buffer", accum_buffer);
+					owlParamsSet1i(params, "accum_sample", 0);
+					owlRayGenSet2i(raygen, "fb_size", camera.width, camera.height);
+				}
+				{
+					bool update = false;
+					if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+						camera.processPressKeyW(0.01f);
+						update = true;
+					}
+					if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+						camera.processPressKeyS(0.01f);
+						update = true;
+					}
+					if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+						camera.processPressKeyA(0.01f);
+						update = true;
+					}
+					if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+						camera.processPressKeyD(0.01f);
+						update = true;
+					}
+					if (update) {
+						auto [dir_u, dir_v, dir_w] = camera.getUVW();
+						owlRayGenSet3fv(raygen, "camera.eye", (const float*)&camera.origin);
+						owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&dir_u);
+						owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&dir_v);
+						owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&dir_w);
+					}
+				}
 			}
 			owlRayGenSetPointer(raygen, "fb_data", viewer->mapFramePtr());
 			owlBuildSBT(context, OWL_SBT_RAYGENS);
-			owlLaunch2D(raygen, width, height, params);
+			owlLaunch2D(raygen, camera.width, camera.height, params);
 			viewer->unmapFramePtr();
 			viewer->render();
-			glfwPollEvents();
 			glfwSwapBuffers(window);
 		}
 		viewer.reset();

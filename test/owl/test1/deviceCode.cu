@@ -10,11 +10,11 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	const owl::vec2i dim = owl::getLaunchDims();
 	auto& rg_data = owl::getProgramData<RayGenData>();
 	auto color = owl::vec3f(0.4f, 0.4f, 0.4f);
-	owl::RayT<0,1> ray(owl::vec3f(
-		2.0f*(((float)idx.x)/((float)dim.x))-1.0f,
-		2.0f*(((float)idx.y)/((float)dim.y))-1.0f,
-		0.0f),
-		owl::vec3f(0.0f,0.0f,1.0f),
+	owl::RayT<0,1> ray(rg_data.camera.eye,
+		rg_data.camera.getRayDirection(
+			((float)idx.x) / ((float)dim.x),
+			((float)idx.y) / ((float)dim.y)
+		),
 		0.01f,1000.0f
 	);
 	owl::trace(rg_data.world, ray, 1, color);
