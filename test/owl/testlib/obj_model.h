@@ -16,6 +16,9 @@ namespace hikari {
                 struct ObjVec3  {
                     float x; float y; float z;
                 };
+                struct ObjVec4 {
+                    float x; float y; float z; float w;
+                };
                 struct ObjBBox {
                     void    addPoint(const ObjVec3& p) {
                         if (p.x > max.x) { max.x = p.x; }
@@ -60,13 +63,13 @@ namespace hikari {
                     ObjVec3 min = { +FLT_MAX,+FLT_MAX,+FLT_MAX };
                 };
                 struct ObjMaterial { 
-                    std::string name         = "";
-                    ObjVec3     diffuse      = ObjVec3{ 1.0f,1.0f,1.0f };
-                    ObjVec3     specular     = ObjVec3{ 1.0f,1.0f,1.0f };
-                    ObjVec3     emission     = ObjVec3{ 0.0f,0.0f,0.0f };
-                    float       ior          = 1.0f;
-                    float       shinness     = 0.0f;
-                    float       dissolve     = 0;
+                    std::string name             = "";
+                    ObjVec3     diffuse          = ObjVec3{ 1.0f,1.0f,1.0f };
+                    ObjVec3     specular         = ObjVec3{ 1.0f,1.0f,1.0f };
+                    ObjVec3     emission         = ObjVec3{ 0.0f,0.0f,0.0f };
+                    float       ior              = 1.0f;
+                    float       shinness         = 0.0f;
+                    float       dissolve         = 0;
                     uint16_t    tex_diffuse      = 0; // 0 -> default or none
                     uint16_t    tex_specular     = 0; // 0 -> default or none
                     uint16_t    tex_shinness     = 0; // 0 -> default or none
@@ -87,20 +90,21 @@ namespace hikari {
                     std::vector<ObjIdx3>  tri_indices            ;
                     std::vector<ObjVec3>  positions              ;
                     std::vector<ObjVec3>  normals                ;
+                    std::vector<ObjVec4>  tangents               ;
                     std::vector<ObjVec2>  uvs                    ;
-                    ObjBBox               bbox                   ;
                     std::vector<uint8_t>  mat_indices            ;
-                    std::vector<uint16_t> materials              ;// ‘å’ï‚Í1, ê‡‚É‚æ‚Á‚Ä2
+                    std::vector<uint16_t> materials              ;// ï¿½ï¿½ï¿½ï¿½1, ï¿½ê‡ï¿½É‚ï¿½ï¿½ï¿½ï¿½2
                     std::vector<uint8_t>  smoothing_group_indices;
-                    std::vector<uint8_t>  smoothing_groups       ;// ‘å’ï‚Í1, ê‡‚É‚æ‚Á‚Ä2
+                    std::vector<uint8_t>  smoothing_groups       ;// ï¿½ï¿½ï¿½ï¿½1, ï¿½ê‡ï¿½É‚ï¿½ï¿½ï¿½ï¿½2
+                    ObjBBox               bbox;
                 };
                 struct ObjModel {
-                    bool       load(std::string filename);
+                    bool load(std::string filename);
 
                     void        setFilename(std::string filename);
                     std::string getFilename() const { return m_filename; }
 
-                    ObjBBox getBBox() const { return m_bbox; }
+                    auto  getBBox() const { return m_bbox; }
                     auto& getMaterials() const { return m_materials; }
                     auto& getMaterials()       { return m_materials; }
                     auto& getTextures() const  { return m_textures;  }

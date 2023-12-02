@@ -96,15 +96,35 @@ OPTIX_CLOSEST_HIT_PROGRAM(simpleCH)() {
 	if (vn0_l < 0.01f) { vn0 = f_normal; }
 	if (vn1_l < 0.01f) { vn1 = f_normal; }
 	if (vn2_l < 0.01f) { vn2 = f_normal; }
-
+	// 
 	auto v_normal = owl::normalize((1.0f - (bary.x + bary.y)) * vn0 + bary.x * vn1 + bary.y * vn2);
 	payload.color.x = (v_normal.x + 1.0f) * 0.5f;
 	payload.color.y = (v_normal.y + 1.0f) * 0.5f;
 	payload.color.z = (v_normal.z + 1.0f) * 0.5f;
+	auto vtg0       = owl::vec3f(ch_data.tangents[tri_idx.x]);
+	auto vtg1       = owl::vec3f(ch_data.tangents[tri_idx.y]);
+	auto vtg2       = owl::vec3f(ch_data.tangents[tri_idx.z]);
 
-	//color.x = vt.x;
-	//color.y = vt.y;
-	//color.z = 1.0f-(vt.x+vt.y)*0.5f;
+	auto vbs0       = ch_data.tangents[tri_idx.x].w;
+	auto vbs1       = ch_data.tangents[tri_idx.y].w;
+	auto vbs2       = ch_data.tangents[tri_idx.z].w;
+	auto vbn0       = vbs0* owl::normalize(owl::cross(vn0, vtg0));
+	auto vbn1       = vbs1* owl::normalize(owl::cross(vn1, vtg1));
+	auto vbn2       = vbs2* owl::normalize(owl::cross(vn2, vtg2));
+	auto v_binormal = owl::normalize((1.0f - (bary.x + bary.y)) * vbn0 + bary.x * vbn1 + bary.y * vbn2);
+	//payload.color.x = (v_binormal.x + 1.0f) * 0.5f;
+	//payload.color.y = (v_binormal.y + 1.0f) * 0.5f;
+	//payload.color.z = (v_binormal.z + 1.0f) * 0.5f;
+
+	auto v_tangent  = owl::normalize(owl::cross(v_binormal, v_normal) );
+
+	auto tmp_bump   = tex2D<float4>(ch_data.texture_bump  , vt.x, vt.y);
+	// shadingñ@ê¸(Ç†Ç≠Ç‹Ç≈ï`âÊóp)
+	auto fin_normal = owl::normalize(tmp_bump.z * v_normal + (2.0f * tmp_bump.x - 1.0f) * v_tangent + (2.0f * tmp_bump.y - 1.0f) * v_binormal);
+
+	//payload.color.x = (fin_normal.x + 1.0f) * 0.5f;
+	//payload.color.y = (fin_normal.y + 1.0f) * 0.5f;
+	//payload.color.z = (fin_normal.z + 1.0f) * 0.5f;
 
 	auto tmp_col = tex2D<float4>(ch_data.texture_ambient, vt.x, vt.y);
 

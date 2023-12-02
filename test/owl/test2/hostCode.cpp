@@ -23,7 +23,7 @@ int main() {
 	camera.direction.z = -1.0f;
 
 	hikari::test::owl::testlib::ObjModel model;
-	// model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
+	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
 	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
 	auto center = model.getBBox().getCenter();
 	auto range  = model.getBBox().getRange ();
@@ -31,7 +31,7 @@ int main() {
 	camera.speed.x = range.x * 0.01f / 2.0f;
 	camera.speed.y = range.z * 0.01f / 2.0f;
 
-	auto bbox_len     = std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
+	auto bbox_len     = 2.0f *std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
 	auto context      = owlContextCreate();
 	auto textures     = std::vector<OWLTexture>();
 

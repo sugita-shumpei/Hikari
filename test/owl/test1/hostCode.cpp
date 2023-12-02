@@ -1,10 +1,12 @@
 #define STB_IMAGE_IMPLEMENTATION 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <iostream>
 #include <string>
 #include <owl/owl.h>
 #include <owl/common/math/vec.h>
 #include <owl/common/math/constants.h>
 #include <stb_image.h>
+#include <stb_image_write.h>
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <tuple>
@@ -19,9 +21,11 @@ int main() {
 	hikari::test::owl::testlib::ObjModel model;
 	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
 	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+
+
 	auto center = model.getBBox().getCenter();
 	auto range  = model.getBBox().getRange ();
-	// CameraƒZƒbƒeƒBƒ“ƒO
+	// Cameraï¿½Zï¿½bï¿½eï¿½Bï¿½ï¿½ï¿½O
 	hikari::test::owl::testlib::PinholeCamera camera;
 	camera.origin.x    = center.x;
 	camera.origin.y    = center.y;
@@ -30,11 +34,17 @@ int main() {
 	camera.speed.x     = range.x * 0.01f / 2.0f;
 	camera.speed.y     = range.z * 0.01f / 2.0f;
 
-	auto bbox_len = std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
+	auto bbox_len = 2.0f*std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
 	auto context  = owlContextCreate();
 	auto textures = std::vector<OWLTexture>();
 
+	constexpr auto bump_level         = 5.0f;
+	constexpr auto texture_idx_black  = 0;
+	constexpr auto texture_idx_white  = 1;
+	constexpr auto texture_idx_blue   = 2;
+	constexpr auto texture_idx_offset = 2;
 	{
+	
 		// black
 		{
 			auto pixel = owl::vec4uc(0, 0, 0, 0);
@@ -47,47 +57,110 @@ int main() {
 			auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, 1, 1, &pixel);
 			textures.push_back(tex);
 		}
+		// blue
+		{
+			auto pixel = owl::vec4uc(127u, 127u, 255, 255);
+			auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, 1, 1, &pixel);
+			textures.push_back(tex);
+		}
 		// model
 		{
+			
 			for (auto& texture : model.getTextures()) {
+				
 				if (texture.filename == "") { continue; }
+				bool is_bump_map = texture.filename.find("bump") != std::string::npos;
 				auto filepath     = std::filesystem::canonical(std::filesystem::path(model.getFilename()).parent_path() / texture.filename);
 				auto filepath_str = filepath.string();
 				int w, h, c;
 				auto pixels      = stbi_load(filepath_str.data(), &w, &h, &c, 0);
 				assert(pixels);
 				auto pixel_data = std::vector<owl::vec4uc>();
-				pixel_data.resize(w * h );
-				for (size_t i = 0; i < h; ++i) {
-					for (size_t j = 0; j < w; ++j) {
-						if (c == 1) {
-							pixel_data[(h - 1u - i) * w + j].x     = pixels[1 * (i * w + j) + 0];
-							pixel_data[(h - 1u - i) * w + j].y = 255;
-							pixel_data[(h - 1u - i) * w + j].z = 255;
-							pixel_data[(h - 1u - i) * w + j].w = 255;
+				pixel_data.resize(w * h, {0,0,0,0});
+				if  (is_bump_map){
+					// 3x3 sobel filterã‚’ã‹ã‘ã‚‹
+					for (size_t i = 0; i < h; ++i) {
+						for (size_t j = 0; j < w; ++j) {
+							if (i == 0 || i == h - 1) {
+								pixel_data[(h - 1u - i) * w + j].x = 127u;
+								pixel_data[(h - 1u - i) * w + j].y = 127u;
+								pixel_data[(h - 1u - i) * w + j].z = 255u;
+								pixel_data[(h - 1u - i) * w + j].w = 255u;
+								continue; 
+							}
+							if (j == 0 || j == w - 1) {
+								pixel_data[(h - 1u - i) * w + j].x = 127u;
+								pixel_data[(h - 1u - i) * w + j].y = 127u;
+								pixel_data[(h - 1u - i) * w + j].z = 255u;
+								pixel_data[(h - 1u - i) * w + j].w = 255u;
+								continue;
+							}
+
+							auto m_L0 = pixels[c * (i * w + j - 1) + 0];
+							auto m_R0 = pixels[c * (i * w + j + 1) + 0];
+
+							auto m_LL = pixels[c * (w * (i-1) + j - 1) + 0];
+							auto m_0L = pixels[c * (w * (i-1) + j + 0) + 0];
+							auto m_RL = pixels[c * (w * (i-1) + j + 1) + 0];
+							
+							auto m_LR = pixels[c * (w * (i+1) + j - 1) + 0];
+							auto m_0R = pixels[c * (w * (i+1) + j + 0) + 0];
+							auto m_RR = pixels[c * (w * (i+1) + j + 1) + 0];
+							// 0 1020 2040
+							auto du = (2u * m_R0 + m_RR + m_RL) + 255u * 4u - (2u * m_L0 + m_LR + m_LL);
+							auto dv = (2u * m_0R + m_RR + m_LR) + 255u * 4u - (2u * m_0L + m_RL + m_LL);
+
+							float nx = std::fminf(std::fmaxf((static_cast<float>(du) / static_cast<float>(1020) - 1.0f) * bump_level, -1.0f), 1.0f);
+							float ny = std::fminf(std::fmaxf((static_cast<float>(dv) / static_cast<float>(1020) - 1.0f) * bump_level, -1.0f), 1.0f);
+							float nz = std::sqrtf(1.0f-std::fminf(nx * nx + ny * ny,1.0f));
+
+							pixel_data[(h - 1u - i) * w + j].x = 255u * (0.5f * nx + 0.5f);
+							pixel_data[(h - 1u - i) * w + j].y = 255u * (0.5f * ny + 0.5f);
+							pixel_data[(h - 1u - i) * w + j].z = 255u * nz;
+							pixel_data[(h - 1u - i) * w + j].w = 255u;
+
+							
 						}
-						if (c == 2) {
-							pixel_data[(h - 1u - i) * w + j].x = pixels[2 * (i * w + j) + 0];
-							pixel_data[(h - 1u - i) * w + j].y = pixels[2 * (i * w + j) + 1];
-							pixel_data[(h - 1u - i) * w + j].z = 255;
-							pixel_data[(h - 1u - i) * w + j].w = 255;
-						}
-						if (c == 3) {
-							pixel_data[(h - 1u - i) * w + j].x = pixels[3 * (i * w + j) +0];
-							pixel_data[(h - 1u - i) * w + j].y = pixels[3 * (i * w + j) +1];
-							pixel_data[(h - 1u - i) * w + j].z = pixels[3 * (i * w + j) +2];
-							pixel_data[(h - 1u - i) * w + j].w = 255;
-						}
-						if (c == 4) {
-							pixel_data[(h - 1u - i) * w + j].x = pixels[4 * (i * w + j) + 0];
-							pixel_data[(h - 1u - i) * w + j].y = pixels[4 * (i * w + j) + 1];
-							pixel_data[(h - 1u - i) * w + j].z = pixels[4 * (i * w + j) + 2];
-							pixel_data[(h - 1u - i) * w + j].w = pixels[4 * (i * w + j) + 3];
+					}
+					{
+						auto bamp_path    = filepath.filename().replace_extension();
+						auto bamp_path_str = bamp_path.string()+ std::string("_normal.png");
+						stbi_write_png(bamp_path_str.c_str(), w, h, 4, pixel_data.data(), 4 * w);
+					}
+				}
+				else {
+					for (size_t i = 0; i < h; ++i) {
+						for (size_t j = 0; j < w; ++j) {
+							if (c == 1) {
+								pixel_data[(h - 1u - i) * w + j].x = pixels[1 * (i * w + j) + 0];
+								pixel_data[(h - 1u - i) * w + j].y = pixels[1 * (i * w + j) + 0];
+								pixel_data[(h - 1u - i) * w + j].z = pixels[1 * (i * w + j) + 0];
+								pixel_data[(h - 1u - i) * w + j].w = 255;
+							}
+							if (c == 2) {
+								pixel_data[(h - 1u - i) * w + j].x = pixels[2 * (i * w + j) + 0];
+								pixel_data[(h - 1u - i) * w + j].y = pixels[2 * (i * w + j) + 1];
+								pixel_data[(h - 1u - i) * w + j].z = 0;
+								pixel_data[(h - 1u - i) * w + j].w = 255;
+							}
+							if (c == 3) {
+								pixel_data[(h - 1u - i) * w + j].x = pixels[3 * (i * w + j) + 0];
+								pixel_data[(h - 1u - i) * w + j].y = pixels[3 * (i * w + j) + 1];
+								pixel_data[(h - 1u - i) * w + j].z = pixels[3 * (i * w + j) + 2];
+								pixel_data[(h - 1u - i) * w + j].w = 255;
+							}
+							if (c == 4) {
+								pixel_data[(h - 1u - i) * w + j].x = pixels[4 * (i * w + j) + 0];
+								pixel_data[(h - 1u - i) * w + j].y = pixels[4 * (i * w + j) + 1];
+								pixel_data[(h - 1u - i) * w + j].z = pixels[4 * (i * w + j) + 2];
+								pixel_data[(h - 1u - i) * w + j].w = pixels[4 * (i * w + j) + 3];
+							}
 						}
 					}
 				}
-				auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, w, h, pixel_data.data());
+				auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, w, h, pixel_data.data(), OWL_TEXTURE_LINEAR, OWL_TEXTURE_WRAP);
 				textures.push_back(tex);
+
 				stbi_image_free(pixels);
 			}
 		}
@@ -108,7 +181,6 @@ int main() {
 		owlParamsSet1i(params, "accum_sample", 0);
 	}
 
-
 	auto raygen     = static_cast<OWLRayGen>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
@@ -127,7 +199,7 @@ int main() {
 		raygen = owlRayGenCreate(context, module, "simpleRG", sizeof(RayGenData), var_decls, -1);
 		owlRayGenSetPointer(raygen            , "fb_data", nullptr);
 		owlRayGenSet2i(raygen , "fb_size"     , camera.width, camera.height);
-		owlRayGenSet1f(raygen , "min_depth"   , 0.001f);
+		owlRayGenSet1f(raygen , "min_depth"   , 0.01f);
 		owlRayGenSet1f(raygen , "max_depth"   , 2.0f*bbox_len);
 		owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&camera.origin);
 		owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&dir_u);
@@ -145,25 +217,30 @@ int main() {
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"vertices" ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,vertices) },
 			OWLVarDecl{"normals"  ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals ) },
+			OWLVarDecl{"tangents" ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,tangents) },
 			OWLVarDecl{"uvs"      ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs     ) },
 			OWLVarDecl{"colors"   ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors  ) },
 			OWLVarDecl{"indices"  ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
 			OWLVarDecl{"texture_ambient"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient)  },
+			OWLVarDecl{"texture_bump"     ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_bump)     },
 			OWLVarDecl{nullptr}
 		};
 		geom_type  = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
 		owlGeomTypeSetClosestHit(geom_type, 0, module, "simpleCH");
 	}
+
 	auto geom_type_alpha = static_cast<OWLGeomType>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
-			OWLVarDecl{"vertices"         ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,vertices) },
-			OWLVarDecl{"normals"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals) },
-			OWLVarDecl{"uvs"              ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs) },
-			OWLVarDecl{"colors"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors) },
-			OWLVarDecl{"indices"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices) },
+			OWLVarDecl{"vertices"         ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,vertices)         },
+			OWLVarDecl{"normals"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals)          },
+			OWLVarDecl{"tangents"         ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,tangents)         },
+			OWLVarDecl{"uvs"              ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs)              },
+			OWLVarDecl{"colors"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors)           },
+			OWLVarDecl{"indices"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices)          },
 			OWLVarDecl{"texture_ambient"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient)  },
 			OWLVarDecl{"texture_alpha"    ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha  )  },
+			OWLVarDecl{"texture_bump"     ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_bump)     },
 			OWLVarDecl{nullptr}
 		};
 		geom_type_alpha = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -179,16 +256,16 @@ int main() {
 				auto colr_buf = static_cast<OWLBuffer>(nullptr);
 				auto vert_buf = static_cast<OWLBuffer>(nullptr);
 				auto texc_buf = static_cast<OWLBuffer>(nullptr);
+				auto tang_buf = static_cast<OWLBuffer>(nullptr);
 				auto norm_buf = static_cast<OWLBuffer>(nullptr);
-
-				auto colors = mesh.getVisSmoothColors();
+				auto colors   = mesh.getVisSmoothColors();
 				{
 					vert_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, mesh.positions.size()  , mesh.positions.data());
 					colr_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, colors.size()          , colors.data());
 					norm_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, mesh.normals.size()    , mesh.normals.data());
+					tang_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, mesh.tangents.size()   , mesh.tangents.data());
 					texc_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT2, mesh.uvs.size()        , mesh.uvs.data());
 				}
-
 				for (auto i = 0; i < mesh.materials.size(); ++i) {
 					auto& material     = model.getMaterials()[mesh.materials[i]];
 					auto tri_indices   = mesh.getSubMeshIndices(i);
@@ -196,20 +273,27 @@ int main() {
 					auto trim          = owlGeomCreate(context, tmp_geom_type);
 					auto indx_buf      = owlDeviceBufferCreate(context, OWLDataType::OWL_UINT3, tri_indices.size(), tri_indices.data());
 					owlTrianglesSetVertices(trim, vert_buf, owlBufferSizeInBytes(vert_buf) / sizeof(owl::vec3f), sizeof(owl::vec3f), 0);
-					owlTrianglesSetIndices(trim, indx_buf, owlBufferSizeInBytes(indx_buf) / sizeof(owl::vec3i), sizeof(owl::vec3i), 0);
+					owlTrianglesSetIndices(trim, indx_buf , owlBufferSizeInBytes(indx_buf) / sizeof(owl::vec3i), sizeof(owl::vec3i), 0);
 					owlGeomSetBuffer(trim, "vertices", vert_buf);
 					owlGeomSetBuffer(trim, "colors"  , colr_buf);
 					owlGeomSetBuffer(trim, "normals" , norm_buf);
+					owlGeomSetBuffer(trim, "tangents", tang_buf);
 					owlGeomSetBuffer(trim, "uvs"     , texc_buf);
 					owlGeomSetBuffer(trim, "indices" , indx_buf);
 					if (material.tex_diffuse == 0) {
-						owlGeomSetTexture(trim, "texture_ambient", textures[0]);
+						owlGeomSetTexture(trim, "texture_ambient", textures[texture_idx_white]);
 					}
 					else {
-						owlGeomSetTexture(trim, "texture_ambient", textures[material.tex_diffuse + 1]);
+						owlGeomSetTexture(trim, "texture_ambient", textures[material.tex_diffuse + texture_idx_offset]);
+					}
+					if (material.tex_bump    == 0) {
+						owlGeomSetTexture(trim, "texture_bump", textures[texture_idx_blue]);
+					}
+					else {
+						owlGeomSetTexture(trim, "texture_bump", textures[material.tex_bump      + texture_idx_offset]);
 					}
 					if (material.tex_alpha != 0) {
-						owlGeomSetTexture(trim, "texture_alpha"  , textures[material.tex_alpha  + 1]);
+						owlGeomSetTexture(trim, "texture_alpha"  , textures[material.tex_alpha  + texture_idx_offset]);
 					}
 					trim_map.insert({ name + "[" + std::to_string(i) + "]", trim});
 				}
@@ -284,7 +368,7 @@ int main() {
 					if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
 						double x; double y;
 						glfwGetCursorPos(window, &x, &y);
-						// ¶ã‚ª(0,0), ‰E‰º‚ª(1,1)
+						// ï¿½ï¿½ï¿½ã‚ª(0,0), ï¿½Eï¿½ï¿½ï¿½ï¿½(1,1)
 						float sx = std::clamp((float)x / (float)camera.width , 0.0f, 1.0f);
 						float sy = std::clamp((float)y / (float)camera.height, 0.0f, 1.0f);
 						printf("%f %f\n",sx,sy);

@@ -38,11 +38,13 @@ struct MissProgData
 struct HitgroupData {
 	owl::vec3f *         vertices;
 	owl::vec3f *         normals ;
+	owl::vec4f *         tangents;
 	owl::vec2f *         uvs;
 	owl::vec3f *         colors  ;
 	owl::vec3ui*         indices ;
-	cudaTextureObject_t  texture_alpha   ;
-	cudaTextureObject_t  texture_ambient ;
+	cudaTextureObject_t  texture_alpha; 
+	cudaTextureObject_t  texture_ambient;
+	cudaTextureObject_t  texture_bump;   // (normal map)
 };
 
 struct CallableData {

@@ -17,9 +17,9 @@ namespace hikari {
                     bool  resize(int new_width, int new_height, bool should_clear = false) ;
                     void  render() ;
 
-                    void* mapFramePtr();
+                    void* mapFramePtr()  ;
                     void  unmapFramePtr();
-                    void* getFramePtr() ;
+                    void* getFramePtr()  ;
                 private:
                     void createShaderProgram();
                     void deleteShaderProgram() ;
