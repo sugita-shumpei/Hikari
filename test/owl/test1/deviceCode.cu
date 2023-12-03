@@ -23,22 +23,39 @@ __forceinline__ __device__ owl::vec2f normalize_uv(owl::vec2f vt) {
 }
 
 OPTIX_RAYGEN_PROGRAM(simpleRG)() {
-	//owl::LCG<24>           random;
 	const owl::vec2i idx = owl::getLaunchIndex();
 	const owl::vec2i dim = owl::getLaunchDims();
 	auto& rg_data        = owl::getProgramData<RayGenData>();
-	auto  payload        = PayloadData();
-	payload.color        = owl::vec3f(0.4f, 0.4f, 0.4f);
-	float px = ((float)idx.x + 0.5f) / ((float)dim.x);
-	float py = ((float)idx.y + 0.5f) / ((float)dim.y);
-	auto  ray_dir = rg_data.camera.getRayDirection(px, py);
 
-	owl::RayT<0,1> ray(rg_data.camera.eye,
-		owl::normalize(ray_dir),
-		rg_data.min_depth,rg_data.max_depth
-	);
-	owl::trace(rg_data.world, ray, 1, payload);
-	rg_data.fb_data[dim.x * idx.y + idx.x] = owl::make_rgba(payload.color);
+	owl::LCG<24>           random;
+	random.init(dim.x * idx.y + idx.x, optixLaunchParams.accum_sample);
+
+	constexpr auto frame_samples = 1;
+
+	auto color = owl::vec3f(0.0f,0.0f,0.0f);
+	for (int i = 0; i < frame_samples; ++i) {
+		float px      = ((float)idx.x + random() - 0.5f) / ((float)dim.x);
+		float py      = ((float)idx.y + random() - 0.5f) / ((float)dim.y);
+		auto  ray_dir = rg_data.camera.getRayDirection(px, py);
+
+		owl::RayT<0, 1> ray(rg_data.camera.eye,
+			owl::normalize(ray_dir),
+			rg_data.min_depth, rg_data.max_depth
+		);
+
+		auto  payload = PayloadData();
+		payload.color = owl::vec3f(0.0f, 0.0f, 0.0f);
+		owl::trace(rg_data.world, ray, 1, payload);
+		color += payload.color;
+	}
+
+
+	auto res = optixLaunchParams.accum_buffer[dim.x * idx.y + idx.x];
+	auto col = (color + owl::vec3f(res));
+	auto smp = res.w + frame_samples;
+	optixLaunchParams.accum_buffer[dim.x * idx.y + idx.x] = owl::vec4f(col, smp);
+	col *= (1.0f / smp);
+	rg_data.fb_data[dim.x * idx.y + idx.x] = owl::make_rgba(col);
 }
 
 OPTIX_MISS_PROGRAM(  simpleMS)() {

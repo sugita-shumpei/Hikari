@@ -417,6 +417,7 @@ int main() {
 		}
 		auto viewer = std::make_unique<hikari::test::owl::testlib::GLViewer>(context, camera.width, camera.height);
 		{
+			int accum_sample = 0;
 			glfwShowWindow(window);
 			while (!glfwWindowShouldClose(window)) {
 				{
@@ -426,8 +427,6 @@ int main() {
 					if (viewer->resize(camera.width, camera.height)) {
 						printf("%d %d\n", camera.width, camera.height);
 						owlBufferResize(accum_buffer, camera.width * camera.height);
-						owlParamsSetBuffer(params, "accum_buffer", accum_buffer);
-						owlParamsSet1i(params, "accum_sample", 0);
 						owlRayGenSet2i(raygen, "fb_size", camera.width, camera.height);
 						update = true;
 					}
@@ -488,11 +487,17 @@ int main() {
 					}
 					if (update) {
 						auto [dir_u, dir_v, dir_w] = camera.getUVW();
+						owlBufferClear(accum_buffer);
 						owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&camera.origin);
 						owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&dir_u);
 						owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&dir_v);
 						owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&dir_w);
+						accum_sample = 0;
 					}
+					else {
+						accum_sample++;
+					}
+					owlParamsSet1i(params, "accum_sample", accum_sample);
 				}
 
 				owlRayGenSetPointer(raygen, "fb_data" , viewer->mapFramePtr());
