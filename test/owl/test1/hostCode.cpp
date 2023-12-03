@@ -19,9 +19,9 @@ extern "C" char* deviceCode_ptx[];
 
 int main() {
 	hikari::test::owl::testlib::ObjModel model;
-	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
-	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
-
+	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
+	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
 
 	auto center = model.getBBox().getCenter();
 	auto range  = model.getBBox().getRange ();
@@ -39,12 +39,55 @@ int main() {
 	auto textures = std::vector<OWLTexture>();
 
 	constexpr auto bump_level         = 5.0f;
-	constexpr auto texture_idx_black  = 0;
-	constexpr auto texture_idx_white  = 1;
-	constexpr auto texture_idx_blue   = 2;
-	constexpr auto texture_idx_offset = 2;
+	constexpr auto texture_idx_envlit = 0;
+	constexpr auto texture_idx_black  = 1;
+	constexpr auto texture_idx_white  = 2;
+	constexpr auto texture_idx_blue   = 3;
+	constexpr auto texture_idx_offset = 3;
 	{
-	
+		// env lit  
+		{
+			int w, h, c;
+			auto pixels = stbi_loadf(envlit_filename.data(), &w, &h, &c, 0);
+			assert(pixels);
+			auto pixel_data = std::vector<owl::vec4f>();
+			pixel_data.resize(w * h, { 0.0f,0.0f,0.0f,0.0f });
+			{
+				for (size_t i = 0; i < h; ++i) {
+					for (size_t j = 0; j < w; ++j) {
+						if (c == 1) {
+							pixel_data[(h - 1u - i) * w + j].x = pixels[1 * (i * w + j) + 0];
+							pixel_data[(h - 1u - i) * w + j].y = pixels[1 * (i * w + j) + 0];
+							pixel_data[(h - 1u - i) * w + j].z = pixels[1 * (i * w + j) + 0];
+							pixel_data[(h - 1u - i) * w + j].w = 0.0f;
+						}
+						if (c == 2) {
+							pixel_data[(h - 1u - i) * w + j].x = pixels[2 * (i * w + j) + 0];
+							pixel_data[(h - 1u - i) * w + j].y = pixels[2 * (i * w + j) + 1];
+							pixel_data[(h - 1u - i) * w + j].z = 0;
+							pixel_data[(h - 1u - i) * w + j].w = 0.0f;
+						}
+						if (c == 3) {
+							pixel_data[(h - 1u - i) * w + j].x = pixels[3 * (i * w + j) + 0];
+							pixel_data[(h - 1u - i) * w + j].y = pixels[3 * (i * w + j) + 1];
+							pixel_data[(h - 1u - i) * w + j].z = pixels[3 * (i * w + j) + 2];
+							pixel_data[(h - 1u - i) * w + j].w = 0.0f;
+						}
+						if (c == 4) {
+							pixel_data[(h - 1u - i) * w + j].x = pixels[4 * (i * w + j) + 0];
+							pixel_data[(h - 1u - i) * w + j].y = pixels[4 * (i * w + j) + 1];
+							pixel_data[(h - 1u - i) * w + j].z = pixels[4 * (i * w + j) + 2];
+							pixel_data[(h - 1u - i) * w + j].w = 0.0f;
+						}
+					}
+				}
+			}
+
+			auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA32F, w, h, pixel_data.data(), OWL_TEXTURE_LINEAR, OWL_TEXTURE_WRAP);
+			textures.push_back(tex);
+
+			stbi_image_free(pixels);
+		}
 		// black
 		{
 			auto pixel = owl::vec4uc(0, 0, 0, 0);
@@ -184,9 +227,9 @@ int main() {
 	auto raygen     = static_cast<OWLRayGen>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
-			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP      ,offsetof(RayGenData,world)},
-			OWLVarDecl{"fb_data"     ,OWLDataType::OWL_RAW_POINTER,offsetof(RayGenData,fb_data)},
-			OWLVarDecl{"fb_size"     ,OWLDataType::OWL_INT2       ,offsetof(RayGenData,fb_size)},
+			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP      ,offsetof(RayGenData,world)   },
+			OWLVarDecl{"fb_data"     ,OWLDataType::OWL_RAW_POINTER,offsetof(RayGenData,fb_data) },
+			OWLVarDecl{"fb_size"     ,OWLDataType::OWL_INT2       ,offsetof(RayGenData,fb_size) },
 			OWLVarDecl{"min_depth"   ,OWLDataType::OWL_FLOAT      ,offsetof(RayGenData,min_depth)},
 			OWLVarDecl{"max_depth"   ,OWLDataType::OWL_FLOAT      ,offsetof(RayGenData,max_depth)},
 			OWLVarDecl{"camera.eye"  ,OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,eye)},
@@ -209,20 +252,29 @@ int main() {
 
 	auto miss_prog  = static_cast<OWLMissProg>(nullptr);
 	{
-		miss_prog = owlMissProgCreate(context, module, "simpleMS", sizeof(MissProgData), nullptr, 0);
+		OWLVarDecl var_decls[] = {
+			OWLVarDecl{"texture_envlight"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(MissProgData,texture_envlight)  },
+			OWLVarDecl{nullptr}
+		};
+		miss_prog = owlMissProgCreate(context, module, "simpleMS", sizeof(MissProgData), var_decls, -1);
+		owlMissProgSetTexture(miss_prog, "texture_envlight", textures[texture_idx_envlit]);
 	}
 
 	auto geom_type  = static_cast<OWLGeomType>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
-			OWLVarDecl{"vertices" ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,vertices) },
-			OWLVarDecl{"normals"  ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals ) },
-			OWLVarDecl{"tangents" ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,tangents) },
-			OWLVarDecl{"uvs"      ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs     ) },
-			OWLVarDecl{"colors"   ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors  ) },
-			OWLVarDecl{"indices"  ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
-			OWLVarDecl{"texture_ambient"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient)  },
-			OWLVarDecl{"texture_bump"     ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_bump)     },
+			OWLVarDecl{"vertices"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,vertices) },
+			OWLVarDecl{"normals"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals ) },
+			OWLVarDecl{"tangents"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,tangents) },
+			OWLVarDecl{"uvs"                ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs     ) },
+			OWLVarDecl{"colors"             ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors  ) },
+			OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
+			OWLVarDecl{"color_ambient"      ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_ambient )  },
+			OWLVarDecl{"color_specular"     ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_specular)  },
+			OWLVarDecl{"shininess"          ,OWLDataType::OWL_FLOAT      ,offsetof(HitgroupData,shininess)       },
+			OWLVarDecl{"texture_ambient"    ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient) },
+			OWLVarDecl{"texture_normal"     ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_normal)  },
+			OWLVarDecl{"texture_specular"   ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_specular)},
 			OWLVarDecl{nullptr}
 		};
 		geom_type  = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -238,9 +290,13 @@ int main() {
 			OWLVarDecl{"uvs"              ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs)              },
 			OWLVarDecl{"colors"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors)           },
 			OWLVarDecl{"indices"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices)          },
-			OWLVarDecl{"texture_ambient"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient)  },
-			OWLVarDecl{"texture_alpha"    ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha  )  },
-			OWLVarDecl{"texture_bump"     ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_bump)     },
+			OWLVarDecl{"color_ambient"    ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_ambient )  },
+			OWLVarDecl{"color_specular"   ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_specular)  },
+			OWLVarDecl{"shininess"        ,OWLDataType::OWL_FLOAT      ,offsetof(HitgroupData,shininess)       },
+			OWLVarDecl{"texture_ambient"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient) },
+			OWLVarDecl{"texture_alpha"    ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha  ) },
+			OWLVarDecl{"texture_normal"   ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_normal)  },
+			OWLVarDecl{"texture_specular" ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_specular)},
 			OWLVarDecl{nullptr}
 		};
 		geom_type_alpha = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -280,17 +336,26 @@ int main() {
 					owlGeomSetBuffer(trim, "tangents", tang_buf);
 					owlGeomSetBuffer(trim, "uvs"     , texc_buf);
 					owlGeomSetBuffer(trim, "indices" , indx_buf);
+					owlGeomSet3f(trim, "color_ambient" , material.diffuse.x , material.diffuse.y , material.diffuse.y );
+					owlGeomSet3f(trim, "color_specular", material.specular.x, material.specular.y, material.specular.y);
+					owlGeomSet1f(trim, "shininess"     , material.shinness);
 					if (material.tex_diffuse == 0) {
 						owlGeomSetTexture(trim, "texture_ambient", textures[texture_idx_white]);
 					}
 					else {
 						owlGeomSetTexture(trim, "texture_ambient", textures[material.tex_diffuse + texture_idx_offset]);
 					}
-					if (material.tex_bump    == 0) {
-						owlGeomSetTexture(trim, "texture_bump", textures[texture_idx_blue]);
+					if (material.tex_specular == 0) {
+						owlGeomSetTexture(trim, "texture_specular", textures[texture_idx_white]);
 					}
 					else {
-						owlGeomSetTexture(trim, "texture_bump", textures[material.tex_bump      + texture_idx_offset]);
+						owlGeomSetTexture(trim, "texture_specular", textures[material.tex_specular + texture_idx_offset]);
+					}
+					if (material.tex_normal    == 0) {
+						owlGeomSetTexture(trim, "texture_normal", textures[texture_idx_blue]);
+					}
+					else {
+						owlGeomSetTexture(trim, "texture_normal", textures[material.tex_normal  + texture_idx_offset]);
 					}
 					if (material.tex_alpha != 0) {
 						owlGeomSetTexture(trim, "texture_alpha"  , textures[material.tex_alpha  + texture_idx_offset]);
@@ -351,72 +416,75 @@ int main() {
 			return -1;
 		}
 		auto viewer = std::make_unique<hikari::test::owl::testlib::GLViewer>(context, camera.width, camera.height);
-		glfwShowWindow(window);
-		while (!glfwWindowShouldClose(window)) {
-			{
-				glfwPollEvents();
-				glfwGetWindowSize(window, &camera.width, &camera.height);
-				if (viewer->resize(camera.width, camera.height)) {
-					printf("%d %d\n", camera.width, camera.height);
-					owlBufferResize(accum_buffer, camera.width * camera.height);
-					owlParamsSetBuffer(params, "accum_buffer", accum_buffer);
-					owlParamsSet1i(params, "accum_sample", 0);
-					owlRayGenSet2i(raygen, "fb_size", camera.width, camera.height);
-				}
+		{
+			glfwShowWindow(window);
+			while (!glfwWindowShouldClose(window)) {
 				{
+					glfwPollEvents();
+					glfwGetWindowSize(window, &camera.width, &camera.height);
 					bool update = false;
-					if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-						double x; double y;
-						glfwGetCursorPos(window, &x, &y);
-						// ���オ(0,0), �E����(1,1)
-						float sx = std::clamp((float)x / (float)camera.width , 0.0f, 1.0f);
-						float sy = std::clamp((float)y / (float)camera.height, 0.0f, 1.0f);
-						printf("%f %f\n",sx,sy);
-						if (sx < 0.5f) {
-							camera.processPressKeyLeft(0.5f -  sx);
+					if (viewer->resize(camera.width, camera.height)) {
+						printf("%d %d\n", camera.width, camera.height);
+						owlBufferResize(accum_buffer, camera.width * camera.height);
+						owlParamsSetBuffer(params, "accum_buffer", accum_buffer);
+						owlParamsSet1i(params, "accum_sample", 0);
+						owlRayGenSet2i(raygen, "fb_size", camera.width, camera.height);
+						update = true;
+					}
+					{
+						if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+							double x; double y;
+							glfwGetCursorPos(window, &x, &y);
+							// ���オ(0,0), �E����(1,1)
+							float sx = std::clamp((float)x / (float)camera.width, 0.0f, 1.0f);
+							float sy = std::clamp((float)y / (float)camera.height, 0.0f, 1.0f);
+							printf("%f %f\n", sx, sy);
+							if (sx < 0.5f) {
+								camera.processPressKeyLeft(0.5f - sx);
+							}
+							else {
+								camera.processPressKeyRight(sx - 0.5f);
+							}
+							if (sy < 0.5f) {
+								camera.processPressKeyUp(0.5f - sy);
+							}
+							else {
+								camera.processPressKeyDown(sy - 0.5f);
+							}
+							update = true;
 						}
-						else {
-							camera.processPressKeyRight(sx - 0.5f);
+						if (glfwGetKey(window, GLFW_KEY_W)     == GLFW_PRESS) {
+							camera.processPressKeyW(1.0f);
+							update = true;
 						}
-						if (sy < 0.5f) {
-							camera.processPressKeyUp(0.5f - sy);
+						if (glfwGetKey(window, GLFW_KEY_S)     == GLFW_PRESS) {
+							camera.processPressKeyS(1.0f);
+							update = true;
 						}
-						else {
-							camera.processPressKeyDown(sy - 0.5f);
+						if (glfwGetKey(window, GLFW_KEY_A)     == GLFW_PRESS) {
+							camera.processPressKeyA(1.0f);
+							update = true;
 						}
-						update = true;
-					}
-					if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-						camera.processPressKeyW(1.0f);
-						update = true;
-					}
-					if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-						camera.processPressKeyS(1.0f);
-						update = true;
-					}
-					if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-						camera.processPressKeyA(1.0f);
-						update = true;
-					}
-					if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-						camera.processPressKeyD(1.0f);
-						update = true;
-					}
-					if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-						camera.processPressKeyUp(0.5f);
-						update = true;
-					}
-					if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-						camera.processPressKeyDown(0.5f);
-						update = true;
-					}
-					if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-						camera.processPressKeyLeft(0.5f);
-						update = true;
-					}
-					if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-						camera.processPressKeyRight(0.5f);
-						update = true;
+						if (glfwGetKey(window, GLFW_KEY_D)     == GLFW_PRESS) {
+							camera.processPressKeyD(1.0f);
+							update = true;
+						}
+						if (glfwGetKey(window, GLFW_KEY_UP)    == GLFW_PRESS) {
+							camera.processPressKeyUp(0.5f);
+							update = true;
+						}
+						if (glfwGetKey(window, GLFW_KEY_DOWN)  == GLFW_PRESS) {
+							camera.processPressKeyDown(0.5f);
+							update = true;
+						}
+						if (glfwGetKey(window, GLFW_KEY_LEFT)  == GLFW_PRESS) {
+							camera.processPressKeyLeft(0.5f);
+							update = true;
+						}
+						if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+							camera.processPressKeyRight(0.5f);
+							update = true;
+						}
 					}
 					if (update) {
 						auto [dir_u, dir_v, dir_w] = camera.getUVW();
@@ -426,14 +494,14 @@ int main() {
 						owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&dir_w);
 					}
 				}
+
+				owlRayGenSetPointer(raygen, "fb_data" , viewer->mapFramePtr());
+				owlBuildSBT(context, OWL_SBT_RAYGENS);
+				owlLaunch2D(raygen, camera.width, camera.height, params);
+				viewer->unmapFramePtr();
+				viewer->render();
+				glfwSwapBuffers(window);
 			}
-			
-			owlRayGenSetPointer(raygen, "fb_data", viewer->mapFramePtr());
-			owlBuildSBT(context, OWL_SBT_RAYGENS);
-			owlLaunch2D(raygen, camera.width, camera.height, params);
-			viewer->unmapFramePtr();
-			viewer->render();
-			glfwSwapBuffers(window);
 		}
 		viewer.reset();
 		glfwHideWindow(window);

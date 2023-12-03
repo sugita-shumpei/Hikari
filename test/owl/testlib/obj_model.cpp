@@ -206,11 +206,11 @@ bool hikari::test::owl::testlib::ObjModel::load(std::string filename)
 				res.shape_index  = shape_idx;
 				res.idx_offsets  = idx_offsets;
 				res.generateTangents();
-				// ³‹K‰»‚³‚ê‚Ä‚¢‚ê‚Î“ñƒrƒbƒg‚Ì’l‚Å•\Œ»‰Â”\
+				// ï¿½ï¿½ï¿½Kï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½Î“ï¿½rï¿½bï¿½gï¿½Ì’lï¿½Å•\ï¿½ï¿½ï¿½Â”\
 				std::unordered_map<uint64_t, uint32_t> tangent_xy_map;
 				std::unordered_map<uint32_t, uint32_t> tangent_zw_map;
 				for (auto i = 0; i < res.tangents.size()/4;++i) {
-					//64bit‚É•ÏŠ·‚µ‚Ä
+					//64bitï¿½É•ÏŠï¿½ï¿½ï¿½ï¿½ï¿½
 					float xy[]      = { res.tangents[4 * i + 0],res.tangents[4 * i + 1] };
 					uint64_t key    = 0;
 					uint32_t val_xy = 0;
@@ -229,7 +229,7 @@ bool hikari::test::owl::testlib::ObjModel::load(std::string filename)
 						auto key_zw   = 2 * static_cast<int>(res.tangents[4 * i + 2] >= 0)+static_cast<int>(res.tangents[4*i+3]>0);
 						auto key_xyzw = 4 * val_xy + key_zw;
 						auto iter     = tangent_zw_map.find(key_xyzw);
-						// ‚à‚µ‰‚ß‚ÄŒ©‚Â‚©‚Á‚½‚ç
+						// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß‚ÄŒï¿½ï¿½Â‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 						if (iter  == std::end(tangent_zw_map)) {
 							tmp_tangent_indices.push_back(tmp_tangents.size());
 							tangent_zw_map.insert({ key_xyzw, tmp_tangents.size() });
@@ -257,7 +257,7 @@ bool hikari::test::owl::testlib::ObjModel::load(std::string filename)
 				uint32_t face_idx = 0;
 				for (auto& num_face_vertex : mesh.num_face_vertices) {
 					uint32_t idx_offset = idx_offsets[face_idx];
-					// ‚±‚±‚ª3‚Æ‚ÍŒÀ‚ç‚È‚­‚È‚é
+					// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½3ï¿½Æ‚ÍŒï¿½ï¿½ï¿½È‚ï¿½ï¿½È‚ï¿½
 					if (num_face_vertex == 3u) {
 						uint32_t idx3[3] = {};
 						for (uint32_t f = 0; f < 3; ++f) {
@@ -441,7 +441,7 @@ bool hikari::test::owl::testlib::ObjModel::load(std::string filename)
 			mat.tex_shinness = get_tex_idx(material.specular_highlight_texname);
 			mat.tex_emission = get_tex_idx(material.emissive_texname);
 			mat.tex_alpha    = get_tex_idx(material.alpha_texname);
-			mat.tex_bump = get_tex_idx(material.bump_texname);
+			mat.tex_normal = get_tex_idx(material.bump_texname);
 			mat.tex_reflection = get_tex_idx(material.reflection_texname);
 			mat.tex_normal   = get_tex_idx(material.normal_texname);
 			mat.tex_displacement = get_tex_idx(material.displacement_texname);

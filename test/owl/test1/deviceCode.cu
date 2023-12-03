@@ -23,6 +23,7 @@ __forceinline__ __device__ owl::vec2f normalize_uv(owl::vec2f vt) {
 }
 
 OPTIX_RAYGEN_PROGRAM(simpleRG)() {
+	//owl::LCG<24>           random;
 	const owl::vec2i idx = owl::getLaunchIndex();
 	const owl::vec2i dim = owl::getLaunchDims();
 	auto& rg_data        = owl::getProgramData<RayGenData>();
@@ -42,9 +43,20 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 
 OPTIX_MISS_PROGRAM(  simpleMS)() {
 	auto& payload = owl::getPRD<PayloadData>();
-	payload.color.x = 0.0f;
-	payload.color.y = 0.3f;
-	payload.color.z = 0.3f;
+	auto& ms_data = owl::getProgramData<MissProgData>();
+	auto  ray_dir = owl::normalize(owl::vec3f(optixGetWorldRayDirection()));
+	float phi     = atan2f(ray_dir.z, ray_dir.x);
+	float theta   = asinf (ray_dir.y)  ;
+	float x       = (phi   / M_PI + 1.0f)*0.5f;
+	float y       = (theta / M_PI + 0.5f);
+
+	// x y z
+	//x=(ray_dir.x + 1.0f)*0.5f
+	//y=(ray_dir.y + 1.0f)*0.5f
+	auto tmp_col = tex2D<float4>(ms_data.texture_envlight ,x, y);
+	payload.color.x = tmp_col.x;
+	payload.color.y = tmp_col.y;
+	payload.color.z = tmp_col.z;
 }
 
 OPTIX_ANY_HIT_PROGRAM(simpleAH)() {
@@ -70,25 +82,25 @@ OPTIX_CLOSEST_HIT_PROGRAM(simpleCH)() {
 	auto& ch_data = owl::getProgramData<HitgroupData>();
 	auto& payload = owl::getPRD<PayloadData>();
 
-	auto pri_idx  = optixGetPrimitiveIndex();
-	auto tri_idx  = ch_data.indices[pri_idx];
-	auto v0       = ch_data.vertices[tri_idx.x];
-	auto v1       = ch_data.vertices[tri_idx.y];
-	auto v2       = ch_data.vertices[tri_idx.z];
-	auto v01      = v1 - v0;
-	auto v12      = v2 - v1;
+	auto pri_idx = optixGetPrimitiveIndex();
+	auto tri_idx = ch_data.indices[pri_idx];
+	auto v0 = ch_data.vertices[tri_idx.x];
+	auto v1 = ch_data.vertices[tri_idx.y];
+	auto v2 = ch_data.vertices[tri_idx.z];
+	auto v01 = v1 - v0;
+	auto v12 = v2 - v1;
 	auto f_normal = owl::normalize(owl::cross(v01, v12));
 
-	auto bary     = optixGetTriangleBarycentrics();
-	auto vn0      = ch_data.normals[tri_idx.x];
-	auto vn1      = ch_data.normals[tri_idx.y];
-	auto vn2      = ch_data.normals[tri_idx.z];
+	auto bary = optixGetTriangleBarycentrics();
+	auto vn0 = ch_data.normals[tri_idx.x];
+	auto vn1 = ch_data.normals[tri_idx.y];
+	auto vn2 = ch_data.normals[tri_idx.z];
 
-	auto vt0      = ch_data.uvs[tri_idx.x];
-	auto vt1      = ch_data.uvs[tri_idx.y];
-	auto vt2      = ch_data.uvs[tri_idx.z];
+	auto vt0 = ch_data.uvs[tri_idx.x];
+	auto vt1 = ch_data.uvs[tri_idx.y];
+	auto vt2 = ch_data.uvs[tri_idx.z];
 
-	auto vt       = normalize_uv((1.0f - (bary.x + bary.y))* vt0 + bary.x * vt1 + bary.y * vt2);
+	auto vt = normalize_uv((1.0f - (bary.x + bary.y)) * vt0 + bary.x * vt1 + bary.y * vt2);
 
 	auto vn0_l = owl::dot(vn0, vn0);
 	auto vn1_l = owl::dot(vn1, vn1);
@@ -98,40 +110,40 @@ OPTIX_CLOSEST_HIT_PROGRAM(simpleCH)() {
 	if (vn2_l < 0.01f) { vn2 = f_normal; }
 	// 
 	auto v_normal = owl::normalize((1.0f - (bary.x + bary.y)) * vn0 + bary.x * vn1 + bary.y * vn2);
-	payload.color.x = (v_normal.x + 1.0f) * 0.5f;
-	payload.color.y = (v_normal.y + 1.0f) * 0.5f;
-	payload.color.z = (v_normal.z + 1.0f) * 0.5f;
-	auto vtg0       = owl::vec3f(ch_data.tangents[tri_idx.x]);
-	auto vtg1       = owl::vec3f(ch_data.tangents[tri_idx.y]);
-	auto vtg2       = owl::vec3f(ch_data.tangents[tri_idx.z]);
+	//payload.color.x = (v_normal.x + 1.0f) * 0.5f;
+	//payload.color.y = (v_normal.y + 1.0f) * 0.5f;
+	//payload.color.z = (v_normal.z + 1.0f) * 0.5f;
+	auto vtg0 = owl::vec3f(ch_data.tangents[tri_idx.x]);
+	auto vtg1 = owl::vec3f(ch_data.tangents[tri_idx.y]);
+	auto vtg2 = owl::vec3f(ch_data.tangents[tri_idx.z]);
 
-	auto vbs0       = ch_data.tangents[tri_idx.x].w;
-	auto vbs1       = ch_data.tangents[tri_idx.y].w;
-	auto vbs2       = ch_data.tangents[tri_idx.z].w;
-	auto vbn0       = vbs0* owl::normalize(owl::cross(vn0, vtg0));
-	auto vbn1       = vbs1* owl::normalize(owl::cross(vn1, vtg1));
-	auto vbn2       = vbs2* owl::normalize(owl::cross(vn2, vtg2));
-	auto v_binormal = owl::normalize((1.0f - (bary.x + bary.y)) * vbn0 + bary.x * vbn1 + bary.y * vbn2);
+	auto vbs0 = ch_data.tangents[tri_idx.x].w;
+	auto vbs1 = ch_data.tangents[tri_idx.y].w;
+	auto vbs2 = ch_data.tangents[tri_idx.z].w;
+	auto vbn0 =  vbs0 * owl::normalize(owl::cross(vn0, vtg0));
+	auto vbn1 =  vbs1 * owl::normalize(owl::cross(vn1, vtg1));
+	auto vbn2 =  vbs2 * owl::normalize(owl::cross(vn2, vtg2));
+	auto v_binormal   = owl::normalize((1.0f - (bary.x + bary.y)) * vbn0 + bary.x * vbn1 + bary.y * vbn2);
 	//payload.color.x = (v_binormal.x + 1.0f) * 0.5f;
 	//payload.color.y = (v_binormal.y + 1.0f) * 0.5f;
 	//payload.color.z = (v_binormal.z + 1.0f) * 0.5f;
 
-	auto v_tangent  = owl::normalize(owl::cross(v_binormal, v_normal) );
+	auto v_tangent = owl::normalize(owl::cross(v_binormal, v_normal));
 
-	auto tmp_bump   = tex2D<float4>(ch_data.texture_bump  , vt.x, vt.y);
-	// shadingñ@ê¸(Ç†Ç≠Ç‹Ç≈ï`âÊóp)
+	auto tmp_bump = tex2D<float4>(ch_data.texture_normal, vt.x, vt.y);
+	// shadingÔøΩ@ÔøΩÔøΩ(ÔøΩÔøΩÔøΩÔøΩÔøΩ‹Ç≈ï`ÔøΩÔøΩp)
 	auto fin_normal = owl::normalize(tmp_bump.z * v_normal + (2.0f * tmp_bump.x - 1.0f) * v_tangent + (2.0f * tmp_bump.y - 1.0f) * v_binormal);
 
 	//payload.color.x = (fin_normal.x + 1.0f) * 0.5f;
 	//payload.color.y = (fin_normal.y + 1.0f) * 0.5f;
 	//payload.color.z = (fin_normal.z + 1.0f) * 0.5f;
 
-	auto tmp_col = tex2D<float4>(ch_data.texture_ambient, vt.x, vt.y);
+	auto ambient_col = ch_data.color_ambient *owl::vec3f(tex2D<float4>(ch_data.texture_ambient, vt.x, vt.y));
 
 	//color = ch_data.colors[pri_idx];
-	//payload.color.x = tmp_col.x;
-	//payload.color.y = tmp_col.y;
-	//payload.color.z = tmp_col.z;
+	payload.color.x = ambient_col.x;
+	payload.color.y = ambient_col.y;
+	payload.color.z = ambient_col.z;
 }
 
 OPTIX_DIRECT_CALLABLE_PROGRAM(simpleDC1)(owl::vec4f& c) {

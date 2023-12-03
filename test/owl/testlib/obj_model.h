@@ -75,7 +75,6 @@ namespace hikari {
                     uint16_t    tex_shinness     = 0; // 0 -> default or none
                     uint16_t    tex_emission     = 0; // 0 -> default or none
                     uint16_t    tex_alpha        = 0; // 0 -> default or none
-                    uint16_t    tex_bump         = 0; // 0 -> default or none
                     uint16_t    tex_normal       = 0; // 0 -> default or none
                     uint16_t    tex_displacement = 0; // 0 -> default or none
                     uint16_t    tex_reflection   = 0; // 0 -> default or none

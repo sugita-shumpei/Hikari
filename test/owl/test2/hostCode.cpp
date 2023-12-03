@@ -38,14 +38,14 @@ int main() {
 	{
 		// black
 		{
-			auto pixel = owl::vec4uc(0, 0, 0, 0);
-			auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, 1, 1, &pixel);
+			auto pixel = owl::vec4uc(  0,   0,   0,   0);
+			auto tex   = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, 1, 1, &pixel);
 			textures.push_back(tex);
 		}
 		// white
 		{
 			auto pixel = owl::vec4uc(255, 255, 255, 255);
-			auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, 1, 1, &pixel);
+			auto tex   = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA8, 1, 1, &pixel);
 			textures.push_back(tex);
 		}
 		// model
@@ -145,11 +145,11 @@ int main() {
 	auto geom_type  = static_cast<OWLGeomType>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
-			OWLVarDecl{"vertices" ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,vertices) },
-			OWLVarDecl{"normals"  ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals ) },
-			OWLVarDecl{"uvs"      ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs     ) },
-			OWLVarDecl{"colors"   ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors  ) },
-			OWLVarDecl{"indices"  ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
+			OWLVarDecl{"vertices"         ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,vertices) },
+			OWLVarDecl{"normals"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals ) },
+			OWLVarDecl{"uvs"              ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs     ) },
+			OWLVarDecl{"colors"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors  ) },
+			OWLVarDecl{"indices"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
 			OWLVarDecl{"texture_ambient"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient)  },
 			OWLVarDecl{nullptr}
 		};
