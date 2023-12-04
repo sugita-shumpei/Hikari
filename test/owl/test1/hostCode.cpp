@@ -8,7 +8,6 @@
 #include <filesystem>
 #include <stb_image.h>
 #include <stb_image_write.h>
-#include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <owl/owl.h>
@@ -21,11 +20,11 @@ extern "C" char* deviceCode_ptx[];
 
 int main() {
 	hikari::test::owl::testlib::ObjModel model;
-	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
-    //model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
+    model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
 	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");/*
-	//auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");*/
-    auto envlit_filename = std::string("");
+	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
+    //auto envlit_filename = std::string("");
 	auto center          = model.getBBox().getCenter();
 	auto range           = model.getBBox().getRange ();
 	hikari::test::owl::testlib::PinholeCamera camera;
@@ -409,7 +408,7 @@ int main() {
 	{
 		OWLVarDecl varDecls[] = {
 			OWLVarDecl{"color", OWLDataType::OWL_FLOAT4, offsetof(CallableData,color)},
-			OWLVarDecl{nullptr}
+			OWLVarDecl{ nullptr }
 		};
 
 		callable = owlCallableCreate(context, module, "simpleDC1", true, sizeof(CallableData), varDecls, -1);
@@ -422,126 +421,138 @@ int main() {
 	owlBuildPrograms(context);
 	owlBuildPipeline(context);
 	owlBuildSBT(context, (OWLBuildSBTFlags)(OWLBuildSBTFlags::OWL_SBT_ALL2));
-	auto tonemap = hikari::test::owl::testlib::Tonemap(camera.width, camera.height, 0.042f);
-	tonemap.init();
 	{
-		glfwInit();
-		glfwWindowHint(GLFW_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_VERSION_MINOR, 3);
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-		GLFWwindow* window = glfwCreateWindow(camera.width, camera.height, "title", nullptr, nullptr);
-		glfwMakeContextCurrent(window);
-		if (!hikari::test::owl::testlib::loadGLLoader((hikari::test::owl::testlib::GLloadproc)glfwGetProcAddress)){
-			return -1;
-		}
-		auto viewer = std::make_unique<hikari::test::owl::testlib::GLViewer>(context, camera.width, camera.height);
-		{
-			int accum_sample = 0;
-			glfwShowWindow(window);
-			while (!glfwWindowShouldClose(window)) {
-				{
-					glfwPollEvents();
-					glfwGetWindowSize(window, &camera.width, &camera.height);
-					bool update = false;
-					if (viewer->resize(camera.width, camera.height)) {
-						printf("%d %d\n", camera.width, camera.height);
-						owlBufferResize(accum_buffer, camera.width * camera.height);
-						owlBufferResize(frame_buffer, camera.width * camera.height);
-						owlParamsSet2i(params, "frame_size", camera.width, camera.height);
-						tonemap.resize(camera.width, camera.height);
-						update = true;
-					}
-					{
-						if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-							double x; double y;
-							glfwGetCursorPos(window, &x, &y);
-							// ���オ(0,0), �E����(1,1)
-							float sx = std::clamp((float)x / (float)camera.width, 0.0f, 1.0f);
-							float sy = std::clamp((float)y / (float)camera.height, 0.0f, 1.0f);
-							printf("%f %f\n", sx, sy);
-							if (sx < 0.5f) {
-								camera.processPressKeyLeft(0.5f - sx);
-							}
-							else {
-								camera.processPressKeyRight(sx - 0.5f);
-							}
-							if (sy < 0.5f) {
-								camera.processPressKeyUp(0.5f - sy);
-							}
-							else {
-								camera.processPressKeyDown(sy - 0.5f);
-							}
-							update = true;
-						}
-						if (glfwGetKey(window, GLFW_KEY_W)     == GLFW_PRESS) {
-							camera.processPressKeyW(1.0f);
-							update = true;
-						}
-						if (glfwGetKey(window, GLFW_KEY_S)     == GLFW_PRESS) {
-							camera.processPressKeyS(1.0f);
-							update = true;
-						}
-						if (glfwGetKey(window, GLFW_KEY_A)     == GLFW_PRESS) {
-							camera.processPressKeyA(1.0f);
-							update = true;
-						}
-						if (glfwGetKey(window, GLFW_KEY_D)     == GLFW_PRESS) {
-							camera.processPressKeyD(1.0f);
-							update = true;
-						}
-						if (glfwGetKey(window, GLFW_KEY_UP)    == GLFW_PRESS) {
-							camera.processPressKeyUp(0.5f);
-							update = true;
-						}
-						if (glfwGetKey(window, GLFW_KEY_DOWN)  == GLFW_PRESS) {
-							camera.processPressKeyDown(0.5f);
-							update = true;
-						}
-						if (glfwGetKey(window, GLFW_KEY_LEFT)  == GLFW_PRESS) {
-							camera.processPressKeyLeft(0.5f);
-							update = true;
-						}
-						if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-							camera.processPressKeyRight(0.5f);
-							update = true;
-						}
-					}
-					if (update) {
-						auto [dir_u, dir_v, dir_w] = camera.getUVW();
-						owlBufferClear(accum_buffer);
-						owlBufferClear(frame_buffer);
-						owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&camera.origin);
-						owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&dir_u);
-						owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&dir_v);
-						owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&dir_w);
-						accum_sample = 0;
-					}
-					else {
-						accum_sample++;
-					}
-					owlParamsSet1i(params, "accum_sample", accum_sample);
-				}
-				owlBuildSBT(context, OWL_SBT_RAYGENS);
-				owlLaunch2D(raygen, camera.width, camera.height, params);
-				tonemap.launch(owlContextGetStream(context,0),
-					(const float3*)owlBufferGetPointer(frame_buffer, 0),
-					(unsigned int*)viewer->mapFramePtr()
-				);
-				viewer->render();
-				glfwSwapBuffers(window);
+		auto tonemap = hikari::test::owl::testlib::Tonemap(camera.width, camera.height, 0.042f);
+		tonemap.init();
+		struct TracerData {
+			hikari::test::owl::testlib::PinholeCamera* p_camera;
+			hikari::test::owl::testlib::Tonemap* p_tonemap;
+			OWLContext                                 context;
+			OWLRayGen                                  raygen;
+			OWLParams                                  params;
+			OWLBuffer                                  accum_buffer;
+			OWLBuffer                                  frame_buffer;
+			int                                        accum_sample;
+		} tracer_data = {
+			 &camera,&tonemap,context, raygen, params,accum_buffer,frame_buffer, 0
+		};
+
+		auto resize_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, int old_w, int old_h, int new_w, int        new_h) {
+			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+			owlBufferResize(p_tracer_data->accum_buffer, new_w * new_h);
+			owlBufferResize(p_tracer_data->frame_buffer, new_w * new_h);
+			owlParamsSet2i(p_tracer_data->params, "frame_size", new_w, new_h);
+			p_tracer_data->p_camera->width = new_w;
+			p_tracer_data->p_camera->height = new_h;
+			p_tracer_data->p_tonemap->resize(new_w, new_h);
+			return true;
+			};
+		auto presskey_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, hikari::test::owl::testlib::KeyType           key) {
+			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+			if (key == hikari::test::owl::testlib::KeyType::eW) { p_tracer_data->p_camera->processPressKeyW(1.0f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eS) { p_tracer_data->p_camera->processPressKeyS(1.0f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eA) { p_tracer_data->p_camera->processPressKeyA(1.0f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eD) { p_tracer_data->p_camera->processPressKeyD(1.0f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eLeft) { p_tracer_data->p_camera->processPressKeyLeft(0.5f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eRight) { p_tracer_data->p_camera->processPressKeyRight(0.5f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eUp) { p_tracer_data->p_camera->processPressKeyUp(0.5f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eDown) { p_tracer_data->p_camera->processPressKeyDown(0.5f); return true; }
+			return false;
+			};
+		auto press_mouse_button_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, hikari::test::owl::testlib::MouseButtonType mouse) {
+			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+			if (mouse == hikari::test::owl::testlib::MouseButtonType::eLeft) {
+				int width; int height;
+				double x; double y;
+				p_viewer->getCursorPosition(x, y);
+				p_viewer->getWindowSize(width, height);
+				// ���オ(0,0), �E����(1,1)
+				float sx = std::clamp((float)x / (float)width, 0.0f, 1.0f);
+				float sy = std::clamp((float)y / (float)height, 0.0f, 1.0f);
+				printf("%f %f\n", sx, sy);
+				if (sx < 0.5f) { p_tracer_data->p_camera->processPressKeyLeft(0.5f - sx); }
+				else { p_tracer_data->p_camera->processPressKeyRight(sx - 0.5f); }
+				if (sy < 0.5f) { p_tracer_data->p_camera->processPressKeyUp(0.5f - sy); }
+				else { p_tracer_data->p_camera->processPressKeyDown(sy - 0.5f); }
+				return true;
 			}
-		}
+			return false;
+			};
+		auto update_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
+			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+			auto [dir_u, dir_v, dir_w] = p_tracer_data->p_camera->getUVW();
+			owlBufferClear(p_tracer_data->accum_buffer);
+			owlBufferClear(p_tracer_data->frame_buffer);
+			owlRayGenSet3fv(p_tracer_data->raygen, "camera.eye", (const float*)&p_tracer_data->p_camera->origin);
+			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_u", (const float*)&dir_u);
+			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_v", (const float*)&dir_v);
+			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_w", (const float*)&dir_w);
+			p_tracer_data->accum_sample = 0;
+			};
+		auto render_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, void* p_fb_data) {
+			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+			owlParamsSet1i(p_tracer_data->params, "accum_sample", p_tracer_data->accum_sample);
+			owlBuildSBT(p_tracer_data->context, OWL_SBT_RAYGENS);
+			owlLaunch2D(p_tracer_data->raygen, p_tracer_data->p_camera->width, p_tracer_data->p_camera->height, p_tracer_data->params);
+			p_tracer_data->p_tonemap->launch(owlContextGetStream(p_tracer_data->context, 0),
+				(const float3*)owlBufferGetPointer(p_tracer_data->frame_buffer, 0),
+				(unsigned int*)p_fb_data
+			);
+			p_tracer_data->accum_sample++;
+			};
+		auto ui_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
+			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+			if (ImGui::Begin("Tonemap")) {
+				float new_key_value = p_tracer_data->p_tonemap->getKeyValue();
+				float old_key_value = new_key_value;
+				ImGui::InputFloat("Key Value: %f", &new_key_value);
+				ImGui::Text("Maxmimum Luminance: %f", p_tracer_data->p_tonemap->getMaxLuminance());
+				ImGui::Text("Average  Luminance: %f", p_tracer_data->p_tonemap->getAveLuminance());
+
+
+				{
+					const char* combo_defaults[] = { "Reinhard","Extended Reinhard" };
+					if (ImGui::BeginCombo("Type", combo_defaults[(int)p_tracer_data->p_tonemap->getType()])) {
+						if (ImGui::Selectable("Reinhard")) {
+							p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eReinhard);
+						}
+						if (ImGui::Selectable("Extended Reinhard")) {
+							p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eExtendedReinhard);
+						}
+						ImGui::EndCombo();
+					}
+				}
+				if (new_key_value != old_key_value) {
+					p_tracer_data->p_tonemap->setKeyValue(new_key_value);
+				}
+				{
+					auto max_value = p_tracer_data->p_tonemap->getMaxLuminance();
+					auto ave_value = p_tracer_data->p_tonemap->getAveLuminance();
+					p_tracer_data->p_tonemap->setKeyValue(ave_value / max_value);
+				}
+				ImGui::End();
+			}
+
+			ImGui::Begin("Camera");
+			float camera_pos[3] = { p_tracer_data->p_camera->origin .x, p_tracer_data->p_camera->origin .y, p_tracer_data->p_camera->origin .z};
+			if (ImGui::InputFloat3("Position: %f %f %f", camera_pos)) {
+				p_tracer_data->p_camera->origin.x = camera_pos[0];
+				p_tracer_data->p_camera->origin.y = camera_pos[1];
+				p_tracer_data->p_camera->origin.z = camera_pos[2];
+				p_viewer->updateNextFrame();
+			}
+			float camera_fovy = p_tracer_data->p_camera->fovy;
+			if (ImGui::InputFloat("FovY: %f", &camera_fovy)) {
+				p_tracer_data->p_camera->fovy = camera_fovy;
+				p_viewer->updateNextFrame();
+			}
+			ImGui::End();
+		};
+		auto viewer                      = std::make_unique<hikari::test::owl::testlib::GLViewer>(context, camera.width, camera.height);
+		viewer->runWithCallback(&tracer_data, resize_callback, presskey_callback, press_mouse_button_callback, update_callback, render_callback, ui_callback);
 		viewer.reset();
-		glfwHideWindow(window);
-		glfwDestroyWindow(window);
-		glfwTerminate();
+
+		tonemap.free();
 	}
-	tonemap.free();
-
-	//cuModuleUnload(module_kernel);
-
 	return 0;
 }

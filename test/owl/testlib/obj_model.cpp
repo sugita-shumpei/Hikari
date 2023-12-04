@@ -465,19 +465,19 @@ bool hikari::test::owl::testlib::ObjModel::load(std::string filename)
 		};
 
 		for (auto& material : materials) {
-			auto mat         = ObjMaterial();
-			mat.name         = material.name;
-			mat.diffuse.x    = material.diffuse[0];
-			mat.diffuse.y    = material.diffuse[1];
-			mat.diffuse.z    = material.diffuse[2];
-			mat.emission.x   = material.emission[0];
-			mat.emission.y   = material.emission[1];
-			mat.emission.z   = material.emission[2];
-			mat.specular.x   = material.specular[0];
-			mat.specular.y   = material.specular[1];
-			mat.specular.z   = material.specular[2];
-			mat.ior          = material.ior;
-			mat.shinness     = material.shininess;
+			auto mat             = ObjMaterial();
+			mat.name             = material.name;
+			mat.diffuse.x        = material.diffuse[0];
+			mat.diffuse.y        = material.diffuse[1];
+			mat.diffuse.z        = material.diffuse[2];
+			mat.emission.x       = material.emission[0];
+			mat.emission.y       = material.emission[1];
+			mat.emission.z       = material.emission[2];
+			mat.specular.x       = material.specular[0];
+			mat.specular.y       = material.specular[1];
+			mat.specular.z       = material.specular[2];
+			mat.ior              = material.ior;
+			mat.shinness         = material.shininess;
 			mat.dissolve         = material.dissolve;
 			mat.tex_diffuse      = get_tex_idx(material.diffuse_texname );
 			mat.tex_specular     = get_tex_idx(material.specular_texname);

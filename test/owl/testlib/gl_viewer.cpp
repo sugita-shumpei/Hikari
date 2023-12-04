@@ -1,22 +1,26 @@
 #include <gl_viewer.h>
-#include <glad/glad.h>
-#include <cuda_gl_interop.h>
 #include <cstdio>
+#include <stdexcept>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <cuda_gl_interop.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 hikari::test::owl::testlib::GLViewer::GLViewer(OWLContext context_, int width_, int height_) noexcept
     : 
     context{ context_ },
     width{ width_ },
     height{ height_ },
-    shd{ 0 }, tex{ 0 }, pbo{ 0 } {
-    createDummyVAO();
-    createShaderProgram();
-    createFrameResource();
+    shd{ 0 }, tex{ 0 }, pbo{ 0 }, vao{ 0 }, tex_loc{ -1 }, update_next_frame{false} {
 }
 hikari::test::owl::testlib::GLViewer::~GLViewer() noexcept {
-    deleteFrameResource();
-    deleteShaderProgram();
-    deleteDummyVAO();
+}
+
+bool hikari::test::owl::testlib::GLViewer::shouldClose()
+{
+    GLFWwindow* tmp_window = (GLFWwindow*)window;
+    return glfwWindowShouldClose(tmp_window);
 }
 
 bool hikari::test::owl::testlib::GLViewer::resize(int new_width, int new_height, bool should_clear ) {
@@ -36,6 +40,21 @@ void hikari::test::owl::testlib::GLViewer::render() {
     drawFrameMesh();
 }
 
+void hikari::test::owl::testlib::GLViewer::beginUI()
+{
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    //ImGui::SetNextWindowPos( ImVec2(30, 30)  );
+    //ImGui::SetNextWindowSize(ImVec2(200, 250));
+}
+
+void hikari::test::owl::testlib::GLViewer::endUI()
+{
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
 void* hikari::test::owl::testlib::GLViewer::mapFramePtr() {
     cudaGraphicsResource* cuda_resource = (cudaGraphicsResource*)resource;
     if (!resource) { return nullptr; }
@@ -52,6 +71,226 @@ void hikari::test::owl::testlib::GLViewer::unmapFramePtr() {
     device_ptr = nullptr;
 }
 void* hikari::test::owl::testlib::GLViewer::getFramePtr() { return device_ptr; }
+
+void hikari::test::owl::testlib::GLViewer::init()
+{
+    initGlfw3();
+    initGlad();
+    initImgui();
+    createDummyVAO();
+    createShaderProgram();
+    createFrameResource();
+}
+
+void hikari::test::owl::testlib::GLViewer::free()
+{
+    deleteFrameResource();
+    deleteShaderProgram();
+    deleteDummyVAO();
+    freeImgui();
+    freeGlad();
+    freeGlfw3();
+}
+
+void hikari::test::owl::testlib::GLViewer::mainLoop()
+{
+    GLFWwindow* tmp_window = (GLFWwindow*)window;
+    glfwShowWindow(tmp_window);
+    while (!shouldClose()) {
+        glfwPollEvents();
+        {
+            bool is_updated   = update_next_frame;
+            update_next_frame = false;
+            int old_width = width; int old_height = height;
+            int tmp_width, tmp_height;
+            glfwGetWindowSize(tmp_window, &tmp_width, &tmp_height);
+            if (resize(tmp_width, tmp_height)) {
+                onResize(old_width,old_height,tmp_width,tmp_height);
+                is_updated = true;
+            }
+            auto io = ImGui::GetIO();
+            if (!io.WantCaptureKeyboard) {
+                if (glfwGetKey(tmp_window, GLFW_KEY_W) == GLFW_PRESS) {
+                    if (onPressKey(KeyType::eW)) { is_updated = true; }
+                }
+                if (glfwGetKey(tmp_window, GLFW_KEY_A) == GLFW_PRESS) {
+                    if (onPressKey(KeyType::eA)) { is_updated = true; }
+                }
+                if (glfwGetKey(tmp_window, GLFW_KEY_S) == GLFW_PRESS) {
+                    if (onPressKey(KeyType::eS)) { is_updated = true; }
+                }
+                if (glfwGetKey(tmp_window, GLFW_KEY_D) == GLFW_PRESS) {
+                    if (onPressKey(KeyType::eD)) { is_updated = true; }
+                }
+                if (glfwGetKey(tmp_window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+                    if (onPressKey(KeyType::eLeft)) { is_updated = true; }
+                }
+                if (glfwGetKey(tmp_window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+                    if (onPressKey(KeyType::eRight)) { is_updated = true; }
+                }
+                if (glfwGetKey(tmp_window, GLFW_KEY_UP) == GLFW_PRESS) {
+                    if (onPressKey(KeyType::eUp)) { is_updated = true; }
+                }
+                if (glfwGetKey(tmp_window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+                    if (onPressKey(KeyType::eDown)) { is_updated = true; }
+                }
+            }
+            if (!io.WantCaptureMouse) {
+                if (glfwGetMouseButton(tmp_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+                    if (onPressMouseButton(MouseButtonType::eLeft)) { is_updated = true; }
+                }
+                if (glfwGetMouseButton(tmp_window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+                    if (onPressMouseButton(MouseButtonType::eRight)) { is_updated = true; }
+                }
+            }
+            if (is_updated) {
+                onUpdate();
+            }
+        }
+        {
+            void* map_ptr = mapFramePtr();
+            onRender(map_ptr);
+            unmapFramePtr();
+        }
+        beginUI();
+        render();
+        endUI();
+        glfwSwapBuffers(tmp_window);
+    }
+    glfwHideWindow(tmp_window);
+}
+
+void hikari::test::owl::testlib::GLViewer::mainLoopWithCallback(
+    Pfn_GLViewerResizeCallback           resizeCallback, 
+    Pfn_GLViewerPressKeyCallback         pressKeyCallback, 
+    Pfn_GLViewerPressMouseButtonCallback pressMouseButtonCallback, 
+    Pfn_GLViewerUpdateCallback           updateCallback,
+    Pfn_GLViewerRenderCallback           renderCallback,
+    Pfn_GLViewerGuiCallback              guiCallback)
+{
+    GLFWwindow* tmp_window = (GLFWwindow*)window;
+    glfwShowWindow(tmp_window);
+    while (!shouldClose()) {
+        glfwPollEvents();
+        {
+            int old_width = width; int old_height = height;
+            bool is_updated  = update_next_frame;
+            update_next_frame = false;
+            int tmp_width, tmp_height;
+            glfwGetWindowSize(tmp_window, &tmp_width, &tmp_height);
+            if (resize(tmp_width, tmp_height)) {
+                if (resizeCallback) resizeCallback(this, old_width, old_height, tmp_width, tmp_height);
+                is_updated = true;
+            }
+
+            auto io = ImGui::GetIO();
+            if (!io.WantCaptureKeyboard){
+                if (pressKeyCallback) {
+                    if (glfwGetKey(tmp_window, GLFW_KEY_W) == GLFW_PRESS) {
+                        if (pressKeyCallback(this, KeyType::eW)) { is_updated = true; }
+                    }
+                    if (glfwGetKey(tmp_window, GLFW_KEY_A) == GLFW_PRESS) {
+                        if (pressKeyCallback(this, KeyType::eA)) { is_updated = true; }
+                    }
+                    if (glfwGetKey(tmp_window, GLFW_KEY_S) == GLFW_PRESS) {
+                        if (pressKeyCallback(this, KeyType::eS)) { is_updated = true; }
+                    }
+                    if (glfwGetKey(tmp_window, GLFW_KEY_D) == GLFW_PRESS) {
+                        if (pressKeyCallback(this, KeyType::eD)) { is_updated = true; }
+                    }
+                    if (glfwGetKey(tmp_window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+                        if (pressKeyCallback(this, KeyType::eLeft)) { is_updated = true; }
+                    }
+                    if (glfwGetKey(tmp_window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+                        if (pressKeyCallback(this, KeyType::eRight)) { is_updated = true; }
+                    }
+                    if (glfwGetKey(tmp_window, GLFW_KEY_UP) == GLFW_PRESS) {
+                        if (pressKeyCallback(this, KeyType::eUp)) { is_updated = true; }
+                    }
+                    if (glfwGetKey(tmp_window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+                        if (pressKeyCallback(this, KeyType::eDown)) { is_updated = true; }
+                    }
+                }
+            }
+            if (!io.WantCaptureMouse) {
+                if (pressMouseButtonCallback) {
+                    if (glfwGetMouseButton(tmp_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+                        if (pressMouseButtonCallback(this, MouseButtonType::eLeft)) { is_updated = true; }
+                    }
+                    if (glfwGetMouseButton(tmp_window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+                        if (pressMouseButtonCallback(this, MouseButtonType::eRight)) { is_updated = true; }
+                    }
+                }
+            }
+            if (is_updated) {
+                if (updateCallback) { updateCallback(this); }
+            }
+        }
+        if (renderCallback){
+            void* map_ptr = mapFramePtr();
+            renderCallback(this, map_ptr);
+            unmapFramePtr();
+        }
+        beginUI();
+        if(guiCallback) guiCallback(this);
+        render();
+        endUI();
+        glfwSwapBuffers(tmp_window);
+    }
+    glfwHideWindow(tmp_window);
+}
+
+void hikari::test::owl::testlib::GLViewer::initGlfw3()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    GLFWwindow* tmp_window = glfwCreateWindow(width, height, "title", nullptr, nullptr);
+    glfwMakeContextCurrent(tmp_window);
+    window = tmp_window;
+}
+
+void hikari::test::owl::testlib::GLViewer::freeGlfw3()
+{
+    glfwMakeContextCurrent(nullptr);
+    glfwDestroyWindow(static_cast<GLFWwindow*>(window));
+    glfwTerminate();
+}
+
+void hikari::test::owl::testlib::GLViewer::initGlad()
+{
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        throw std::runtime_error("Failed To Support OpenGL!");
+    }
+}
+
+void hikari::test::owl::testlib::GLViewer::freeGlad()
+{
+
+}
+
+void hikari::test::owl::testlib::GLViewer::initImgui()
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    ImGui::StyleColorsDark();
+    GLFWwindow* tmp_window = (GLFWwindow*)window;
+    ImGui_ImplGlfw_InitForOpenGL(tmp_window, true);
+    ImGui_ImplGlfw_SetCallbacksChainForAllWindows(true);
+    ImGui_ImplOpenGL3_Init("#version 330 core");
+}
+void hikari::test::owl::testlib::GLViewer::freeImgui()
+{
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+}
 void  hikari::test::owl::testlib::GLViewer::createShaderProgram() {
     // -1    1     3
     const char* vs_source =
@@ -186,7 +425,53 @@ void hikari::test::owl::testlib::GLViewer::copyFrameResource() {
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
-bool hikari::test::owl::testlib::loadGLLoader(GLloadproc load_proc)
+void hikari::test::owl::testlib::GLViewer::run()
 {
-    return gladLoadGLLoader(load_proc);
+    init();
+    mainLoop();
+    free();
+}
+
+void hikari::test::owl::testlib::GLViewer::runWithCallback(
+    void*                                pUserData,
+    Pfn_GLViewerResizeCallback           resizeCallback, 
+    Pfn_GLViewerPressKeyCallback         pressKeyCallback, 
+    Pfn_GLViewerPressMouseButtonCallback pressMouseButtonCallback, 
+    Pfn_GLViewerUpdateCallback           updateCallback, 
+    Pfn_GLViewerRenderCallback           renderCallback,
+    Pfn_GLViewerGuiCallback              guiCallback)
+{
+    void* tmp_userptr = user_ptr;
+    if (pUserData) { user_ptr = pUserData; }
+    init();
+    mainLoopWithCallback(resizeCallback, pressKeyCallback, pressMouseButtonCallback, updateCallback, renderCallback,guiCallback);
+    free();
+    user_ptr = tmp_userptr;
+}
+
+void hikari::test::owl::testlib::GLViewer::setUserPtr(void* ptr)
+{
+    user_ptr = ptr;
+}
+
+void* hikari::test::owl::testlib::GLViewer::getUserPtr()
+{
+    return user_ptr;
+}
+
+void hikari::test::owl::testlib::GLViewer::updateNextFrame()
+{
+    update_next_frame = true;
+}
+
+void hikari::test::owl::testlib::GLViewer::getCursorPosition(double& cursor_pos_x, double& cursor_pos_y) const
+{
+    GLFWwindow* tmp_window = (GLFWwindow*)window;
+    glfwGetCursorPos(tmp_window, &cursor_pos_x, &cursor_pos_y);
+}
+
+void hikari::test::owl::testlib::GLViewer::getWindowSize(int& width_, int& height_)const
+{
+    width_ = width;
+    height_ = height;
 }

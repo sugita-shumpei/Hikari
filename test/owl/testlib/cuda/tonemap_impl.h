@@ -24,6 +24,7 @@ extern "C" {
         cudaStream_t  stream,
         int           width        ,
         int           height       ,
+        int           type         ,
         const float3* input_buffer ,
         unsigned int* output_buffer,
         float         max_luminance,

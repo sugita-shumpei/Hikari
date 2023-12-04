@@ -1,10 +1,11 @@
 #include "tonemap.h"
 #include <cuda/tonemap_impl.h>
 
-hikari::test::owl::testlib::Tonemap::Tonemap(int width, int height, float key_value) :
+hikari::test::owl::testlib::Tonemap::Tonemap(int width, int height, float key_value, TonemapType type) :
 	m_width{ width },
 	m_height{ height },
 	m_key_value{ key_value },
+	m_type{ type },
 	m_ave_luminance{ 0.0f },
 	m_max_luminance{ 0.0f },
 	m_luminance_buffer{ nullptr },
@@ -68,5 +69,5 @@ void hikari::test::owl::testlib::Tonemap::estimateMaxAndAverage(CUstream stream)
 
 void hikari::test::owl::testlib::Tonemap::tonemapColorRGBA8(CUstream stream, const float3* input_buffer, unsigned int* result_buffer)
 {
-	HikariTestOwlTonemap_tonemapColorRGBA8(stream, m_width, m_height, input_buffer, result_buffer, m_max_luminance, m_ave_luminance,m_key_value);
+	HikariTestOwlTonemap_tonemapColorRGBA8(stream, m_width, m_height,static_cast<int>(m_type), input_buffer, result_buffer, m_max_luminance, m_ave_luminance,m_key_value);
 }

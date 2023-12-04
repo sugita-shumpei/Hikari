@@ -32,7 +32,7 @@ __forceinline__ __device__ owl::vec4f sample_sphere_map(const cudaTextureObject_
 	float x     = (phi / M_PI + 1.0f) * 0.5f;
 	float y     = (theta / M_PI + 0.5f);
 	auto res    = tex2D<float4>(tex, x, y);
-	return res;
+	return owl::vec4f(res);
 }
 
 OPTIX_RAYGEN_PROGRAM(simpleRG)() {
@@ -40,7 +40,7 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	const owl::vec2i dim = owl::getLaunchDims();
 	auto& rg_data        = owl::getProgramData<RayGenData>();
 
-	constexpr auto frame_samples = 10;
+	constexpr auto frame_samples = 2;
 	constexpr auto trace_depth   = 8;
 
 	auto payload = PayloadData();

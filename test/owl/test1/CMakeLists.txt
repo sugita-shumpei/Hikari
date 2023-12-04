@@ -18,7 +18,6 @@ target_link_libraries(  hikari-test-owl-test1 PRIVATE
     hikari-test-owl-testlib 
     hikari-test-owl-test1-ptx 
     owl::owl 
-    glfw 
     glm::glm
     imgui::imgui
 )
