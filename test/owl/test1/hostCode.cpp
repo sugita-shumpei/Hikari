@@ -2,23 +2,22 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <iostream>
 #include <string>
-#include <owl/owl.h>
-#include <owl/common/math/vec.h>
-#include <owl/common/math/constants.h>
-#include <stb_image.h>
-#include <stb_image_write.h>
-#include <GLFW/glfw3.h>
 #include <vector>
 #include <tuple>
 #include <random>
 #include <filesystem>
+#include <stb_image.h>
+#include <stb_image_write.h>
+#include <GLFW/glfw3.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <owl/owl.h>
+#include <owl/common/math/vec.h>
+#include <owl/common/math/constants.h>
 #include "hostCode.h"
 #include "deviceCode.h"
-#include "kernelCode.h"
-#include "thrustCode.h"
 
 extern "C" char* deviceCode_ptx[];
-extern "C" char* kernelCode_ptx[];
 
 int main() {
 	hikari::test::owl::testlib::ObjModel model;
@@ -423,19 +422,8 @@ int main() {
 	owlBuildPrograms(context);
 	owlBuildPipeline(context);
 	owlBuildSBT(context, (OWLBuildSBTFlags)(OWLBuildSBTFlags::OWL_SBT_ALL2));
-
-	auto module_kernel = CUmodule();
-	auto kernel_tonemap             = CUfunction(nullptr);
-	auto kernel_convertToRGBA8      = CUfunction(nullptr);
-	auto kernel_convertToLuminance  = CUfunction(nullptr);
-	auto frame_luminance_buffer     = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT, camera.width * camera.height, nullptr);
-	auto frame_luminance_log_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT, camera.width * camera.height, nullptr);
-	{
-		cuModuleLoadData(&module_kernel, kernelCode_ptx);
-		cuModuleGetFunction(&kernel_tonemap           , module_kernel, "__kernel__tonemap"           );
-		cuModuleGetFunction(&kernel_convertToRGBA8    , module_kernel, "__kernel__convertToRGBA8"    );
-		cuModuleGetFunction(&kernel_convertToLuminance, module_kernel, "__kernel__convertToLuminance");
-	}
+	auto tonemap = hikari::test::owl::testlib::Tonemap(camera.width, camera.height, 0.042f);
+	tonemap.init();
 	{
 		glfwInit();
 		glfwWindowHint(GLFW_VERSION_MAJOR, 3);
@@ -460,11 +448,10 @@ int main() {
 					bool update = false;
 					if (viewer->resize(camera.width, camera.height)) {
 						printf("%d %d\n", camera.width, camera.height);
-						owlBufferResize(accum_buffer          , camera.width * camera.height);
-						owlBufferResize(frame_buffer          , camera.width * camera.height);
-						owlBufferResize(frame_luminance_buffer, camera.width * camera.height);
-						owlBufferResize(frame_luminance_log_buffer, camera.width* camera.height);
+						owlBufferResize(accum_buffer, camera.width * camera.height);
+						owlBufferResize(frame_buffer, camera.width * camera.height);
 						owlParamsSet2i(params, "frame_size", camera.width, camera.height);
+						tonemap.resize(camera.width, camera.height);
 						update = true;
 					}
 					{
@@ -537,66 +524,12 @@ int main() {
 					}
 					owlParamsSet1i(params, "accum_sample", accum_sample);
 				}
-			
-				//owlRayGenSetPointer(raygen, "fb_data" , viewer->mapFramePtr());
 				owlBuildSBT(context, OWL_SBT_RAYGENS);
 				owlLaunch2D(raygen, camera.width, camera.height, params);
-				{
-					// Luminance用kernel
-					int width = camera.width; int height = camera.height;
-					auto color_buf     = reinterpret_cast<CUdeviceptr>(owlBufferGetPointer(frame_buffer              , 0));
-					auto lumin_buf     = reinterpret_cast<CUdeviceptr>(owlBufferGetPointer(frame_luminance_buffer    , 0));
-					auto lumin_log_buf = reinterpret_cast<CUdeviceptr>(owlBufferGetPointer(frame_luminance_log_buffer, 0));
-					// 描画用kernel
-					void* args[] = {
-						&width, &height, & color_buf, & lumin_buf,& lumin_log_buf
-					};
-					auto grid_x = (width  + 32u - 1u) / 32u;
-					auto grid_y = (height + 32u - 1u) / 32u;
-					cuLaunchKernel(
-						kernel_convertToLuminance,
-						grid_x, grid_y, 1,
-						32, 32, 1,
-						0,
-						owlContextGetStream(context, 0),
-						args,
-						nullptr
-					);
-					cuStreamSynchronize(owlContextGetStream(context, 0));
-				}
-				// 平均値と最大値を求める
-				float max_v; float log_average_v;
-				calculateLogAverageAndMax(camera.width, camera.height,
-					(float*)owlBufferGetPointer(frame_luminance_buffer    , 0), 
-					(float*)owlBufferGetPointer(frame_luminance_log_buffer, 0),
-					&max_v,
-					&log_average_v
+				tonemap.launch(owlContextGetStream(context,0),
+					(const float3*)owlBufferGetPointer(frame_buffer, 0),
+					(unsigned int*)viewer->mapFramePtr()
 				);
-				{
-					int width   = camera.width; int height = camera.height;
-					auto pixel3fs = reinterpret_cast<CUdeviceptr>(owlBufferGetPointer(frame_buffer, 0));
-					auto pixel32s = reinterpret_cast<CUdeviceptr>(viewer->mapFramePtr());
-					float key_value = 0.18f;
-					// 描画用kernel
-					void* args[] = {
-						&width, &height,&key_value,& log_average_v,
-						&max_v,
-						&pixel3fs, & pixel32s
-					};
-					auto grid_x = (width  + 32u - 1u) / 32u;
-					auto grid_y = (height + 32u - 1u) / 32u;
-					cuLaunchKernel(
-						kernel_tonemap,
-						grid_x, grid_y,1,
-						32,32,1,
-						0,
-						owlContextGetStream(context,0),
-						args,
-						nullptr
-					);
-					cuStreamSynchronize(owlContextGetStream(context, 0));
-					viewer->unmapFramePtr();
-				}
 				viewer->render();
 				glfwSwapBuffers(window);
 			}
@@ -606,8 +539,9 @@ int main() {
 		glfwDestroyWindow(window);
 		glfwTerminate();
 	}
+	tonemap.free();
 
-	cuModuleUnload(module_kernel);
+	//cuModuleUnload(module_kernel);
 
 	return 0;
 }
