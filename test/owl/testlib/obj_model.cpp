@@ -83,7 +83,7 @@ struct TinyObjMeshWrapper {
 				};
 				float v01[] = { vp1[0] - vp0[0],vp1[1] - vp0[1],vp1[2] - vp0[2] };
 				float v12[] = { vp2[0] - vp1[0],vp2[1] - vp1[1],vp2[2] - vp1[2] };
-				float nfv[]  = { 
+				float nfv[] = { 
 					v01[1] * v12[2] - v01[2] * v12[1],
 					v01[2] * v12[0] - v01[0] * v12[2],
 					v01[0] * v12[1] - v01[1] * v12[0]
@@ -95,7 +95,7 @@ struct TinyObjMeshWrapper {
 			}
 		}
 	}
-	void getTexCoord(size_t face_idx, size_t vert_idx, float fvTexCOut[]) const {
+	void getTexCoord(size_t face_idx, size_t vert_idx, float       fvTexCOut[]) const {
 		auto& shape = getShape();
 		auto num_faces = shape.mesh.num_face_vertices[face_idx];
 		if (num_faces <= vert_idx) { return; }
@@ -113,10 +113,53 @@ struct TinyObjMeshWrapper {
 		auto& shape = getShape();
 		auto num_faces = shape.mesh.num_face_vertices[face_idx];
 		if (num_faces <= vert_idx) { return; }
-		tangents[4 * (idx_offsets[face_idx] + vert_idx) + 0] = fvTangent[0];
-		tangents[4 * (idx_offsets[face_idx] + vert_idx) + 1] = fvTangent[1];
-		tangents[4 * (idx_offsets[face_idx] + vert_idx) + 2] = fvTangent[2];
-		tangents[4 * (idx_offsets[face_idx] + vert_idx) + 3] = fSign;
+		{
+			float fvNormalOut[3];
+			getNormal(face_idx, vert_idx, fvNormalOut);
+
+			//
+			if (fabsf(
+				fvNormalOut[0] * fvTangent[0] +
+				fvNormalOut[1] * fvTangent[1] +
+				fvNormalOut[2] * fvTangent[2]
+				)> 0.8f) {
+				if (fabsf(fvTangent[1]) < 0.8f) {
+					float* vn3   = fvNormalOut;
+					float vup[3] = { 0.0f,1.0f,0.0f };
+					float nfv[]  = { 
+						vup[1] * vn3[2] - vup[2] * vn3[1],
+						vup[2] * vn3[0] - vup[0] * vn3[2],
+						vup[0] * vn3[1] - vup[1] * vn3[0]
+					};
+					//もしTangentと法線方向が0だったら->Tangentを変更する
+					tangents[4 * (idx_offsets[face_idx] + vert_idx) + 0] = nfv[0];
+					tangents[4 * (idx_offsets[face_idx] + vert_idx) + 1] = nfv[1];
+					tangents[4 * (idx_offsets[face_idx] + vert_idx) + 2] = nfv[2];
+					tangents[4 * (idx_offsets[face_idx] + vert_idx) + 3] = fSign;
+				}
+				if (fabsf(fvTangent[2]) < 0.8f) {
+					float* vn3   = fvNormalOut;
+					float vup[3] = { 0.0f,0.0f,1.0f };
+					float nfv[]  = {
+						vup[1] * vn3[2] - vup[2] * vn3[1],
+						vup[2] * vn3[0] - vup[0] * vn3[2],
+						vup[0] * vn3[1] - vup[1] * vn3[0]
+					};
+					//もしTangentと法線方向が0だったら->Tangentを変更する
+					tangents[4 * (idx_offsets[face_idx] + vert_idx) + 0] = nfv[0];
+					tangents[4 * (idx_offsets[face_idx] + vert_idx) + 1] = nfv[1];
+					tangents[4 * (idx_offsets[face_idx] + vert_idx) + 2] = nfv[2];
+					tangents[4 * (idx_offsets[face_idx] + vert_idx) + 3] = fSign;
+				}
+			}
+			else {
+				//もしTangentと法線方向が0だったら->Tangentを変更する
+				tangents[4 * (idx_offsets[face_idx] + vert_idx) + 0] = fvTangent[0];
+				tangents[4 * (idx_offsets[face_idx] + vert_idx) + 1] = fvTangent[1];
+				tangents[4 * (idx_offsets[face_idx] + vert_idx) + 2] = fvTangent[2];
+				tangents[4 * (idx_offsets[face_idx] + vert_idx) + 3] = fSign;
+			}
+		}
 	}
 };
 
@@ -435,15 +478,15 @@ bool hikari::test::owl::testlib::ObjModel::load(std::string filename)
 			mat.specular.z   = material.specular[2];
 			mat.ior          = material.ior;
 			mat.shinness     = material.shininess;
-			mat.dissolve     = material.dissolve;
-			mat.tex_diffuse  = get_tex_idx(material.diffuse_texname );
-			mat.tex_specular = get_tex_idx(material.specular_texname);
-			mat.tex_shinness = get_tex_idx(material.specular_highlight_texname);
-			mat.tex_emission = get_tex_idx(material.emissive_texname);
-			mat.tex_alpha    = get_tex_idx(material.alpha_texname);
-			mat.tex_normal = get_tex_idx(material.bump_texname);
-			mat.tex_reflection = get_tex_idx(material.reflection_texname);
-			mat.tex_normal   = get_tex_idx(material.normal_texname);
+			mat.dissolve         = material.dissolve;
+			mat.tex_diffuse      = get_tex_idx(material.diffuse_texname );
+			mat.tex_specular     = get_tex_idx(material.specular_texname);
+			mat.tex_shinness     = get_tex_idx(material.specular_highlight_texname);
+			mat.tex_emission     = get_tex_idx(material.emissive_texname);
+			mat.tex_alpha        = get_tex_idx(material.alpha_texname);
+			mat.tex_normal       = get_tex_idx(material.bump_texname);
+			mat.tex_reflection   = get_tex_idx(material.reflection_texname);
+			mat.tex_normal       = get_tex_idx(material.normal_texname);
 			mat.tex_displacement = get_tex_idx(material.displacement_texname);
 			m_materials.push_back(mat);
 		}

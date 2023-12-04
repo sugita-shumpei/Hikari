@@ -1,6 +1,14 @@
 #pragma once
 #include <owl/common/math/vec.h>
 #include <cuda_runtime.h>
+
+
+enum RayType {
+	RAY_TYPE_RADIANCE,
+	RAY_TYPE_OCCLUDED,
+	RAY_TYPE_COUNT
+};
+
 struct CameraData {
 	owl::vec3f eye;
 	owl::vec3f dir_u;
@@ -15,19 +23,20 @@ struct CameraData {
 
 struct LaunchParams
 {
-	OptixTraversableHandle world;
-	owl::vec4f*            accum_buffer;
-	int                    accum_sample;
+	OptixTraversableHandle world           ;
+	cudaTextureObject_t    texture_envlight;
+	owl::vec3f*            frame_buffer    ;
+	owl::vec4f*            accum_buffer    ;
+	owl::vec2i             frame_size      ;
+	int                    accum_sample    ;
 };
 
 struct RayGenData   
 {
 	OptixTraversableHandle world    ;
-	uint32_t*              fb_data  ;
-	owl::vec2i             fb_size  ;
+	CameraData             camera   ;
 	float                  min_depth;
 	float                  max_depth;
-	CameraData             camera   ;
 };
 
 struct MissProgData 
@@ -45,6 +54,7 @@ struct HitgroupData {
 	// phong 
 	owl::vec3f           color_ambient  ;
 	owl::vec3f           color_specular ;
+	owl::vec3f           color_emission ;
 	float                shininess      ;
 
 	cudaTextureObject_t  texture_alpha   ; 

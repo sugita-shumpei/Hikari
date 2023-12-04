@@ -14,28 +14,32 @@
 #include <filesystem>
 #include "hostCode.h"
 #include "deviceCode.h"
+#include "kernelCode.h"
+#include "thrustCode.h"
 
 extern "C" char* deviceCode_ptx[];
+extern "C" char* kernelCode_ptx[];
 
 int main() {
 	hikari::test::owl::testlib::ObjModel model;
-	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
-	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
-	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
-
-	auto center = model.getBBox().getCenter();
-	auto range  = model.getBBox().getRange ();
-	// Camera�Z�b�e�B���O
+	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
+    //model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");/*
+	//auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");*/
+    auto envlit_filename = std::string("");
+	auto center          = model.getBBox().getCenter();
+	auto range           = model.getBBox().getRange ();
 	hikari::test::owl::testlib::PinholeCamera camera;
-	camera.origin.x    = center.x;
-	camera.origin.y    = center.y;
-	camera.origin.z    =  5.0f;
-	camera.direction.z = -1.0f;
-	camera.speed.x     = range.x * 0.01f / 2.0f;
-	camera.speed.y     = range.z * 0.01f / 2.0f;
+	camera.origin.x      = center.x;
+	camera.origin.y      = center.y;
+	camera.origin.z      =  5.0f;
+	camera.direction.z   = -1.0f;
+	camera.speed.x       = range.x * 0.01f / 2.0f;
+	camera.speed.y       = range.z * 0.01f / 2.0f;
 
 	auto bbox_len = 2.0f*std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
 	auto context  = owlContextCreate();
+	owlContextSetRayTypeCount(context, RAY_TYPE_COUNT);
 	auto textures = std::vector<OWLTexture>();
 
 	constexpr auto bump_level         = 5.0f;
@@ -46,7 +50,7 @@ int main() {
 	constexpr auto texture_idx_offset = 3;
 	{
 		// env lit  
-		{
+		if (!envlit_filename.empty()){
 			int w, h, c;
 			auto pixels = stbi_loadf(envlit_filename.data(), &w, &h, &c, 0);
 			assert(pixels);
@@ -87,6 +91,11 @@ int main() {
 			textures.push_back(tex);
 
 			stbi_image_free(pixels);
+		}
+		else {
+			auto pixel = owl::vec4f(0, 0, 0, 0);
+			auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA32F, 1, 1, &pixel);
+			textures.push_back(tex);
 		}
 		// black
 		{
@@ -211,16 +220,23 @@ int main() {
 
 	auto module       = owlModuleCreate(context, (const char*)deviceCode_ptx);
 	auto accum_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, camera.width * camera.height, nullptr);
+	auto frame_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, camera.width * camera.height, nullptr);
 	auto params       = static_cast<OWLParams>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
-			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP , offsetof(LaunchParams,world)       },
-			OWLVarDecl{"accum_buffer",OWLDataType::OWL_BUFPTR, offsetof(LaunchParams,accum_buffer)},
-			OWLVarDecl{"accum_sample",OWLDataType::OWL_INT   , offsetof(LaunchParams,accum_sample)},
+			OWLVarDecl{"world"           ,OWLDataType::OWL_GROUP      , offsetof(LaunchParams,world)       },
+			OWLVarDecl{"texture_envlight",OWLDataType::OWL_TEXTURE_2D , offsetof(LaunchParams,texture_envlight)},
+			OWLVarDecl{"accum_buffer"    ,OWLDataType::OWL_BUFPTR     , offsetof(LaunchParams,accum_buffer)},
+			OWLVarDecl{"frame_buffer"    ,OWLDataType::OWL_BUFPTR     , offsetof(LaunchParams,frame_buffer)},
+			OWLVarDecl{"frame_size"      ,OWLDataType::OWL_INT2       , offsetof(LaunchParams,frame_size  )},
+			OWLVarDecl{"accum_sample"    ,OWLDataType::OWL_INT        , offsetof(LaunchParams,accum_sample)},
 			OWLVarDecl{nullptr}
 		};
 		params = owlParamsCreate(context, sizeof(LaunchParams), var_decls, -1);
-		owlParamsSetBuffer(params, "accum_buffer", accum_buffer);
+		owlParamsSetBuffer(params , "accum_buffer"    , accum_buffer);
+		owlParamsSetBuffer(params , "frame_buffer"    , frame_buffer);
+		owlParamsSetTexture(params, "texture_envlight", textures[texture_idx_envlit]);
+		owlParamsSet2i(params, "frame_size"  , camera.width, camera.height);
 		owlParamsSet1i(params, "accum_sample", 0);
 	}
 
@@ -228,8 +244,6 @@ int main() {
 	{
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP      ,offsetof(RayGenData,world)   },
-			OWLVarDecl{"fb_data"     ,OWLDataType::OWL_RAW_POINTER,offsetof(RayGenData,fb_data) },
-			OWLVarDecl{"fb_size"     ,OWLDataType::OWL_INT2       ,offsetof(RayGenData,fb_size) },
 			OWLVarDecl{"min_depth"   ,OWLDataType::OWL_FLOAT      ,offsetof(RayGenData,min_depth)},
 			OWLVarDecl{"max_depth"   ,OWLDataType::OWL_FLOAT      ,offsetof(RayGenData,max_depth)},
 			OWLVarDecl{"camera.eye"  ,OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,eye)},
@@ -240,8 +254,6 @@ int main() {
 		};
 		auto [dir_u, dir_v, dir_w] = camera.getUVW();
 		raygen = owlRayGenCreate(context, module, "simpleRG", sizeof(RayGenData), var_decls, -1);
-		owlRayGenSetPointer(raygen            , "fb_data", nullptr);
-		owlRayGenSet2i(raygen , "fb_size"     , camera.width, camera.height);
 		owlRayGenSet1f(raygen , "min_depth"   , 0.01f);
 		owlRayGenSet1f(raygen , "max_depth"   , 2.0f*bbox_len);
 		owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&camera.origin);
@@ -250,14 +262,18 @@ int main() {
 		owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&dir_w);
 	}
 
-	auto miss_prog  = static_cast<OWLMissProg>(nullptr);
+	auto miss_prog_radiance  = static_cast<OWLMissProg>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"texture_envlight"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(MissProgData,texture_envlight)  },
 			OWLVarDecl{nullptr}
 		};
-		miss_prog = owlMissProgCreate(context, module, "simpleMS", sizeof(MissProgData), var_decls, -1);
-		owlMissProgSetTexture(miss_prog, "texture_envlight", textures[texture_idx_envlit]);
+		miss_prog_radiance  = owlMissProgCreate(context, module, "radianceMS", sizeof(MissProgData), var_decls, -1);
+		owlMissProgSetTexture(miss_prog_radiance, "texture_envlight", textures[texture_idx_envlit]);
+	}
+	auto miss_prog_occluded = static_cast<OWLMissProg>(nullptr);
+	{
+		miss_prog_occluded  = owlMissProgCreate(context, module, "occludedMS",0, nullptr, 0);
 	}
 
 	auto geom_type  = static_cast<OWLGeomType>(nullptr);
@@ -271,6 +287,7 @@ int main() {
 			OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
 			OWLVarDecl{"color_ambient"      ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_ambient )  },
 			OWLVarDecl{"color_specular"     ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_specular)  },
+			OWLVarDecl{"color_emission"     ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_emission)  },
 			OWLVarDecl{"shininess"          ,OWLDataType::OWL_FLOAT      ,offsetof(HitgroupData,shininess)       },
 			OWLVarDecl{"texture_ambient"    ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient) },
 			OWLVarDecl{"texture_normal"     ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_normal)  },
@@ -278,7 +295,8 @@ int main() {
 			OWLVarDecl{nullptr}
 		};
 		geom_type  = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
-		owlGeomTypeSetClosestHit(geom_type, 0, module, "simpleCH");
+		owlGeomTypeSetClosestHit(geom_type, RAY_TYPE_RADIANCE, module, "radianceCH");
+		owlGeomTypeSetClosestHit(geom_type, RAY_TYPE_OCCLUDED, module, "occludedCH");
 	}
 
 	auto geom_type_alpha = static_cast<OWLGeomType>(nullptr);
@@ -292,6 +310,7 @@ int main() {
 			OWLVarDecl{"indices"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices)          },
 			OWLVarDecl{"color_ambient"    ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_ambient )  },
 			OWLVarDecl{"color_specular"   ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_specular)  },
+			OWLVarDecl{"color_emission"   ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_emission)  },
 			OWLVarDecl{"shininess"        ,OWLDataType::OWL_FLOAT      ,offsetof(HitgroupData,shininess)       },
 			OWLVarDecl{"texture_ambient"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient) },
 			OWLVarDecl{"texture_alpha"    ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha  ) },
@@ -300,8 +319,10 @@ int main() {
 			OWLVarDecl{nullptr}
 		};
 		geom_type_alpha = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
-		owlGeomTypeSetClosestHit(geom_type_alpha, 0, module, "simpleCH");
-		owlGeomTypeSetAnyHit(geom_type_alpha, 0, module, "simpleAH");
+		owlGeomTypeSetClosestHit(geom_type_alpha, RAY_TYPE_RADIANCE, module, "radianceCH");
+		owlGeomTypeSetClosestHit(geom_type_alpha, RAY_TYPE_OCCLUDED, module, "occludedCH");
+		owlGeomTypeSetAnyHit(geom_type_alpha, RAY_TYPE_RADIANCE, module, "simpleAH");
+		owlGeomTypeSetAnyHit(geom_type_alpha, RAY_TYPE_OCCLUDED, module, "simpleAH");
 	}
 
 	std::unordered_map<std::string, OWLGeom> trim_map = {};
@@ -336,8 +357,9 @@ int main() {
 					owlGeomSetBuffer(trim, "tangents", tang_buf);
 					owlGeomSetBuffer(trim, "uvs"     , texc_buf);
 					owlGeomSetBuffer(trim, "indices" , indx_buf);
-					owlGeomSet3f(trim, "color_ambient" , material.diffuse.x , material.diffuse.y , material.diffuse.y );
-					owlGeomSet3f(trim, "color_specular", material.specular.x, material.specular.y, material.specular.y);
+					owlGeomSet3f(trim, "color_ambient" , material.diffuse.x , material.diffuse.y , material.diffuse.z );
+					owlGeomSet3f(trim, "color_specular", material.specular.x, material.specular.y, material.specular.z);
+					owlGeomSet3f(trim, "color_emission", material.emission.x, material.emission.y, material.emission.z);
 					owlGeomSet1f(trim, "shininess"     , material.shinness);
 					if (material.tex_diffuse == 0) {
 						owlGeomSetTexture(trim, "texture_ambient", textures[texture_idx_white]);
@@ -402,6 +424,18 @@ int main() {
 	owlBuildPipeline(context);
 	owlBuildSBT(context, (OWLBuildSBTFlags)(OWLBuildSBTFlags::OWL_SBT_ALL2));
 
+	auto module_kernel = CUmodule();
+	auto kernel_tonemap             = CUfunction(nullptr);
+	auto kernel_convertToRGBA8      = CUfunction(nullptr);
+	auto kernel_convertToLuminance  = CUfunction(nullptr);
+	auto frame_luminance_buffer     = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT, camera.width * camera.height, nullptr);
+	auto frame_luminance_log_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT, camera.width * camera.height, nullptr);
+	{
+		cuModuleLoadData(&module_kernel, kernelCode_ptx);
+		cuModuleGetFunction(&kernel_tonemap           , module_kernel, "__kernel__tonemap"           );
+		cuModuleGetFunction(&kernel_convertToRGBA8    , module_kernel, "__kernel__convertToRGBA8"    );
+		cuModuleGetFunction(&kernel_convertToLuminance, module_kernel, "__kernel__convertToLuminance");
+	}
 	{
 		glfwInit();
 		glfwWindowHint(GLFW_VERSION_MAJOR, 3);
@@ -426,8 +460,11 @@ int main() {
 					bool update = false;
 					if (viewer->resize(camera.width, camera.height)) {
 						printf("%d %d\n", camera.width, camera.height);
-						owlBufferResize(accum_buffer, camera.width * camera.height);
-						owlRayGenSet2i(raygen, "fb_size", camera.width, camera.height);
+						owlBufferResize(accum_buffer          , camera.width * camera.height);
+						owlBufferResize(frame_buffer          , camera.width * camera.height);
+						owlBufferResize(frame_luminance_buffer, camera.width * camera.height);
+						owlBufferResize(frame_luminance_log_buffer, camera.width* camera.height);
+						owlParamsSet2i(params, "frame_size", camera.width, camera.height);
 						update = true;
 					}
 					{
@@ -488,6 +525,7 @@ int main() {
 					if (update) {
 						auto [dir_u, dir_v, dir_w] = camera.getUVW();
 						owlBufferClear(accum_buffer);
+						owlBufferClear(frame_buffer);
 						owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&camera.origin);
 						owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&dir_u);
 						owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&dir_v);
@@ -499,11 +537,66 @@ int main() {
 					}
 					owlParamsSet1i(params, "accum_sample", accum_sample);
 				}
-
-				owlRayGenSetPointer(raygen, "fb_data" , viewer->mapFramePtr());
+			
+				//owlRayGenSetPointer(raygen, "fb_data" , viewer->mapFramePtr());
 				owlBuildSBT(context, OWL_SBT_RAYGENS);
 				owlLaunch2D(raygen, camera.width, camera.height, params);
-				viewer->unmapFramePtr();
+				{
+					// Luminance用kernel
+					int width = camera.width; int height = camera.height;
+					auto color_buf     = reinterpret_cast<CUdeviceptr>(owlBufferGetPointer(frame_buffer              , 0));
+					auto lumin_buf     = reinterpret_cast<CUdeviceptr>(owlBufferGetPointer(frame_luminance_buffer    , 0));
+					auto lumin_log_buf = reinterpret_cast<CUdeviceptr>(owlBufferGetPointer(frame_luminance_log_buffer, 0));
+					// 描画用kernel
+					void* args[] = {
+						&width, &height, & color_buf, & lumin_buf,& lumin_log_buf
+					};
+					auto grid_x = (width  + 32u - 1u) / 32u;
+					auto grid_y = (height + 32u - 1u) / 32u;
+					cuLaunchKernel(
+						kernel_convertToLuminance,
+						grid_x, grid_y, 1,
+						32, 32, 1,
+						0,
+						owlContextGetStream(context, 0),
+						args,
+						nullptr
+					);
+					cuStreamSynchronize(owlContextGetStream(context, 0));
+				}
+				// 平均値と最大値を求める
+				float max_v; float log_average_v;
+				calculateLogAverageAndMax(camera.width, camera.height,
+					(float*)owlBufferGetPointer(frame_luminance_buffer    , 0), 
+					(float*)owlBufferGetPointer(frame_luminance_log_buffer, 0),
+					&max_v,
+					&log_average_v
+				);
+				{
+					int width   = camera.width; int height = camera.height;
+					auto pixel3fs = reinterpret_cast<CUdeviceptr>(owlBufferGetPointer(frame_buffer, 0));
+					auto pixel32s = reinterpret_cast<CUdeviceptr>(viewer->mapFramePtr());
+					float key_value = 0.18f;
+					// 描画用kernel
+					void* args[] = {
+						&width, &height,&key_value,& log_average_v,
+						&max_v,
+						&pixel3fs, & pixel32s
+					};
+					auto grid_x = (width  + 32u - 1u) / 32u;
+					auto grid_y = (height + 32u - 1u) / 32u;
+					cuLaunchKernel(
+						kernel_tonemap,
+						grid_x, grid_y,1,
+						32,32,1,
+						0,
+						owlContextGetStream(context,0),
+						args,
+						nullptr
+					);
+					cuStreamSynchronize(owlContextGetStream(context, 0));
+					viewer->unmapFramePtr();
+				}
 				viewer->render();
 				glfwSwapBuffers(window);
 			}
@@ -513,6 +606,8 @@ int main() {
 		glfwDestroyWindow(window);
 		glfwTerminate();
 	}
+
+	cuModuleUnload(module_kernel);
 
 	return 0;
 }
