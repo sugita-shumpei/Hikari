@@ -2,6 +2,18 @@
 #include <owl/common/math/vec.h>
 #include <cuda_runtime.h>
 
+enum LightType {
+	LIGHT_TYPE_ENVMAP,
+	LIGHT_TYPE_DIRECTIONAL,
+	LIGHT_TYPE_COUNT,
+};
+
+enum CallableType {
+	CALLABLE_TYPE_SAMPLE_LIGHT             = 0 ,
+	CALLABLE_TYPE_SAMPLE_LIGHT_ENVMAP      = CALLABLE_TYPE_SAMPLE_LIGHT + LIGHT_TYPE_ENVMAP     ,
+	CALLABLE_TYPE_SAMPLE_LIGHT_DIRECTIONAL = CALLABLE_TYPE_SAMPLE_LIGHT + LIGHT_TYPE_DIRECTIONAL,
+	CALLABLE_TYPE_COUNT
+};
 
 enum RayType {
 	RAY_TYPE_RADIANCE,
@@ -22,13 +34,13 @@ struct CameraData {
 };
 
 struct LaunchParams
-{
-	OptixTraversableHandle world           ;
-	cudaTextureObject_t    texture_envlight;
-	owl::vec3f*            frame_buffer    ;
-	owl::vec4f*            accum_buffer    ;
-	owl::vec2i             frame_size      ;
-	int                    accum_sample    ;
+{ 
+	OptixTraversableHandle world            ;
+	owl::vec3f*            frame_buffer     ;
+	owl::vec4f*            accum_buffer     ;
+	owl::vec2i             frame_size       ;
+	int                    accum_sample     ;
+	int                    light_type       ;
 };
 
 struct RayGenData   
@@ -63,6 +75,13 @@ struct HitgroupData {
 	cudaTextureObject_t  texture_specular;
 };
 
-struct CallableData {
-	owl::vec4f color;
+struct CallableLightEnvMapData {
+	cudaTextureObject_t envmap;
+	float               intensity;
 };
+
+struct CallableLightDirectionalData {
+	owl::vec3f color;
+	owl::vec3f direction;
+};
+

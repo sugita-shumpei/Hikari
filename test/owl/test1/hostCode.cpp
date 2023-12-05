@@ -20,8 +20,8 @@ extern "C" char* deviceCode_ptx[];
 
 int main() {
 	hikari::test::owl::testlib::ObjModel model;
-	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
-    model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
+   // model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
 	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");/*
 	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
     //auto envlit_filename = std::string("");
@@ -223,31 +223,31 @@ int main() {
 	{
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"world"           ,OWLDataType::OWL_GROUP      , offsetof(LaunchParams,world)       },
-			OWLVarDecl{"texture_envlight",OWLDataType::OWL_TEXTURE_2D , offsetof(LaunchParams,texture_envlight)},
 			OWLVarDecl{"accum_buffer"    ,OWLDataType::OWL_BUFPTR     , offsetof(LaunchParams,accum_buffer)},
 			OWLVarDecl{"frame_buffer"    ,OWLDataType::OWL_BUFPTR     , offsetof(LaunchParams,frame_buffer)},
 			OWLVarDecl{"frame_size"      ,OWLDataType::OWL_INT2       , offsetof(LaunchParams,frame_size  )},
 			OWLVarDecl{"accum_sample"    ,OWLDataType::OWL_INT        , offsetof(LaunchParams,accum_sample)},
+			OWLVarDecl{"light_type"      ,OWLDataType::OWL_INT        , offsetof(LaunchParams,light_type)  },
 			OWLVarDecl{nullptr}
 		};
 		params = owlParamsCreate(context, sizeof(LaunchParams), var_decls, -1);
 		owlParamsSetBuffer(params , "accum_buffer"    , accum_buffer);
 		owlParamsSetBuffer(params , "frame_buffer"    , frame_buffer);
-		owlParamsSetTexture(params, "texture_envlight", textures[texture_idx_envlit]);
 		owlParamsSet2i(params, "frame_size"  , camera.width, camera.height);
 		owlParamsSet1i(params, "accum_sample", 0);
+		owlParamsSet1i(params, "light_type"  , LIGHT_TYPE_ENVMAP);
 	}
 
 	auto raygen     = static_cast<OWLRayGen>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
-			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP      ,offsetof(RayGenData,world)   },
-			OWLVarDecl{"min_depth"   ,OWLDataType::OWL_FLOAT      ,offsetof(RayGenData,min_depth)},
-			OWLVarDecl{"max_depth"   ,OWLDataType::OWL_FLOAT      ,offsetof(RayGenData,max_depth)},
-			OWLVarDecl{"camera.eye"  ,OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,eye)},
-			OWLVarDecl{"camera.dir_u",OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_u)},
-			OWLVarDecl{"camera.dir_v",OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_v)},
-			OWLVarDecl{"camera.dir_w",OWLDataType::OWL_FLOAT3     ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_w)},
+			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP  ,offsetof(RayGenData,world)   },
+			OWLVarDecl{"min_depth"   ,OWLDataType::OWL_FLOAT  ,offsetof(RayGenData,min_depth)},
+			OWLVarDecl{"max_depth"   ,OWLDataType::OWL_FLOAT  ,offsetof(RayGenData,max_depth)},
+			OWLVarDecl{"camera.eye"  ,OWLDataType::OWL_FLOAT3 ,offsetof(RayGenData,camera) + offsetof(CameraData,eye)},
+			OWLVarDecl{"camera.dir_u",OWLDataType::OWL_FLOAT3 ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_u)},
+			OWLVarDecl{"camera.dir_v",OWLDataType::OWL_FLOAT3 ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_v)},
+			OWLVarDecl{"camera.dir_w",OWLDataType::OWL_FLOAT3 ,offsetof(RayGenData,camera) + offsetof(CameraData,dir_w)},
 			OWLVarDecl{nullptr}
 		};
 		auto [dir_u, dir_v, dir_w] = camera.getUVW();
@@ -400,41 +400,62 @@ int main() {
 		world       = owlInstanceGroupCreate(context, 1, &trim_group);
 		owlGroupBuildAccel(world);
 
+
 		owlParamsSetGroup(params, "world", world);
 		owlRayGenSetGroup(raygen, "world", world);
 	}
 
-	auto callable  = static_cast<OWLCallable>(nullptr);
+	auto callable_light_envmap = static_cast<OWLCallable>(nullptr);
 	{
+		auto callable = static_cast<OWLCallable>(nullptr);
 		OWLVarDecl varDecls[] = {
-			OWLVarDecl{"color", OWLDataType::OWL_FLOAT4, offsetof(CallableData,color)},
+			OWLVarDecl{"envmap"   , OWLDataType::OWL_TEXTURE_2D, offsetof(CallableLightEnvMapData,envmap)},
+			OWLVarDecl{"intensity", OWLDataType::OWL_FLOAT     , offsetof(CallableLightEnvMapData,intensity)},
 			OWLVarDecl{ nullptr }
 		};
 
-		callable = owlCallableCreate(context, module, "simpleDC1", true, sizeof(CallableData), varDecls, -1);
-		owlCallableSet4f(callable, "color", owl4f(1.0f, 0.0f, 0.0f, 1.0f));
-
-		callable = owlCallableCreate(context, module, "simpleDC2", true, sizeof(CallableData), varDecls, -1);
-		owlCallableSet4f(callable, "color", owl4f(0.0f, 1.0f, 0.0f, 1.0f));
+		callable = owlCallableCreate(context, module, "sampleLightEnvMap", true, sizeof(CallableLightEnvMapData), varDecls, -1);
+		owlCallableSetTexture(callable, "envmap"   , textures[texture_idx_envlit]);
+		owlCallableSet1f(callable, "intensity", 1.0f);
+		callable_light_envmap = callable;
 	}
-
+	auto callable_light_directional = static_cast<OWLCallable>(nullptr);
+	{
+		auto callable = static_cast<OWLCallable>(nullptr);
+		OWLVarDecl varDecls[] = {
+			OWLVarDecl{"color"    , OWLDataType::OWL_FLOAT3, offsetof(CallableLightDirectionalData,color    )},
+			OWLVarDecl{"direction", OWLDataType::OWL_FLOAT3, offsetof(CallableLightDirectionalData,direction)},
+			OWLVarDecl{ nullptr }
+		};
+		callable = owlCallableCreate(context, module, "sampleLightDirectional", true, sizeof(CallableLightDirectionalData), varDecls, -1);
+		owlCallableSet3f(callable, "color"    , 1.0f, 1.0f, 1.0f);
+		owlCallableSet3f(callable, "direction", 0.0f, 1.0f, 0.0f);
+		callable_light_directional = callable;
+	}
+	
 	owlBuildPrograms(context);
 	owlBuildPipeline(context);
 	owlBuildSBT(context, (OWLBuildSBTFlags)(OWLBuildSBTFlags::OWL_SBT_ALL2));
 	{
-		auto tonemap = hikari::test::owl::testlib::Tonemap(camera.width, camera.height, 0.042f);
+		auto tonemap = hikari::test::owl::testlib::Tonemap(camera.width, camera.height, 0.104f);
 		tonemap.init();
 		struct TracerData {
 			hikari::test::owl::testlib::PinholeCamera* p_camera;
-			hikari::test::owl::testlib::Tonemap* p_tonemap;
+			hikari::test::owl::testlib::Tonemap*       p_tonemap;
 			OWLContext                                 context;
 			OWLRayGen                                  raygen;
 			OWLParams                                  params;
+			OWLCallable                                callable_light_envmap;
+			OWLCallable                                callable_light_directional;
 			OWLBuffer                                  accum_buffer;
 			OWLBuffer                                  frame_buffer;
 			int                                        accum_sample;
+			int                                        light_type;
+			float                                      light_intensity;
+			float3                                     light_color;
+			float3                                     light_direction;
 		} tracer_data = {
-			 &camera,&tonemap,context, raygen, params,accum_buffer,frame_buffer, 0
+			 &camera,&tonemap,context, raygen,params, callable_light_envmap,callable_light_directional,accum_buffer,frame_buffer, 0, LIGHT_TYPE_ENVMAP, 1.0f,{0.0f,0.0f,0.0f},{1.0f,0.0f,0.0f}
 		};
 
 		auto resize_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, int old_w, int old_h, int new_w, int        new_h) {
@@ -449,16 +470,16 @@ int main() {
 			};
 		auto presskey_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, hikari::test::owl::testlib::KeyType           key) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
-			if (key == hikari::test::owl::testlib::KeyType::eW) { p_tracer_data->p_camera->processPressKeyW(1.0f); return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eS) { p_tracer_data->p_camera->processPressKeyS(1.0f); return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eA) { p_tracer_data->p_camera->processPressKeyA(1.0f); return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eD) { p_tracer_data->p_camera->processPressKeyD(1.0f); return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eLeft) { p_tracer_data->p_camera->processPressKeyLeft(0.5f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eW    ) { p_tracer_data->p_camera->processPressKeyW(1.0f)    ; return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eS    ) { p_tracer_data->p_camera->processPressKeyS(1.0f)    ; return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eA    ) { p_tracer_data->p_camera->processPressKeyA(1.0f)    ; return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eD    ) { p_tracer_data->p_camera->processPressKeyD(1.0f)    ; return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eLeft ) { p_tracer_data->p_camera->processPressKeyLeft(0.5f) ; return true; }
 			if (key == hikari::test::owl::testlib::KeyType::eRight) { p_tracer_data->p_camera->processPressKeyRight(0.5f); return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eUp) { p_tracer_data->p_camera->processPressKeyUp(0.5f); return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eDown) { p_tracer_data->p_camera->processPressKeyDown(0.5f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eUp   ) { p_tracer_data->p_camera->processPressKeyUp(0.5f)   ; return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eDown ) { p_tracer_data->p_camera->processPressKeyDown(0.5f) ; return true; }
 			return false;
-			};
+		};
 		auto press_mouse_button_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, hikari::test::owl::testlib::MouseButtonType mouse) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			if (mouse == hikari::test::owl::testlib::MouseButtonType::eLeft) {
@@ -478,21 +499,34 @@ int main() {
 			}
 			return false;
 			};
-		auto update_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
+		auto update_callback             = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			auto [dir_u, dir_v, dir_w] = p_tracer_data->p_camera->getUVW();
 			owlBufferClear(p_tracer_data->accum_buffer);
 			owlBufferClear(p_tracer_data->frame_buffer);
-			owlRayGenSet3fv(p_tracer_data->raygen, "camera.eye", (const float*)&p_tracer_data->p_camera->origin);
+			owlRayGenSet3fv(p_tracer_data->raygen, "camera.eye"  , (const float*)&p_tracer_data->p_camera->origin);
 			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_u", (const float*)&dir_u);
 			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_v", (const float*)&dir_v);
 			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_w", (const float*)&dir_w);
+			owlParamsSet1i (p_tracer_data->params, "light_type"  , p_tracer_data->light_type);
+			owlCallableSet1f(p_tracer_data->callable_light_envmap, "intensity", p_tracer_data->light_intensity);
+			owlCallableSet3f(p_tracer_data->callable_light_directional, "color",
+				p_tracer_data->light_color.x* p_tracer_data->light_intensity,
+				p_tracer_data->light_color.y* p_tracer_data->light_intensity,
+				p_tracer_data->light_color.z* p_tracer_data->light_intensity
+			);
+			owlCallableSet3f(p_tracer_data->callable_light_directional, "direction",
+				p_tracer_data->light_direction.x,
+				p_tracer_data->light_direction.y,
+				p_tracer_data->light_direction.z
+			);
+
 			p_tracer_data->accum_sample = 0;
-			};
-		auto render_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, void* p_fb_data) {
+		};
+		auto render_callback             = [](hikari::test::owl::testlib::GLViewer* p_viewer, void* p_fb_data) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			owlParamsSet1i(p_tracer_data->params, "accum_sample", p_tracer_data->accum_sample);
-			owlBuildSBT(p_tracer_data->context, OWL_SBT_RAYGENS);
+			owlBuildSBT(p_tracer_data->context, (OWLBuildSBTFlags)(OWL_SBT_RAYGENS | OWL_SBT_CALLABLES));
 			owlLaunch2D(p_tracer_data->raygen, p_tracer_data->p_camera->width, p_tracer_data->p_camera->height, p_tracer_data->params);
 			p_tracer_data->p_tonemap->launch(owlContextGetStream(p_tracer_data->context, 0),
 				(const float3*)owlBufferGetPointer(p_tracer_data->frame_buffer, 0),
@@ -500,58 +534,105 @@ int main() {
 			);
 			p_tracer_data->accum_sample++;
 			};
-		auto ui_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
+		auto ui_callback                 = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
-			if (ImGui::Begin("Tonemap")) {
-				float new_key_value = p_tracer_data->p_tonemap->getKeyValue();
-				float old_key_value = new_key_value;
-				ImGui::InputFloat("Key Value: %f", &new_key_value);
-				ImGui::Text("Maxmimum Luminance: %f", p_tracer_data->p_tonemap->getMaxLuminance());
-				ImGui::Text("Average  Luminance: %f", p_tracer_data->p_tonemap->getAveLuminance());
-
-
-				{
-					const char* combo_defaults[] = { "Reinhard","Extended Reinhard" };
-					if (ImGui::BeginCombo("Type", combo_defaults[(int)p_tracer_data->p_tonemap->getType()])) {
-						if (ImGui::Selectable("Reinhard")) {
-							p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eReinhard);
+			if (ImGui::Begin("Config")) {
+				if (ImGui::TreeNode("Tonemap")) {
+					float new_key_value = p_tracer_data->p_tonemap->getKeyValue();
+					float old_key_value = new_key_value;
+					{
+						const char* combo_defaults[] = { "Reinhard","Extended Reinhard" };
+						if (ImGui::BeginCombo("Type", combo_defaults[(int)p_tracer_data->p_tonemap->getType()])) {
+							if (ImGui::Selectable("Reinhard")) {
+								p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eReinhard);
+							}
+							if (ImGui::Selectable("Extended Reinhard")) {
+								p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eExtendedReinhard);
+							}
+							ImGui::EndCombo();
 						}
-						if (ImGui::Selectable("Extended Reinhard")) {
-							p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eExtendedReinhard);
+					}
+					ImGui::SliderFloat("Key Value: ", &new_key_value, 0.001f, 5.0f);
+					ImGui::Text("Maxmimum Luminance: %f", p_tracer_data->p_tonemap->getMaxLuminance());
+					ImGui::Text("Average  Luminance: %f", p_tracer_data->p_tonemap->getAveLuminance());
+					if (new_key_value != old_key_value) {
+						p_tracer_data->p_tonemap->setKeyValue(new_key_value);
+					}
+					ImGui::TreePop();
+				}
+				if (ImGui::TreeNode("Camera")) {
+					float camera_pos[3] = { p_tracer_data->p_camera->origin.x, p_tracer_data->p_camera->origin.y, p_tracer_data->p_camera->origin.z };
+					if (ImGui::InputFloat3("Position: ", camera_pos)) {
+						p_tracer_data->p_camera->origin.x = camera_pos[0];
+						p_tracer_data->p_camera->origin.y = camera_pos[1];
+						p_tracer_data->p_camera->origin.z = camera_pos[2];
+						p_viewer->updateNextFrame();
+					}
+					float camera_dir[3] = { p_tracer_data->p_camera->direction.x, p_tracer_data->p_camera->direction.y, p_tracer_data->p_camera->direction.z };
+					if (ImGui::InputFloat3("Direction: ", camera_dir)) {
+						if (camera_dir[0] != 0.0f || camera_dir[1] != 0.0f || camera_dir[2] != 0.0f) {
+							p_tracer_data->p_camera->direction.x = camera_dir[0];
+							p_tracer_data->p_camera->direction.y = camera_dir[1];
+							p_tracer_data->p_camera->direction.z = camera_dir[2];
+							p_tracer_data->p_camera->direction = owl::normalize(p_tracer_data->p_camera->direction);
+							p_viewer->updateNextFrame();
+						}
+					}
+					float camera_fovy = p_tracer_data->p_camera->fovy;
+					if (ImGui::SliderFloat("FovY: ", &camera_fovy, 0.0f,180.0f)) {
+						p_tracer_data->p_camera->fovy = camera_fovy;
+						p_viewer->updateNextFrame();
+					}
+					ImGui::TreePop();
+				}
+				if (ImGui::TreeNode("Light")) {
+					const char* combo_defaults[] = { "EnvMap","Directional" };
+					if (ImGui::BeginCombo("Type", combo_defaults[(int)p_tracer_data->light_type])) {
+						if (ImGui::Selectable("EnvMap")) {
+							if (p_tracer_data->light_type != LIGHT_TYPE_ENVMAP) {
+								p_tracer_data->light_type  = LIGHT_TYPE_ENVMAP;
+								p_viewer->updateNextFrame();
+
+							}
+						}
+						if (ImGui::Selectable("Directional")) {
+							if (p_tracer_data->light_type != LIGHT_TYPE_DIRECTIONAL) {
+								p_tracer_data->light_type  = LIGHT_TYPE_DIRECTIONAL;
+								p_viewer->updateNextFrame();
+							}
+							
 						}
 						ImGui::EndCombo();
 					}
-				}
-				if (new_key_value != old_key_value) {
-					p_tracer_data->p_tonemap->setKeyValue(new_key_value);
-				}
-				{
-					auto max_value = p_tracer_data->p_tonemap->getMaxLuminance();
-					auto ave_value = p_tracer_data->p_tonemap->getAveLuminance();
-					p_tracer_data->p_tonemap->setKeyValue(ave_value / max_value);
+					if (p_tracer_data->light_type == LIGHT_TYPE_ENVMAP) {
+						float intensity = p_tracer_data->light_intensity;
+						if (ImGui::SliderFloat("intensity", &intensity, 0.1f, 10.0f)) {
+							p_tracer_data->light_intensity = intensity;
+							p_viewer->updateNextFrame();
+						}
+					}
+					if (p_tracer_data->light_type == LIGHT_TYPE_DIRECTIONAL) {
+						float color[3] = { p_tracer_data->light_color.x,p_tracer_data->light_color.y,p_tracer_data->light_color.z };
+						if (ImGui::ColorPicker3("color", color)) {
+							p_tracer_data->light_color.x = color[0];
+							p_tracer_data->light_color.y = color[1];
+							p_tracer_data->light_color.z = color[2];
+							p_viewer->updateNextFrame();
+						}
+						float intensity = p_tracer_data->light_intensity;
+						if (ImGui::SliderFloat("intensity", &intensity,0.1f,10.0f)) {
+							p_tracer_data->light_intensity = intensity;
+							p_viewer->updateNextFrame();
+						}
+					}
+					ImGui::TreePop();
 				}
 				ImGui::End();
 			}
-
-			ImGui::Begin("Camera");
-			float camera_pos[3] = { p_tracer_data->p_camera->origin .x, p_tracer_data->p_camera->origin .y, p_tracer_data->p_camera->origin .z};
-			if (ImGui::InputFloat3("Position: %f %f %f", camera_pos)) {
-				p_tracer_data->p_camera->origin.x = camera_pos[0];
-				p_tracer_data->p_camera->origin.y = camera_pos[1];
-				p_tracer_data->p_camera->origin.z = camera_pos[2];
-				p_viewer->updateNextFrame();
-			}
-			float camera_fovy = p_tracer_data->p_camera->fovy;
-			if (ImGui::InputFloat("FovY: %f", &camera_fovy)) {
-				p_tracer_data->p_camera->fovy = camera_fovy;
-				p_viewer->updateNextFrame();
-			}
-			ImGui::End();
 		};
 		auto viewer                      = std::make_unique<hikari::test::owl::testlib::GLViewer>(context, camera.width, camera.height);
 		viewer->runWithCallback(&tracer_data, resize_callback, presskey_callback, press_mouse_button_callback, update_callback, render_callback, ui_callback);
 		viewer.reset();
-
 		tonemap.free();
 	}
 	return 0;

@@ -84,9 +84,6 @@ __global__ void HikariTestOwlTonemap_tonemapColorRGBA8Impl_extendedReinhard(
 	//input_color.x *= (key_value / ave_luminance);
 	//input_color.y *= (key_value / ave_luminance);
 	//input_color.z *= (key_value / ave_luminance);
-	input_color.x = input_color.x / (1.0f + input_color.x);
-	input_color.y = input_color.y / (1.0f + input_color.y);
-	input_color.z = input_color.z / (1.0f + input_color.z);
 	unsigned int r = fminf(255, fmaxf(0, int(input_color.x * 256.f)));
 	unsigned int g = fminf(255, fmaxf(0, int(input_color.y * 256.f)));
 	unsigned int b = fminf(255, fmaxf(0, int(input_color.z * 256.f)));
