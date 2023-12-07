@@ -1,6 +1,8 @@
-find_package(glfw3      CONFIG REQUIRED)
-find_package(glad       CONFIG REQUIRED)
-find_package(mikktspace CONFIG REQUIRED)
+find_package(CUDAToolkit REQUIRED)
+find_package(glfw3       CONFIG REQUIRED)
+find_package(glad        CONFIG REQUIRED)
+find_package(glm         CONFIG REQUIRED)
+find_package(mikktspace  CONFIG REQUIRED)
 find_package(tinyobjloader  CONFIG REQUIRED)
 find_package(imgui          CONFIG REQUIRED)
 
@@ -28,7 +30,8 @@ target_include_directories(hikari-test-owl-testlib  PUBLIC ${CMAKE_CURRENT_SOURC
 target_compile_features(hikari-test-owl-testlib PUBLIC  cxx_std_20)
 target_link_libraries(  hikari-test-owl-testlib 
 PUBLIC 
-owl::owl 
+CUDA::cudart_static 
+glm::glm 
 PRIVATE 
 glfw
 glad::glad 

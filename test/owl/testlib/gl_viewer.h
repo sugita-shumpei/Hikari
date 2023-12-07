@@ -1,5 +1,5 @@
 #pragma once
-#include <owl/owl.h>
+#include <cstdint>
 #include <imgui.h>
 namespace hikari {
     namespace test {
@@ -25,12 +25,13 @@ namespace hikari {
                 using  Pfn_GLViewerResizeCallback           = bool(*)(GLViewer*, int old_width, int old_height, int new_width, int new_height);
                 using  Pfn_GLViewerPressKeyCallback         = bool(*)(GLViewer*, KeyType         key);
                 using  Pfn_GLViewerPressMouseButtonCallback = bool(*)(GLViewer*, MouseButtonType mouse_button);
+                using  Pfn_GLViewerMouseScrollCallback      = bool(*)(GLViewer*, double x, double y);
                 using  Pfn_GLViewerUpdateCallback           = void(*)(GLViewer*);
                 using  Pfn_GLViewerRenderCallback           = void(*)(GLViewer*,void*);
                 using  Pfn_GLViewerGuiCallback              = void(*)(GLViewer*);
 
                 struct GLViewer {
-                    GLViewer(OWLContext context_, int width_, int height_) noexcept;
+                    GLViewer(void* m_stream, int width_, int height_) noexcept;
                     virtual ~GLViewer() noexcept ;
 
                     GLViewer(const GLViewer& ) noexcept = delete;
@@ -45,19 +46,25 @@ namespace hikari {
                         Pfn_GLViewerResizeCallback           resizeCallback,
                         Pfn_GLViewerPressKeyCallback         pressKeyCallback,
                         Pfn_GLViewerPressMouseButtonCallback pressMouseButtonCallback,
+                        Pfn_GLViewerMouseScrollCallback      mouseScrollCallback,
                         Pfn_GLViewerUpdateCallback           updateCallback,
                         Pfn_GLViewerRenderCallback           renderCallback,
                         Pfn_GLViewerGuiCallback              guiCallback
                     );
-                    void    getCursorPosition(double& cursor_pos_x, double& cursor_pos_y)const;
-                    void    getWindowSize(int& width, int& height)const;
-                    void*   getUserPtr();
-                    void    updateNextFrame();
+
+                    void  getCursorPosition(double& cursor_pos_x, double& cursor_pos_y)const;
+                    void  getWindowSize(int& width, int& m_height)const;
+                    void* getUserPtr();
+                    void* getInternalData();
+                    void  updateNextFrame();
+                    double getTime()const { return m_delta_time; }
+                    
                 protected:
-                    void    setUserPtr(void* ptr);
+                    void         setUserPtr(void* ptr);
                     virtual bool onResize(int old_width, int old_height,int new_width, int new_height) { return false; }
                     virtual bool onPressKey(KeyType key)                          { return false; }
                     virtual bool onPressMouseButton(MouseButtonType mouse_button) { return false; }
+                    virtual bool onMouseScroll(double delta_x, double      delta_y) { return false; }
                     virtual void onUpdate()                {}
                     virtual void onRender(void* frame_ptr) {}
                 private:
@@ -68,11 +75,11 @@ namespace hikari {
                         Pfn_GLViewerResizeCallback           resizeCallback,
                         Pfn_GLViewerPressKeyCallback         pressKeyCallback,
                         Pfn_GLViewerPressMouseButtonCallback pressMouseButtonCallback,
+                        Pfn_GLViewerMouseScrollCallback      mouseScrollCallback,
                         Pfn_GLViewerUpdateCallback           updateCallback,
                         Pfn_GLViewerRenderCallback           renderCallback,
                         Pfn_GLViewerGuiCallback              guiCallback
                     );
-
                     void  initGlfw3();
                     void  freeGlfw3();
                     void  initGlad() ;
@@ -96,19 +103,22 @@ namespace hikari {
                     void  unmapFramePtr();
                     void* getFramePtr();
                 private:
-                    OWLContext context    = nullptr;
-                    void*      window     = nullptr;
-                    void*      resource   = nullptr;
-                    void*      device_ptr = nullptr;
-                    void*      user_ptr   = nullptr;
-                    int32_t    width ;
-                    int32_t    height;
-                    uint32_t   vao;
-                    uint32_t   shd;
-                    uint32_t   tex;
-                    uint32_t   pbo;
-                    int32_t    tex_loc;
-                    bool       update_next_frame;
+                    void*    m_stream     = nullptr;
+                    // Window ƒnƒ“ƒhƒ‹
+                    void*    m_window     = nullptr;
+                    void*    m_resource   = nullptr;
+                    void*    m_device_ptr = nullptr;
+                    void*    m_user_ptr   = nullptr;
+                    void*    m_internal   = nullptr;
+                    int32_t  m_width ;
+                    int32_t  m_height;
+                    uint32_t m_vao;
+                    uint32_t m_shd;
+                    uint32_t m_tex;
+                    uint32_t m_pbo;
+                    int32_t  m_tex_loc;
+                    double   m_delta_time;
+                    bool     m_update_next_frame;
                 };
             }
         }

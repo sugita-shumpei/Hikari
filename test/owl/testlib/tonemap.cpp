@@ -1,6 +1,7 @@
 #include "tonemap.h"
 #include <cuda/tonemap_impl.h>
 
+
 hikari::test::owl::testlib::Tonemap::Tonemap(int width, int height, float key_value, TonemapType type) :
 	m_width{ width },
 	m_height{ height },

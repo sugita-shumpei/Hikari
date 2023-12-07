@@ -33,14 +33,23 @@ struct CameraData {
 #endif
 };
 
+struct ParallelLight {
+	owl::vec3f             color    ;
+	unsigned int           active   ;
+	owl::vec3f             direction;
+	unsigned int           dummy    ;
+};
+
 struct LaunchParams
 { 
-	OptixTraversableHandle world            ;
-	owl::vec3f*            frame_buffer     ;
-	owl::vec4f*            accum_buffer     ;
-	owl::vec2i             frame_size       ;
-	int                    accum_sample     ;
-	int                    light_type       ;
+	OptixTraversableHandle world             ;
+	cudaTextureObject_t    light_envmap      ;
+	owl::vec3f*            frame_buffer      ;
+	owl::vec4f*            accum_buffer      ;
+	owl::vec2i             frame_size        ;
+	int                    accum_sample      ;
+	float                  light_intensity   ;
+	ParallelLight          light_parallel    ;
 };
 
 struct RayGenData   
@@ -75,13 +84,32 @@ struct HitgroupData {
 	cudaTextureObject_t  texture_specular;
 };
 
-struct CallableLightEnvMapData {
-	cudaTextureObject_t envmap;
-	float               intensity;
-};
+struct Onb {
+#if defined(__CUDACC__)
+	__device__ 
+#endif
+	Onb(const owl::vec3f& w_) noexcept: w { w_ }{
+		if (fabsf(w.x) < 0.5f) {
+			u = owl::cross(w, owl::vec3f(1.0f, 0.0f, 0.0f));
+		}
+		else if (fabsf(w.y) < 0.5f) {
+			u = owl::cross(w, owl::vec3f(0.0f, 1.0f, 0.0f));
+		}
+		else {
+			u = owl::cross(w, owl::vec3f(0.0f, 0.0f, 1.0f));
+		}
+		v = owl::cross(w, u);
+	}
 
-struct CallableLightDirectionalData {
-	owl::vec3f color;
-	owl::vec3f direction;
-};
+#if defined(__CUDACC__)
+	__forceinline__ __device__ 
+#endif
+	owl::vec3f local(const owl::vec3f& direction) const {
+		return direction.x * u + direction.y * v + direction.z * w;
+	}
 
+
+	owl::vec3f u;
+	owl::vec3f v;
+	owl::vec3f w;
+};

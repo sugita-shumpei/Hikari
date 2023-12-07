@@ -1,12 +1,10 @@
-#include <optix_device.h>
+﻿#include <optix_device.h>
 #include <owl/owl_device.h>
 #include <owl/common/owl-common.h>
 #include <owl/common/math/random.h>
 #include <owl/common/math/vec.h>
 #include "deviceCode.h"
- 
 extern "C" { __constant__ LaunchParams optixLaunchParams; }
-
 struct PayloadData {
 	owl::LCG<24> random     ;
 	owl::vec3f ray_origin   ;
@@ -14,7 +12,6 @@ struct PayloadData {
 	owl::vec3f attenuation  ;
 	owl::vec3f color;
 };
-
 __forceinline__ __device__ owl::vec2f normalize_uv(owl::vec2f vt) {
 	vt.x = fmodf(vt.x, 1.0f);
 	vt.y = fmodf(vt.y, 1.0f);
@@ -26,14 +23,20 @@ __forceinline__ __device__ owl::vec2f normalize_uv(owl::vec2f vt) {
 	}
 	return vt;
 }
-__forceinline__ __device__ float3 sample_sphere_map(const cudaTextureObject_t& tex, const float3& dir)
+
+__forceinline__ __device__ float3     sample_sphere_map(const cudaTextureObject_t& tex, const float3& dir)
 {
 	float phi   = atan2f(dir.z, dir.x);
-	float theta = asinf(dir.y);
+	float theta = dir.y;
 	float x     = (phi / M_PI + 1.0f) * 0.5f;
-	float y     = (theta / M_PI + 0.5f);
+	float y     = (dir.y + 1.0f) * 0.5f;
 	auto res    = tex2D<float4>(tex, x, y);
 	return make_float3(res.x, res.y, res.z);
+}
+
+__forceinline__ __device__ owl::vec3f eval_bsdf_phong(owl::vec3f ambient, owl::vec3f specular, float shininess, float light_cosine)
+{
+	return (ambient + specular * (0.5f * shininess + 1.0f) * powf(light_cosine, shininess)) / ((float)M_PI);
 }
 
 OPTIX_RAYGEN_PROGRAM(simpleRG)() {
@@ -47,6 +50,7 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	auto payload = PayloadData();
 	payload.random = {};
 	payload.random.init(dim.x * idx.y + idx.x, optixLaunchParams.accum_sample);
+
 	auto color = owl::vec3f(0.0f,0.0f,0.0f);
 	for (int i = 0; i < frame_samples; ++i) {
 		payload.color       = owl::vec3f(0.0f, 0.0f, 0.0f);
@@ -55,11 +59,12 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 		float px = ((float)idx.x + payload.random() - 0.5f) / ((float)dim.x);
 		float py = ((float)idx.y + payload.random() - 0.5f) / ((float)dim.y);
 
-		auto  ray_dir = rg_data.camera.getRayDirection(px, py);
+		auto ray_dir = rg_data.camera.getRayDirection(px, py);
 		owl::RayT<0, 1> ray(rg_data.camera.eye,
 			owl::normalize(ray_dir),
 			rg_data.min_depth, rg_data.max_depth
 		);
+
 		for (int j = 0; j < trace_depth; ++j) {
 			payload.color = owl::vec3f(0.0f, 0.0f, 0.0f);
 			owl::trace(rg_data.world, ray, RAY_TYPE_COUNT, payload, RAY_TYPE_RADIANCE);
@@ -75,18 +80,16 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	optixLaunchParams.accum_buffer[dim.x * idx.y + idx.x] = owl::vec4f(col, smp);
 	col *= (1.0f / smp);
 	optixLaunchParams.frame_buffer[dim.x * idx.y + idx.x] = col;
-	//// このまま直接書き込むのはあまり効率的ではない
-	//// 別にTonemapping用のShaderを書くのが適切     
-	//rg_data.fb_data[dim.x * idx.y + idx.x] = owl::make_rgba(col);
 }
 
 OPTIX_MISS_PROGRAM(occludedMS)() {
 	optixSetPayload_0(0);
 }
+
 OPTIX_MISS_PROGRAM(radianceMS)() {
 	auto& payload         = owl::getPRD<PayloadData>();
 	auto& ms_data         = owl::getProgramData<MissProgData>();
-	auto  emission        = optixDirectCall<float3,float3>(optixLaunchParams.light_type, optixGetWorldRayDirection());
+	auto  emission        = optixLaunchParams.light_intensity*owl::vec3f(sample_sphere_map(optixLaunchParams.light_envmap, optixGetWorldRayDirection()));
 	payload.color.x       = payload.attenuation.x * emission.x;
 	payload.color.y       = payload.attenuation.y * emission.y;
 	payload.color.z       = payload.attenuation.z * emission.z;
@@ -94,7 +97,6 @@ OPTIX_MISS_PROGRAM(radianceMS)() {
 	payload.attenuation.y = 0.0f;
 	payload.attenuation.z = 0.0f;
 }
-
 OPTIX_CLOSEST_HIT_PROGRAM(radianceCH)() {
 	auto& ch_data = owl::getProgramData<HitgroupData>();
 	auto& payload = owl::getPRD<PayloadData>();
@@ -168,30 +170,38 @@ OPTIX_CLOSEST_HIT_PROGRAM(radianceCH)() {
 		float cos_phi   = cosf(phi);
 		float sin_phi   = sinf(phi);
 
-		auto w = normal;
-		auto u = owl::vec3f(0.0f, 0.0f, 0.0f);
-		if (fabsf(w.x) < 0.5f) {
-			u  = owl::cross(w, owl::vec3f(1.0f, 0.0f, 0.0f));
-		}
-		else if (fabsf(w.y) < 0.5f) {
-			u  = owl::cross(w, owl::vec3f(0.0f, 1.0f, 0.0f));
-		}
-		else {
-			u  = owl::cross(w, owl::vec3f(0.0f, 0.0f, 1.0f));
-		}
-
-
-
-		auto v                 = owl::cross(w, u);
-		new_direction          = owl::normalize(sin_theta * cos_phi * u + sin_theta * sin_phi * v + cos_theta * w);
-		float geometry_cosine  = owl::dot(normal, new_direction);
+		Onb onb(normal);
+		new_direction          = owl::normalize(onb.local({sin_theta*cos_phi,sin_theta*sin_phi,cos_theta}));
+		float geometry_cosine  = cos_theta;
 
 		payload.ray_origin    = origin + 0.001f * normal;
 		payload.ray_direction = new_direction;
 		payload.color         = fmaxf(geometry_cosine,0.0f) * payload.attenuation * ch_data.color_emission;
 
+		if (optixLaunchParams.light_parallel.active) {
+			// 並行光源へとレイを照射し遮蔽をとる
+			unsigned int occluded = 0;
+			optixTrace(
+				optixLaunchParams.world,
+				{ payload.ray_origin.x,payload.ray_origin.y,payload.ray_origin.z },
+				{ optixLaunchParams.light_parallel.direction.x, optixLaunchParams.light_parallel.direction.y, optixLaunchParams.light_parallel.direction.z },
+				0.0f, 1e10f, 0.0f, 255u,
+				OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT,
+				RAY_TYPE_OCCLUDED,
+				RAY_TYPE_COUNT,
+				RAY_TYPE_OCCLUDED,
+				occluded);
+			// 遮蔽がなければ寄与をとる
+			if (!occluded) {
+
+				auto light_cosine = fmaxf(owl::dot(ref_direction, optixLaunchParams.light_parallel.direction), 0.0f);
+				payload.color += payload.attenuation * optixLaunchParams.light_parallel.color * eval_bsdf_phong(ambient_col, specular_col, shininess, light_cosine) * fmaxf(owl::dot(normal,optixLaunchParams.light_parallel.direction), 0.0f);
+			}
+		}
+
 		if (geometry_cosine > 0.0f) {
-			payload.attenuation *= (ambient_col+specular_col * (0.5f * shininess + 1.0f) * powf(fmaxf(owl::dot(ref_direction, new_direction),0.0f), shininess));
+			auto light_cosine = fmaxf(owl::dot(ref_direction, new_direction), 0.0f);
+			payload.attenuation *= eval_bsdf_phong(ambient_col,specular_col,shininess, light_cosine) * ((float)M_PI);
 		}
 		else {
 			payload.attenuation  = {};
@@ -220,13 +230,4 @@ OPTIX_ANY_HIT_PROGRAM(simpleAH)() {
 			optixIgnoreIntersection();
 		}
 	}
-}
-
-OPTIX_DIRECT_CALLABLE_PROGRAM_NON_VOID(sampleLightEnvMap,float3)(float3 direction) {
-	auto& dc_data = owl::getProgramData<CallableLightEnvMapData>();
-	return sample_sphere_map(dc_data.envmap, direction);
-}
-OPTIX_DIRECT_CALLABLE_PROGRAM_NON_VOID(sampleLightDirectional, float3)(float3 direction) {
-	auto&  dc_data = owl::getProgramData<CallableLightDirectionalData>();
-	return dc_data.color;
 }
