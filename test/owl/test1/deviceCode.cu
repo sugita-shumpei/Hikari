@@ -27,7 +27,6 @@ __forceinline__ __device__ owl::vec2f normalize_uv(owl::vec2f vt) {
 __forceinline__ __device__ float3     sample_sphere_map(const cudaTextureObject_t& tex, const float3& dir)
 {
 	float phi   = atan2f(dir.z, dir.x);
-	float theta = dir.y;
 	float x     = (phi / M_PI + 1.0f) * 0.5f;
 	float y     = (dir.y + 1.0f) * 0.5f;
 	auto res    = tex2D<float4>(tex, x, y);
@@ -170,9 +169,43 @@ OPTIX_CLOSEST_HIT_PROGRAM(radianceCH)() {
 		float cos_phi   = cosf(phi);
 		float sin_phi   = sinf(phi);
 
-		Onb onb(normal);
-		new_direction          = owl::normalize(onb.local({sin_theta*cos_phi,sin_theta*sin_phi,cos_theta}));
-		float geometry_cosine  = cos_theta;
+		Onb onb1(normal);
+		auto new_direction1    = owl::normalize(onb1.local({sin_theta*cos_phi,sin_theta*sin_phi,cos_theta}));
+
+		auto sun_mu   = owl::vec3f(optixLaunchParams.light_envmap_sun.x, optixLaunchParams.light_envmap_sun.y, optixLaunchParams.light_envmap_sun.z);
+		auto sun_k    = optixLaunchParams.light_envmap_sun.w;
+		auto sun_c    = sun_k/(4.0f*M_PI* sinhf(sun_k));
+
+		Onb onb2(sun_mu);
+		phi           = 2.0f * M_PI * payload.random();
+		cos_phi       = cosf(phi);
+		sin_phi       = sinf(phi);
+		float zeta    = payload.random();
+		cos_theta     = 1.0f + (1.0f / sun_k) * logf(zeta + (1.0f - zeta) * expf(-2.0f * sun_k));
+		sin_theta     = sqrtf(1.0f - cos_theta * cos_theta);
+		auto new_direction2 = owl::normalize(onb2.local({ sin_theta * cos_phi,sin_theta * sin_phi,cos_theta }));
+
+		float pdf11            = fmaxf(owl::dot(new_direction1,normal),0.0f)/M_PI;
+		float pdf12            = fmaxf(owl::dot(new_direction2,normal),0.0f)/M_PI;
+		float pdf21            = sun_c * expf(sun_k * owl::dot(sun_mu, new_direction1));
+		float pdf22            = sun_c * expf(sun_k * owl::dot(sun_mu, new_direction2));
+		
+		float weight          = 0.0f;
+		float geometry_cosine = 0.0f;
+		float denom           = 0.0f;
+		if (payload.random() < 0.5f) {
+			weight          =(0.25f * pdf11* pdf11) / (0.25f * pdf11 * pdf11 + 0.25f * pdf21 * pdf21);
+			new_direction   = new_direction1;
+			denom           = 0.5f * pdf11;
+			geometry_cosine = owl::dot(new_direction1, normal);
+		}
+		else {
+			weight          =(0.25f * pdf22* pdf22) / (0.25f * pdf22 * pdf22 + 0.25f * pdf12 * pdf12);
+			new_direction   = new_direction2;
+			denom           = 0.5f * pdf22;
+			geometry_cosine = owl::dot(new_direction2, normal);
+		}
+		
 
 		payload.ray_origin    = origin + 0.001f * normal;
 		payload.ray_direction = new_direction;
@@ -201,7 +234,7 @@ OPTIX_CLOSEST_HIT_PROGRAM(radianceCH)() {
 
 		if (geometry_cosine > 0.0f) {
 			auto light_cosine = fmaxf(owl::dot(ref_direction, new_direction), 0.0f);
-			payload.attenuation *= eval_bsdf_phong(ambient_col,specular_col,shininess, light_cosine) * ((float)M_PI);
+			payload.attenuation *= eval_bsdf_phong(ambient_col,specular_col,shininess, light_cosine) * fmaxf(geometry_cosine,0.0f)*(weight/denom);
 		}
 		else {
 			payload.attenuation  = {};

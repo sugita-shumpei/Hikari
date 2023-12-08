@@ -50,6 +50,7 @@ struct LaunchParams
 	int                    accum_sample      ;
 	float                  light_intensity   ;
 	ParallelLight          light_parallel    ;
+	owl::vec4f             light_envmap_sun  ;
 };
 
 struct RayGenData   
