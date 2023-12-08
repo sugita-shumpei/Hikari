@@ -11,8 +11,11 @@ namespace hikari
 
                 enum class TonemapType
                 {
-                    eReinhard,
-                    eExtendedReinhard
+                    eLinear,
+                    eCorrelatedLinear  ,
+                    eCorrelatedReinhard,
+                    eCorrelatedExtendedReinhard,
+                    eCount
                 };
 
             }

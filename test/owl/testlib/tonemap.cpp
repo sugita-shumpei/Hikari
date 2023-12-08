@@ -60,11 +60,13 @@ void hikari::test::owl::testlib::Tonemap::resize(int width, int height)
 
 void hikari::test::owl::testlib::Tonemap::estimateLuminance(CUstream stream, const float3* input_buffer)
 {
+	if (m_type == TonemapType::eLinear) { return; }
 	HikariTestOwlTonemap_estimateLuminance(stream,m_width, m_height, input_buffer, m_luminance_buffer, m_luminance_log_buffer);
 }
 
 void hikari::test::owl::testlib::Tonemap::estimateMaxAndAverage(CUstream stream)
 {
+	if (m_type == TonemapType::eLinear) { return; }
 	HikariTestOwlTonemap_estimateMaxAndAverage(stream, m_width, m_height, m_luminance_buffer, m_luminance_log_buffer, &m_max_luminance, &m_ave_luminance);
 }
 

@@ -1,5 +1,6 @@
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm   CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 embed_ptx(
   OUTPUT_TARGET
     hikari-test-owl-test2-ptx
@@ -13,7 +14,13 @@ embed_ptx(
 add_executable(         hikari-test-owl-test2 hostCode.h deviceCode.h hostCode.cpp)
 target_include_directories(hikari-test-owl-test2 PRIVATE ${Stb_INCLUDE_DIR})
 target_compile_features(hikari-test-owl-test2 PUBLIC  cxx_std_20)
-target_link_libraries(  hikari-test-owl-test2 PRIVATE hikari-test-owl-testlib hikari-test-owl-test2-ptx owl::owl glfw glm::glm)
+target_link_libraries(  hikari-test-owl-test2 PRIVATE 
+    hikari-test-owl-testlib 
+    hikari-test-owl-test2-ptx 
+    owl::owl 
+    glm::glm
+    imgui::imgui
+)
 
 set_target_properties(hikari-test-owl-test2         PROPERTIES FOLDER "test/owl/test2")
 set_target_properties(hikari-test-owl-test2-ptx     PROPERTIES FOLDER "test/owl/test2")

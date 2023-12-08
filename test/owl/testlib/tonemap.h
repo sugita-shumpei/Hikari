@@ -7,7 +7,7 @@ namespace hikari {
 		namespace owl {
 			namespace testlib {
 				struct Tonemap {
-                    Tonemap(int width, int height, float key_value, TonemapType type = TonemapType::eReinhard);
+                     Tonemap(int width, int height, float key_value, TonemapType type = TonemapType::eCorrelatedReinhard);
                     ~Tonemap();
 
                     void init();

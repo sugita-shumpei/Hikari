@@ -1,0 +1,13 @@
+{
+  "name": "optix-toolkit",
+  "description" : "a clean reconfiguration is required if this file is modified",
+  "dependencies": [
+    
+    
+    
+    "glad",
+    "glfw3",
+    "gtest"
+  ]
+}
+
