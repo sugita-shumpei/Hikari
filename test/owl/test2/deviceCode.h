@@ -64,6 +64,123 @@ struct MaterialParams {
 	float                 f32_values[11];//32bit*12
 	unsigned short        u16_values[16];//32bit* 8
 };
+//  Material Parameter
+struct MaterialParamsLight {
+#if defined(__CUDACC__)
+	__device__ void set(const MaterialParams& params) {
+		color.x = params.f32_values[0];
+		color.y = params.f32_values[1];
+		color.z = params.f32_values[2];
+		texid   = params.u16_values[0];
+	}
+#else
+	void get(MaterialParams& params)const {
+		params.f32_values[0] = color.x;
+		params.f32_values[1] = color.y;
+		params.f32_values[2] = color.z;
+		params.u16_values[0] = texid;
+	}
+#endif
+	owl::vec3f            color;
+	unsigned short        texid;
+};
+struct MaterialParamsDiffuse {
+	owl::vec3f            color;
+	unsigned short        texid;
+#if defined(__CUDACC__)
+	__device__ void set(const MaterialParams& params) {
+		color.x = params.f32_values[0];
+		color.y = params.f32_values[1];
+		color.z = params.f32_values[2];
+		texid = params.u16_values[0];
+	}
+#else
+	void get(MaterialParams& params)const {
+		params.f32_values[0] = color.x;
+		params.f32_values[1] = color.y;
+		params.f32_values[2] = color.z;
+		params.u16_values[0] = texid;
+	}
+#endif
+};
+struct MaterialParamsSpecular {
+	owl::vec3f            color;
+	float                 factor1;
+	float                 factor2;
+	unsigned short        texid_color;
+	unsigned short        texid_factor1;
+	unsigned short        texid_factor2;
+#if defined(__CUDACC__)
+	__device__ void set(const MaterialParams& params) {
+		color.x       = params.f32_values[0];
+		color.y       = params.f32_values[1];
+		color.z       = params.f32_values[2];
+		factor1       = params.f32_values[3];
+		factor2       = params.f32_values[4];
+		texid_color   = params.u16_values[0];
+		texid_factor1 = params.u16_values[1];
+		texid_factor2 = params.u16_values[2];
+	}
+#else
+	void get(MaterialParams& params)const {
+		params.f32_values[0] = color.x;
+		params.f32_values[1] = color.y;
+		params.f32_values[2] = color.z;
+		params.f32_values[3] = factor1;
+		params.f32_values[4] = factor2;
+		params.u16_values[0] = texid_color;
+		params.u16_values[1] = texid_factor1;
+		params.u16_values[2] = texid_factor2;
+	}
+#endif
+};
+struct MaterialParamsDielectric {
+	float                 ior;
+#if defined(__CUDACC__)
+	__device__ void set(const MaterialParams& params) {
+		ior = params.f32_values[0];
+	}
+#else
+	void get(MaterialParams& params)const {
+		params.f32_values[0] = ior;
+	}
+#endif
+};
+struct MaterialParamsLagacyPhongComposite {
+#if defined(__CUDACC__)
+	__device__ void set(const MaterialParams& params) {
+		color_ambient.x = params.f32_values[0];
+		color_ambient.y = params.f32_values[1];
+		color_ambient.z = params.f32_values[2];
+		color_specular.x = params.f32_values[3];
+		color_specular.y = params.f32_values[4];
+		color_specular.z = params.f32_values[5];
+		shininess        = params.f32_values[6];
+		texid_color_ambient   = params.u16_values[0];
+		texid_color_specular  = params.u16_values[1];
+		texid_color_shininess = params.u16_values[2];
+	}
+#else
+	void get(MaterialParams& params)const {
+		params.f32_values[0] = color_ambient.x;
+		params.f32_values[1] = color_ambient.y;
+		params.f32_values[2] = color_ambient.z;
+		params.f32_values[3] = color_specular.x;
+		params.f32_values[4] = color_specular.y;
+		params.f32_values[5] = color_specular.z;
+		params.f32_values[6] = shininess;
+		params.u16_values[0] = texid_color_ambient;
+		params.u16_values[1] = texid_color_specular;
+		params.u16_values[2] = texid_color_shininess;
+	}
+#endif
+	owl::vec3f            color_ambient;
+	owl::vec3f            color_specular;
+	float                 shininess;
+	unsigned short        texid_color_ambient;
+	unsigned short        texid_color_specular;
+	unsigned short        texid_color_shininess;
+};
 
 struct LaunchParams
 { 
@@ -100,7 +217,8 @@ struct HitgroupData {
 	owl::vec3f *         colors        ;
 	owl::vec3ui*         indices       ;
 	cudaTextureObject_t  texture_alpha ; 
-	cudaTextureObject_t  texture_normal; 
+	cudaTextureObject_t  texture_normal;
+	unsigned short       mat_idx       ;
 };
 
 struct Onb {

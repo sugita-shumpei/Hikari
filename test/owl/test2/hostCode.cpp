@@ -216,10 +216,32 @@ int main() {
 		}
 	}
 
-	auto module       = owlModuleCreate(context, (const char*)deviceCode_ptx);
-	auto accum_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, camera.width * camera.height, nullptr);
-	auto frame_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, camera.width * camera.height, nullptr);
-	auto params       = static_cast<OWLParams>(nullptr);
+	auto materials       = std::vector<MaterialParams>(model.getMaterials().size());
+	for (size_t i = 0; i < materials.size(); ++i) {
+		auto& material = model.getMaterials()[i];
+		if   (material.illum == 2) {
+			MaterialParamsLagacyPhongComposite phong;
+			phong.color_ambient.x  = material.diffuse.x;
+			phong.color_ambient.y  = material.diffuse.y;
+			phong.color_ambient.z  = material.diffuse.z;
+			phong.color_specular.x = material.specular.x;
+			phong.color_specular.y = material.specular.y;
+			phong.color_specular.z = material.specular.z;
+			phong.shininess        = material.shinness;
+			phong.texid_color_ambient   = material.tex_diffuse ;
+			phong.texid_color_specular  = material.tex_specular;
+			phong.texid_color_shininess = material.tex_shinness;
+			materials[i].material_type  = MATERIAL_TYPE_LEGACY_PHONG_COMPOSITE;
+			phong.get(materials[i]);
+		}
+	}
+	auto material_buffer = owlDeviceBufferCreate(context, (OWLDataType)(OWL_USER_TYPE_BEGIN + sizeof(MaterialParams)), model.getMaterials().size(), materials.data());
+	auto texture_buffer  = owlDeviceBufferCreate(context, OWL_TEXTURE_2D, textures.size() - texture_idx_offset - 1, textures.data() + texture_idx_offset + 1);
+
+	auto module          = owlModuleCreate(context, (const char*)deviceCode_ptx);
+	auto accum_buffer    = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, camera.width * camera.height, nullptr);
+	auto frame_buffer    = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, camera.width * camera.height, nullptr);
+	auto params          = static_cast<OWLParams>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"world"                    ,OWLDataType::OWL_GROUP      , offsetof(LaunchParams,world)        },
@@ -232,6 +254,8 @@ int main() {
 			OWLVarDecl{"light_parallel.active"    ,OWLDataType::OWL_UINT       , offsetof(LaunchParams,light_parallel)+offsetof(ParallelLight,active)   },
 			OWLVarDecl{"light_parallel.color"     ,OWLDataType::OWL_FLOAT3     , offsetof(LaunchParams,light_parallel)+offsetof(ParallelLight,color)    },
 			OWLVarDecl{"light_parallel.direction" ,OWLDataType::OWL_FLOAT3     , offsetof(LaunchParams,light_parallel)+offsetof(ParallelLight,direction)},
+			OWLVarDecl{"material_buffer"          ,OWLDataType::OWL_BUFPTR     , offsetof(LaunchParams,material_buffer) },
+			OWLVarDecl{"texture_buffer"           ,OWLDataType::OWL_BUFPTR     , offsetof(LaunchParams,texture_buffer) },
 			OWLVarDecl{nullptr}
 		};
 		params = owlParamsCreate(context, sizeof(LaunchParams), var_decls, -1);
@@ -244,6 +268,8 @@ int main() {
 		owlParamsSet1ui(params,"light_parallel.active", 0);
 		owlParamsSet3f(params, "light_parallel.color" , 0.0f, 0.0f, 0.0f);
 		owlParamsSet3f(params, "light_parallel.direction", 0.0f, 1.0f, 0.0f);
+		owlParamsSetBuffer(params, "material_buffer", material_buffer);
+		owlParamsSetBuffer(params, "texture_buffer" , texture_buffer);
 	}
 
 	auto raygen     = static_cast<OWLRayGen>(nullptr);
@@ -292,6 +318,7 @@ int main() {
 					OWLVarDecl{"uvs"                ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs     ) },
 					OWLVarDecl{"colors"             ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors  ) },
 					OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
+					OWLVarDecl{"mat_idx"            ,OWLDataType::OWL_USHORT     ,offsetof(HitgroupData,mat_idx) },
 					OWLVarDecl{nullptr}
 				};
 				geom_types[0][0] = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -306,6 +333,7 @@ int main() {
 					OWLVarDecl{"colors"             ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors) },
 					OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices) },
 					OWLVarDecl{"texture_alpha"      ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha) },
+					OWLVarDecl{"mat_idx"            ,OWLDataType::OWL_USHORT     ,offsetof(HitgroupData,mat_idx) },
 					OWLVarDecl{nullptr}
 				};
 				geom_types[0][1] = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -324,6 +352,7 @@ int main() {
 					OWLVarDecl{"uvs"                ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs     ) },
 					OWLVarDecl{"colors"             ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors  ) },
 					OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
+					OWLVarDecl{"mat_idx"            ,OWLDataType::OWL_USHORT     ,offsetof(HitgroupData,mat_idx) },
 					OWLVarDecl{nullptr}
 				};
 				geom_types[1][0] = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -339,6 +368,7 @@ int main() {
 					OWLVarDecl{"colors"             ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors) },
 					OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices) },
 					OWLVarDecl{"texture_alpha"      ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha) },
+					OWLVarDecl{"mat_idx"            ,OWLDataType::OWL_USHORT     ,offsetof(HitgroupData,mat_idx) },
 					OWLVarDecl{nullptr}
 				};
 				geom_types[1][1] = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -358,6 +388,7 @@ int main() {
 					OWLVarDecl{"colors"             ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors) },
 					OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices) },
 					OWLVarDecl{"texture_normal"     ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_normal)  },
+					OWLVarDecl{"mat_idx"            ,OWLDataType::OWL_USHORT     ,offsetof(HitgroupData,mat_idx) },
 					OWLVarDecl{nullptr}
 				};
 				geom_types[2][0] = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -374,6 +405,7 @@ int main() {
 					OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices) },
 					OWLVarDecl{"texture_alpha"      ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha) },
 					OWLVarDecl{"texture_normal"     ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_normal)  },
+					OWLVarDecl{"mat_idx"            ,OWLDataType::OWL_USHORT     ,offsetof(HitgroupData,mat_idx) },
 					OWLVarDecl{nullptr}
 				};
 				geom_types[2][1] = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
@@ -422,8 +454,9 @@ int main() {
 					owlGeomSetBuffer(trim, "tangents", tang_buf);
 					owlGeomSetBuffer(trim, "uvs"     , texc_buf);
 					owlGeomSetBuffer(trim, "indices" , indx_buf);
+					owlGeomSet1us(trim, "mat_idx", mesh.materials[i]);
 					if (has_tnormal) {
-						owlGeomSetTexture(trim, "texture_normal", textures[texture_idx_blue]);
+						owlGeomSetTexture(trim, "texture_normal", textures[material.tex_normal + texture_idx_offset]);
 					}
 					if (idx_alpha) {
 						owlGeomSetTexture(trim, "texture_alpha"  , textures[material.tex_alpha  + texture_idx_offset]);

@@ -19,42 +19,46 @@
 extern "C" char* deviceCode_ptx[];
 
 int main() {
-	hikari::test::owl::testlib::ObjModel model;
-	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
-    //model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
-	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");/*
-	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
-    //auto envlit_filename = std::string("");
-	auto center          = model.getBBox().getCenter();
-	auto range           = model.getBBox().getRange ();
-	hikari::test::owl::testlib::PinholeCamera camera;
-	camera.origin.x      = center.x;
-	camera.origin.y      = center.y;
-	camera.origin.z      =  5.0f;
-	camera.direction.z   = -1.0f;
-	camera.speed.x       = range.x * 0.01f / 2.0f;
-	camera.speed.y       = range.z * 0.01f / 2.0f;
 
-	auto bbox_len = 2.0f*std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
-	auto context  = owlContextCreate();
+	hikari::test::owl::testlib::ObjModel model;
+	// model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
+	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+	// model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");/*
+	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
+	//auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\kloofendal_43d_clear_puresky_4k.hdr)");
+	//auto envlit_filename = std::string("");
+	auto center = model.getBBox().getCenter();
+	auto range = model.getBBox().getRange();
+	hikari::test::owl::testlib::PinholeCamera camera;
+	camera.origin.x = center.x;
+	camera.origin.y = center.y;
+	camera.origin.z = 5.0f;
+	camera.direction.z = -1.0f;
+	camera.speed.x = range.x * 0.01f / 2.0f;
+	camera.speed.y = range.y * 0.01f / 2.0f;
+	camera.speed.z = range.z * 0.01f / 2.0f;
+
+	auto bbox_len = 2.0f * std::sqrtf(range.x * range.x + range.y * range.y + range.z * range.z);
+	auto context = owlContextCreate();
 	owlContextSetRayTypeCount(context, RAY_TYPE_COUNT);
 	auto textures = std::vector<OWLTexture>();
 
-	constexpr auto bump_level         = 5.0f;
+	constexpr auto bump_level = 5.0f;
 	constexpr auto texture_idx_envlit = 0;
-	constexpr auto texture_idx_black  = 1;
-	constexpr auto texture_idx_white  = 2;
-	constexpr auto texture_idx_blue   = 3;
+	constexpr auto texture_idx_black = 1;
+	constexpr auto texture_idx_white = 2;
+	constexpr auto texture_idx_blue = 3;
 	constexpr auto texture_idx_offset = 3;
 	{
 		// env lit  
-		if (!envlit_filename.empty()){
+		if (!envlit_filename.empty()) {
 			int w, h, c;
 			auto pixels = stbi_loadf(envlit_filename.data(), &w, &h, &c, 0);
 			assert(pixels);
 			auto pixel_data = std::vector<owl::vec4f>();
 			pixel_data.resize(w * h, { 0.0f,0.0f,0.0f,0.0f });
 			{
+
 				for (size_t i = 0; i < h; ++i) {
 					for (size_t j = 0; j < w; ++j) {
 						if (c == 1) {
@@ -84,7 +88,6 @@ int main() {
 					}
 				}
 			}
-
 			auto tex = owlTexture2DCreate(context, OWL_TEXEL_FORMAT_RGBA32F, w, h, pixel_data.data(), OWL_TEXTURE_LINEAR, OWL_TEXTURE_WRAP);
 			textures.push_back(tex);
 
@@ -115,19 +118,19 @@ int main() {
 		}
 		// model
 		{
-			
+
 			for (auto& texture : model.getTextures()) {
-				
+
 				if (texture.filename == "") { continue; }
 				bool is_bump_map = texture.filename.find("bump") != std::string::npos;
-				auto filepath     = std::filesystem::canonical(std::filesystem::path(model.getFilename()).parent_path() / texture.filename);
+				auto filepath = std::filesystem::canonical(std::filesystem::path(model.getFilename()).parent_path() / texture.filename);
 				auto filepath_str = filepath.string();
 				int w, h, c;
-				auto pixels      = stbi_load(filepath_str.data(), &w, &h, &c, 0);
+				auto pixels = stbi_load(filepath_str.data(), &w, &h, &c, 0);
 				assert(pixels);
 				auto pixel_data = std::vector<owl::vec4uc>();
-				pixel_data.resize(w * h, {0,0,0,0});
-				if  (is_bump_map){
+				pixel_data.resize(w * h, { 0,0,0,0 });
+				if (is_bump_map) {
 					// 3x3 sobel filterをかける
 					for (size_t i = 0; i < h; ++i) {
 						for (size_t j = 0; j < w; ++j) {
@@ -136,7 +139,7 @@ int main() {
 								pixel_data[(h - 1u - i) * w + j].y = 127u;
 								pixel_data[(h - 1u - i) * w + j].z = 255u;
 								pixel_data[(h - 1u - i) * w + j].w = 255u;
-								continue; 
+								continue;
 							}
 							if (j == 0 || j == w - 1) {
 								pixel_data[(h - 1u - i) * w + j].x = 127u;
@@ -149,32 +152,32 @@ int main() {
 							auto m_L0 = pixels[c * (i * w + j - 1) + 0];
 							auto m_R0 = pixels[c * (i * w + j + 1) + 0];
 
-							auto m_LL = pixels[c * (w * (i-1) + j - 1) + 0];
-							auto m_0L = pixels[c * (w * (i-1) + j + 0) + 0];
-							auto m_RL = pixels[c * (w * (i-1) + j + 1) + 0];
-							
-							auto m_LR = pixels[c * (w * (i+1) + j - 1) + 0];
-							auto m_0R = pixels[c * (w * (i+1) + j + 0) + 0];
-							auto m_RR = pixels[c * (w * (i+1) + j + 1) + 0];
+							auto m_LL = pixels[c * (w * (i - 1) + j - 1) + 0];
+							auto m_0L = pixels[c * (w * (i - 1) + j + 0) + 0];
+							auto m_RL = pixels[c * (w * (i - 1) + j + 1) + 0];
+
+							auto m_LR = pixels[c * (w * (i + 1) + j - 1) + 0];
+							auto m_0R = pixels[c * (w * (i + 1) + j + 0) + 0];
+							auto m_RR = pixels[c * (w * (i + 1) + j + 1) + 0];
 							// 0 1020 2040
 							auto du = (2u * m_R0 + m_RR + m_RL) + 255u * 4u - (2u * m_L0 + m_LR + m_LL);
 							auto dv = (2u * m_0R + m_RR + m_LR) + 255u * 4u - (2u * m_0L + m_RL + m_LL);
 
 							float nx = std::fminf(std::fmaxf((static_cast<float>(du) / static_cast<float>(1020) - 1.0f) * bump_level, -1.0f), 1.0f);
 							float ny = std::fminf(std::fmaxf((static_cast<float>(dv) / static_cast<float>(1020) - 1.0f) * bump_level, -1.0f), 1.0f);
-							float nz = std::sqrtf(1.0f-std::fminf(nx * nx + ny * ny,1.0f));
+							float nz = std::sqrtf(1.0f - std::fminf(nx * nx + ny * ny, 1.0f));
 
 							pixel_data[(h - 1u - i) * w + j].x = 255u * (0.5f * nx + 0.5f);
 							pixel_data[(h - 1u - i) * w + j].y = 255u * (0.5f * ny + 0.5f);
 							pixel_data[(h - 1u - i) * w + j].z = 255u * nz;
 							pixel_data[(h - 1u - i) * w + j].w = 255u;
 
-							
+
 						}
 					}
 					{
-						auto bamp_path    = filepath.filename().replace_extension();
-						auto bamp_path_str = bamp_path.string()+ std::string("_normal.png");
+						auto bamp_path = filepath.filename().replace_extension();
+						auto bamp_path_str = bamp_path.string() + std::string("_normal.png");
 						stbi_write_png(bamp_path_str.c_str(), w, h, 4, pixel_data.data(), 4 * w);
 					}
 				}
@@ -216,37 +219,37 @@ int main() {
 		}
 	}
 
-	auto module       = owlModuleCreate(context, (const char*)deviceCode_ptx);
+	auto module = owlModuleCreate(context, (const char*)deviceCode_ptx);
 	auto accum_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, camera.width * camera.height, nullptr);
 	auto frame_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, camera.width * camera.height, nullptr);
-	auto params       = static_cast<OWLParams>(nullptr);
+	auto params = static_cast<OWLParams>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"world"                    ,OWLDataType::OWL_GROUP      , offsetof(LaunchParams,world)        },
 			OWLVarDecl{"accum_buffer"             ,OWLDataType::OWL_BUFPTR     , offsetof(LaunchParams,accum_buffer) },
 			OWLVarDecl{"accum_sample"             ,OWLDataType::OWL_INT        , offsetof(LaunchParams,accum_sample) },
 			OWLVarDecl{"frame_buffer"             ,OWLDataType::OWL_BUFPTR     , offsetof(LaunchParams,frame_buffer) },
-			OWLVarDecl{"frame_size"               ,OWLDataType::OWL_INT2       , offsetof(LaunchParams,frame_size  ) },
+			OWLVarDecl{"frame_size"               ,OWLDataType::OWL_INT2       , offsetof(LaunchParams,frame_size) },
 			OWLVarDecl{"light_envmap"             ,OWLDataType::OWL_TEXTURE_2D , offsetof(LaunchParams,light_envmap) },
 			OWLVarDecl{"light_intensity"          ,OWLDataType::OWL_FLOAT      , offsetof(LaunchParams,light_intensity) },
-			OWLVarDecl{"light_parallel.active"    ,OWLDataType::OWL_UINT       , offsetof(LaunchParams,light_parallel)+offsetof(ParallelLight,active)   },
-			OWLVarDecl{"light_parallel.color"     ,OWLDataType::OWL_FLOAT3     , offsetof(LaunchParams,light_parallel)+offsetof(ParallelLight,color)    },
-			OWLVarDecl{"light_parallel.direction" ,OWLDataType::OWL_FLOAT3     , offsetof(LaunchParams,light_parallel)+offsetof(ParallelLight,direction)},
+			OWLVarDecl{"light_parallel.active"    ,OWLDataType::OWL_UINT       , offsetof(LaunchParams,light_parallel) + offsetof(ParallelLight,active)   },
+			OWLVarDecl{"light_parallel.color"     ,OWLDataType::OWL_FLOAT3     , offsetof(LaunchParams,light_parallel) + offsetof(ParallelLight,color)    },
+			OWLVarDecl{"light_parallel.direction" ,OWLDataType::OWL_FLOAT3     , offsetof(LaunchParams,light_parallel) + offsetof(ParallelLight,direction)},
 			OWLVarDecl{nullptr}
 		};
 		params = owlParamsCreate(context, sizeof(LaunchParams), var_decls, -1);
-		owlParamsSetBuffer(params , "accum_buffer"       , accum_buffer);
+		owlParamsSetBuffer(params, "accum_buffer", accum_buffer);
 		owlParamsSet1i(params, "accum_sample", 0);
-		owlParamsSetBuffer(params , "frame_buffer"       , frame_buffer);
-		owlParamsSet2i(params, "frame_size"  , camera.width, camera.height);
-		owlParamsSetTexture(params, "light_envmap"    , textures[texture_idx_envlit]);
-		owlParamsSet1f(params, "light_intensity"      , 1.0f);
-		owlParamsSet1ui(params,"light_parallel.active", 0);
-		owlParamsSet3f(params, "light_parallel.color" , 0.0f, 0.0f, 0.0f);
+		owlParamsSetBuffer(params, "frame_buffer", frame_buffer);
+		owlParamsSet2i(params, "frame_size", camera.width, camera.height);
+		owlParamsSetTexture(params, "light_envmap", textures[texture_idx_envlit]);
+		owlParamsSet1f(params, "light_intensity", 1.0f);
+		owlParamsSet1ui(params, "light_parallel.active", 0);
+		owlParamsSet3f(params, "light_parallel.color", 0.0f, 0.0f, 0.0f);
 		owlParamsSet3f(params, "light_parallel.direction", 0.0f, 1.0f, 0.0f);
 	}
 
-	auto raygen     = static_cast<OWLRayGen>(nullptr);
+	auto raygen = static_cast<OWLRayGen>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"world"       ,OWLDataType::OWL_GROUP  ,offsetof(RayGenData,world)   },
@@ -260,38 +263,38 @@ int main() {
 		};
 		auto [dir_u, dir_v, dir_w] = camera.getUVW();
 		raygen = owlRayGenCreate(context, module, "simpleRG", sizeof(RayGenData), var_decls, -1);
-		owlRayGenSet1f(raygen , "min_depth"   , 0.01f);
-		owlRayGenSet1f(raygen , "max_depth"   , 2.0f*bbox_len);
-		owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&camera.origin);
+		owlRayGenSet1f(raygen, "min_depth", 0.01f);
+		owlRayGenSet1f(raygen, "max_depth", 2.0f * bbox_len);
+		owlRayGenSet3fv(raygen, "camera.eye", (const float*)&camera.origin);
 		owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&dir_u);
 		owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&dir_v);
 		owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&dir_w);
 	}
 
-	auto miss_prog_radiance  = static_cast<OWLMissProg>(nullptr);
+	auto miss_prog_radiance = static_cast<OWLMissProg>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"texture_envlight"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(MissProgData,texture_envlight)  },
 			OWLVarDecl{nullptr}
 		};
-		miss_prog_radiance  = owlMissProgCreate(context, module, "radianceMS", sizeof(MissProgData), var_decls, -1);
+		miss_prog_radiance = owlMissProgCreate(context, module, "radianceMS", sizeof(MissProgData), var_decls, -1);
 		owlMissProgSetTexture(miss_prog_radiance, "texture_envlight", textures[texture_idx_envlit]);
 	}
 	auto miss_prog_occluded = static_cast<OWLMissProg>(nullptr);
 	{
-		miss_prog_occluded  = owlMissProgCreate(context, module, "occludedMS",0, nullptr, 0);
+		miss_prog_occluded = owlMissProgCreate(context, module, "occludedMS", 0, nullptr, 0);
 	}
 
-	auto geom_type  = static_cast<OWLGeomType>(nullptr);
+	auto geom_type = static_cast<OWLGeomType>(nullptr);
 	{
 		OWLVarDecl var_decls[] = {
 			OWLVarDecl{"vertices"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,vertices) },
-			OWLVarDecl{"normals"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals ) },
+			OWLVarDecl{"normals"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,normals) },
 			OWLVarDecl{"tangents"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,tangents) },
-			OWLVarDecl{"uvs"                ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs     ) },
-			OWLVarDecl{"colors"             ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors  ) },
-			OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices ) },
-			OWLVarDecl{"color_ambient"      ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_ambient )  },
+			OWLVarDecl{"uvs"                ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs) },
+			OWLVarDecl{"colors"             ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors) },
+			OWLVarDecl{"indices"            ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices) },
+			OWLVarDecl{"color_ambient"      ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_ambient)  },
 			OWLVarDecl{"color_specular"     ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_specular)  },
 			OWLVarDecl{"color_emission"     ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_emission)  },
 			OWLVarDecl{"shininess"          ,OWLDataType::OWL_FLOAT      ,offsetof(HitgroupData,shininess)       },
@@ -300,7 +303,7 @@ int main() {
 			OWLVarDecl{"texture_specular"   ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_specular)},
 			OWLVarDecl{nullptr}
 		};
-		geom_type  = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
+		geom_type = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOM_TRIANGLES, sizeof(HitgroupData), var_decls, -1);
 		owlGeomTypeSetClosestHit(geom_type, RAY_TYPE_RADIANCE, module, "radianceCH");
 		owlGeomTypeSetClosestHit(geom_type, RAY_TYPE_OCCLUDED, module, "occludedCH");
 	}
@@ -314,12 +317,12 @@ int main() {
 			OWLVarDecl{"uvs"              ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,uvs)              },
 			OWLVarDecl{"colors"           ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,colors)           },
 			OWLVarDecl{"indices"          ,OWLDataType::OWL_BUFPTR     ,offsetof(HitgroupData,indices)          },
-			OWLVarDecl{"color_ambient"    ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_ambient )  },
+			OWLVarDecl{"color_ambient"    ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_ambient)  },
 			OWLVarDecl{"color_specular"   ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_specular)  },
 			OWLVarDecl{"color_emission"   ,OWLDataType::OWL_FLOAT3     ,offsetof(HitgroupData,color_emission)  },
 			OWLVarDecl{"shininess"        ,OWLDataType::OWL_FLOAT      ,offsetof(HitgroupData,shininess)       },
 			OWLVarDecl{"texture_ambient"  ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_ambient) },
-			OWLVarDecl{"texture_alpha"    ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha  ) },
+			OWLVarDecl{"texture_alpha"    ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_alpha) },
 			OWLVarDecl{"texture_normal"   ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_normal)  },
 			OWLVarDecl{"texture_specular" ,OWLDataType::OWL_TEXTURE_2D ,offsetof(HitgroupData,texture_specular)},
 			OWLVarDecl{nullptr}
@@ -341,32 +344,32 @@ int main() {
 				auto texc_buf = static_cast<OWLBuffer>(nullptr);
 				auto tang_buf = static_cast<OWLBuffer>(nullptr);
 				auto norm_buf = static_cast<OWLBuffer>(nullptr);
-				auto colors   = mesh.getVisSmoothColors();
+				auto colors = mesh.getVisSmoothColors();
 				{
-					vert_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, mesh.positions.size()  , mesh.positions.data());
-					colr_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, colors.size()          , colors.data());
-					norm_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, mesh.normals.size()    , mesh.normals.data());
-					tang_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, mesh.tangents.size()   , mesh.tangents.data());
-					texc_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT2, mesh.uvs.size()        , mesh.uvs.data());
+					vert_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, mesh.positions.size(), mesh.positions.data());
+					colr_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, colors.size(), colors.data());
+					norm_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, mesh.normals.size(), mesh.normals.data());
+					tang_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT4, mesh.tangents.size(), mesh.tangents.data());
+					texc_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT2, mesh.uvs.size(), mesh.uvs.data());
 				}
 				for (auto i = 0; i < mesh.materials.size(); ++i) {
-					auto& material     = model.getMaterials()[mesh.materials[i]];
-					auto tri_indices   = mesh.getSubMeshIndices(i);
+					auto& material = model.getMaterials()[mesh.materials[i]];
+					auto tri_indices = mesh.getSubMeshIndices(i);
 					auto tmp_geom_type = material.tex_alpha == 0 ? geom_type : geom_type_alpha;
-					auto trim          = owlGeomCreate(context, tmp_geom_type);
-					auto indx_buf      = owlDeviceBufferCreate(context, OWLDataType::OWL_UINT3, tri_indices.size(), tri_indices.data());
+					auto trim = owlGeomCreate(context, tmp_geom_type);
+					auto indx_buf = owlDeviceBufferCreate(context, OWLDataType::OWL_UINT3, tri_indices.size(), tri_indices.data());
 					owlTrianglesSetVertices(trim, vert_buf, owlBufferSizeInBytes(vert_buf) / sizeof(owl::vec3f), sizeof(owl::vec3f), 0);
-					owlTrianglesSetIndices(trim, indx_buf , owlBufferSizeInBytes(indx_buf) / sizeof(owl::vec3i), sizeof(owl::vec3i), 0);
+					owlTrianglesSetIndices(trim, indx_buf, owlBufferSizeInBytes(indx_buf) / sizeof(owl::vec3i), sizeof(owl::vec3i), 0);
 					owlGeomSetBuffer(trim, "vertices", vert_buf);
-					owlGeomSetBuffer(trim, "colors"  , colr_buf);
-					owlGeomSetBuffer(trim, "normals" , norm_buf);
+					owlGeomSetBuffer(trim, "colors", colr_buf);
+					owlGeomSetBuffer(trim, "normals", norm_buf);
 					owlGeomSetBuffer(trim, "tangents", tang_buf);
-					owlGeomSetBuffer(trim, "uvs"     , texc_buf);
-					owlGeomSetBuffer(trim, "indices" , indx_buf);
-					owlGeomSet3f(trim, "color_ambient" , material.diffuse.x , material.diffuse.y , material.diffuse.z );
+					owlGeomSetBuffer(trim, "uvs", texc_buf);
+					owlGeomSetBuffer(trim, "indices", indx_buf);
+					owlGeomSet3f(trim, "color_ambient", material.diffuse.x, material.diffuse.y, material.diffuse.z);
 					owlGeomSet3f(trim, "color_specular", material.specular.x, material.specular.y, material.specular.z);
 					owlGeomSet3f(trim, "color_emission", material.emission.x, material.emission.y, material.emission.z);
-					owlGeomSet1f(trim, "shininess"     , material.shinness);
+					owlGeomSet1f(trim, "shininess", material.shinness);
 					if (material.tex_diffuse == 0) {
 						owlGeomSetTexture(trim, "texture_ambient", textures[texture_idx_white]);
 					}
@@ -379,16 +382,16 @@ int main() {
 					else {
 						owlGeomSetTexture(trim, "texture_specular", textures[material.tex_specular + texture_idx_offset]);
 					}
-					if (material.tex_normal    == 0) {
+					if (material.tex_normal == 0) {
 						owlGeomSetTexture(trim, "texture_normal", textures[texture_idx_blue]);
 					}
 					else {
-						owlGeomSetTexture(trim, "texture_normal", textures[material.tex_normal  + texture_idx_offset]);
+						owlGeomSetTexture(trim, "texture_normal", textures[material.tex_normal + texture_idx_offset]);
 					}
 					if (material.tex_alpha != 0) {
-						owlGeomSetTexture(trim, "texture_alpha"  , textures[material.tex_alpha  + texture_idx_offset]);
+						owlGeomSetTexture(trim, "texture_alpha", textures[material.tex_alpha + texture_idx_offset]);
 					}
-					trim_map.insert({ name + "[" + std::to_string(i) + "]", trim});
+					trim_map.insert({ name + "[" + std::to_string(i) + "]", trim });
 				}
 			}
 		}
@@ -396,16 +399,16 @@ int main() {
 	auto trim_group = static_cast<OWLGroup>(nullptr);
 	{
 		std::vector<OWLGeom> trim_arr = {};
-		trim_arr.reserve(trim_map.size() );
+		trim_arr.reserve(trim_map.size());
 		for (auto& [name, geom] : trim_map) { trim_arr.push_back(geom); }
 
-		trim_group  = owlTrianglesGeomGroupCreate(context, trim_arr.size(), trim_arr.data(), 0);
+		trim_group = owlTrianglesGeomGroupCreate(context, trim_arr.size(), trim_arr.data(), 0);
 		owlGroupBuildAccel(trim_group);
 	}
 
-	auto world      = static_cast<OWLGroup>(nullptr);
+	auto world = static_cast<OWLGroup>(nullptr);
 	{
-		world       = owlInstanceGroupCreate(context, 1, &trim_group);
+		world = owlInstanceGroupCreate(context, 1, &trim_group);
 		owlGroupBuildAccel(world);
 		owlParamsSetGroup(params, "world", world);
 		owlRayGenSetGroup(raygen, "world", world);
@@ -420,7 +423,7 @@ int main() {
 		tonemap.init();
 		struct TracerData {
 			hikari::test::owl::testlib::PinholeCamera* p_camera;
-			hikari::test::owl::testlib::Tonemap*       p_tonemap;
+			hikari::test::owl::testlib::Tonemap* p_tonemap;
 			OWLContext                                 context;
 			OWLRayGen                                  raygen;
 			OWLParams                                  params;
@@ -439,7 +442,7 @@ int main() {
 		} tracer_data = {
 			 &camera,&tonemap,context, raygen,params,accum_buffer,frame_buffer, 0,true, false,LIGHT_TYPE_ENVMAP,1.0f,{0.0f,0.0f,0.0f},1.0f,0.0f,0.0f
 		};
-		 
+
 		auto resize_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, int old_w, int old_h, int new_w, int        new_h) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			owlBufferResize(p_tracer_data->accum_buffer, new_w * new_h);
@@ -449,19 +452,19 @@ int main() {
 			p_tracer_data->p_camera->height = new_h;
 			p_tracer_data->p_tonemap->resize(new_w, new_h);
 			return true;
-		};
+			};
 		auto presskey_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, hikari::test::owl::testlib::KeyType           key) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
-			if (key == hikari::test::owl::testlib::KeyType::eW    ) { p_tracer_data->p_camera->processPressKeyW(0.25f)    ; return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eS    ) { p_tracer_data->p_camera->processPressKeyS(1.0f)    ; return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eA    ) { p_tracer_data->p_camera->processPressKeyA(0.25f)    ; return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eD    ) { p_tracer_data->p_camera->processPressKeyD(1.0f)    ; return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eLeft ) { p_tracer_data->p_camera->processPressKeyLeft(0.5f) ; return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eW) { p_tracer_data->p_camera->processPressKeyW(1.0f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eS) { p_tracer_data->p_camera->processPressKeyS(1.0f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eA) { p_tracer_data->p_camera->processPressKeyA(1.0f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eD) { p_tracer_data->p_camera->processPressKeyD(1.0f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eLeft) { p_tracer_data->p_camera->processPressKeyLeft(0.5f); return true; }
 			if (key == hikari::test::owl::testlib::KeyType::eRight) { p_tracer_data->p_camera->processPressKeyRight(0.5f); return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eUp   ) { p_tracer_data->p_camera->processPressKeyUp(0.5f)   ; return true; }
-			if (key == hikari::test::owl::testlib::KeyType::eDown ) { p_tracer_data->p_camera->processPressKeyDown(0.5f) ; return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eUp) { p_tracer_data->p_camera->processPressKeyUp(0.5f); return true; }
+			if (key == hikari::test::owl::testlib::KeyType::eDown) { p_tracer_data->p_camera->processPressKeyDown(0.5f); return true; }
 			return false;
-		};
+			};
 		auto press_mouse_button_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, hikari::test::owl::testlib::MouseButtonType mouse) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			if (mouse == hikari::test::owl::testlib::MouseButtonType::eLeft) {
@@ -481,14 +484,14 @@ int main() {
 			}
 			return false;
 			};
-		auto mouse_scroll_callback       = [](hikari::test::owl::testlib::GLViewer* p_viewer, double x, double y) {
-			TracerData* p_tracer_data     = (TracerData*)p_viewer->getUserPtr();
+		auto mouse_scroll_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, double x, double y) {
+			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			if (y != 0.0f) {
-				p_tracer_data->p_camera->processMouseScrollY(y * 4.0f);
+				p_tracer_data->p_camera->processMouseScrollY(y);
 				return true;
 			}
 			return false;
-		};
+			};
 		auto update_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			auto [dir_u, dir_v, dir_w] = p_tracer_data->p_camera->getUVW();
@@ -505,18 +508,18 @@ int main() {
 				p_tracer_data->parallel_light_color.y * p_tracer_data->parallel_light_intensity,
 				p_tracer_data->parallel_light_color.z * p_tracer_data->parallel_light_intensity
 			);
-			auto cos_phi     = cosf(p_tracer_data->parallel_light_axis_phi * M_PI / 180.0f);
-			auto sin_phi     = sinf(p_tracer_data->parallel_light_axis_phi * M_PI / 180.0f);
-			auto cos_tht     = cosf(p_tracer_data->parallel_light_axis_tht * M_PI / 180.0f);
-			auto sin_tht     = sinf(p_tracer_data->parallel_light_axis_tht * M_PI / 180.0f);
-			auto cos_ang     = cosf(p_tracer_data->parallel_light_angle * M_PI / 180.0f);
-			auto sin_ang     = sinf(p_tracer_data->parallel_light_angle * M_PI / 180.0f);
+			auto cos_phi = cosf(p_tracer_data->parallel_light_axis_phi * M_PI / 180.0f);
+			auto sin_phi = sinf(p_tracer_data->parallel_light_axis_phi * M_PI / 180.0f);
+			auto cos_tht = cosf(p_tracer_data->parallel_light_axis_tht * M_PI / 180.0f);
+			auto sin_tht = sinf(p_tracer_data->parallel_light_axis_tht * M_PI / 180.0f);
+			auto cos_ang = cosf(p_tracer_data->parallel_light_angle * M_PI / 180.0f);
+			auto sin_ang = sinf(p_tracer_data->parallel_light_angle * M_PI / 180.0f);
 			// y * z -z * y  = -sin_phi
 			// z * x -x * z  = 0.0
 			// x * y -y * x  = cos_phi
-			auto light_axis_u = owl::vec3f(         -sin_phi,    0.0f,           cos_phi);
+			auto light_axis_u = owl::vec3f(-sin_phi, 0.0f, cos_phi);
 			auto light_axis_v = owl::vec3f(sin_tht * cos_phi, cos_tht, sin_tht * sin_phi);
-			auto light_dir    = cos_ang * light_axis_u + sin_ang * light_axis_v;
+			auto light_dir = cos_ang * light_axis_u + sin_ang * light_axis_v;
 			owlParamsSet3f(p_tracer_data->params, "light_parallel.direction",
 				light_dir.x,
 				light_dir.y,
@@ -524,8 +527,8 @@ int main() {
 			);
 
 			p_tracer_data->accum_sample = 0;
-		};
-		auto render_callback             = [](hikari::test::owl::testlib::GLViewer* p_viewer, void* p_fb_data) {
+			};
+		auto render_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, void* p_fb_data) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			owlParamsSet1i(p_tracer_data->params, "accum_sample", p_tracer_data->accum_sample);
 			owlBuildSBT(p_tracer_data->context, (OWLBuildSBTFlags)(OWL_SBT_RAYGENS | OWL_SBT_CALLABLES));
@@ -537,20 +540,26 @@ int main() {
 			);
 			p_tracer_data->accum_sample++;
 			};
-		auto ui_callback                 = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
+		auto ui_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			if (ImGui::Begin("Config")) {
 				if (ImGui::TreeNode("Tonemap")) {
 					float new_key_value = p_tracer_data->p_tonemap->getKeyValue();
 					float old_key_value = new_key_value;
 					{
-						const char* combo_defaults[] = { "Reinhard","Extended Reinhard" };
+						const char* combo_defaults[] = { "Linear","Linear(Correlated)","Reinhard(Correlated","Extended Reinhard(Correlated)" };
 						if (ImGui::BeginCombo("Type", combo_defaults[(int)p_tracer_data->p_tonemap->getType()])) {
-							if (ImGui::Selectable("Reinhard")) {
-								p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eReinhard);
+							if (ImGui::Selectable("Linear")) {
+								p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eLinear);
 							}
-							if (ImGui::Selectable("Extended Reinhard")) {
-								p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eExtendedReinhard);
+							if (ImGui::Selectable("Linear(Correlated)")) {
+								p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eCorrelatedLinear);
+							}
+							if (ImGui::Selectable("Reinhard(Correlated)")) {
+								p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eCorrelatedReinhard);
+							}
+							if (ImGui::Selectable("Extended Reinhard(Correlated)")) {
+								p_tracer_data->p_tonemap->setType(hikari::test::owl::testlib::TonemapType::eCorrelatedExtendedReinhard);
 							}
 							ImGui::EndCombo();
 						}
@@ -569,7 +578,7 @@ int main() {
 				}
 				if (ImGui::TreeNode("Camera")) {
 					float camera_pos[3] = { p_tracer_data->p_camera->origin.x, p_tracer_data->p_camera->origin.y, p_tracer_data->p_camera->origin.z };
-					if (ImGui::InputFloat3("Position: " , camera_pos)) {
+					if (ImGui::InputFloat3("Position: ", camera_pos)) {
 						p_tracer_data->p_camera->origin.x = camera_pos[0];
 						p_tracer_data->p_camera->origin.y = camera_pos[1];
 						p_tracer_data->p_camera->origin.z = camera_pos[2];
@@ -585,8 +594,14 @@ int main() {
 							p_viewer->updateNextFrame();
 						}
 					}
-					float camera_fovy   = p_tracer_data->p_camera->fovy;
-					if (ImGui::SliderFloat("FovY: "     , &camera_fovy, 0.0f,180.0f)) {
+					float camera_speed[3] = { p_tracer_data->p_camera->speed.x, p_tracer_data->p_camera->speed.y, p_tracer_data->p_camera->speed.z };
+					if (ImGui::InputFloat3("Speed: ", camera_speed)) {
+						p_tracer_data->p_camera->speed.x = camera_speed[0];
+						p_tracer_data->p_camera->speed.y = camera_speed[1];
+						p_tracer_data->p_camera->speed.z = camera_speed[2];
+					}
+					float camera_fovy = p_tracer_data->p_camera->fovy;
+					if (ImGui::SliderFloat("FovY: ", &camera_fovy, 0.0f, 180.0f)) {
 						p_tracer_data->p_camera->fovy = camera_fovy;
 						p_viewer->updateNextFrame();
 					}
@@ -597,14 +612,14 @@ int main() {
 					if (ImGui::BeginCombo("Type", combo_defaults[(int)p_tracer_data->light_type])) {
 						if (ImGui::Selectable("EnvMap")) {
 							if (p_tracer_data->light_type != LIGHT_TYPE_ENVMAP) {
-								p_tracer_data->light_type  = LIGHT_TYPE_ENVMAP;
+								p_tracer_data->light_type = LIGHT_TYPE_ENVMAP;
 							}
 						}
 						if (ImGui::Selectable("Directional")) {
 							if (p_tracer_data->light_type != LIGHT_TYPE_DIRECTIONAL) {
-								p_tracer_data->light_type  = LIGHT_TYPE_DIRECTIONAL;
+								p_tracer_data->light_type = LIGHT_TYPE_DIRECTIONAL;
 							}
-							
+
 						}
 						ImGui::EndCombo();
 					}
@@ -653,8 +668,8 @@ int main() {
 				}
 			}
 			ImGui::End();
-		};
-		auto viewer                      = std::make_unique<hikari::test::owl::testlib::GLViewer>(owlContextGetStream(context,0), camera.width, camera.height);
+			};
+		auto viewer = std::make_unique<hikari::test::owl::testlib::GLViewer>(owlContextGetStream(context, 0), camera.width, camera.height);
 		viewer->runWithCallback(&tracer_data, resize_callback, presskey_callback, press_mouse_button_callback, mouse_scroll_callback, update_callback, render_callback, ui_callback);
 		viewer.reset();
 		tonemap.free();

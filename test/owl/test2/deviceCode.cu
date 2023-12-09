@@ -23,7 +23,6 @@ __forceinline__ __device__ owl::vec2f normalize_uv(owl::vec2f vt) {
 	}
 	return vt;
 }
-
 __forceinline__ __device__ float3     sample_sphere_map(const cudaTextureObject_t& tex, const float3& dir)
 {
 	float phi   = atan2f(dir.z, dir.x);
@@ -33,12 +32,11 @@ __forceinline__ __device__ float3     sample_sphere_map(const cudaTextureObject_
 	auto res    = tex2D<float4>(tex, x, y);
 	return make_float3(res.x, res.y, res.z);
 }
-
 __forceinline__ __device__ owl::vec3f eval_bsdf_phong(owl::vec3f ambient, owl::vec3f specular, float shininess, float light_cosine)
 {
 	return (ambient + specular * (0.5f * shininess + 1.0f) * powf(light_cosine, shininess)) / ((float)M_PI);
 }
-
+// 実際の描画処理はここで実行
 OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	const owl::vec2i idx = owl::getLaunchIndex();
 	const owl::vec2i dim = owl::getLaunchDims();
@@ -51,21 +49,40 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	owl::LCG<24> random = {};
 	random.init(dim.x * idx.y + idx.x, optixLaunchParams.accum_sample);
 
-	auto color = owl::vec3f(0.0f,0.0f,0.0f);
+	auto color      = owl::vec3f(0.0f,0.0f,0.0f);
 	for (int i = 0; i < frame_samples; ++i) {
 		payload  = PayloadData();
 		float px = ((float)idx.x + random() - 0.5f) / ((float)dim.x);
 		float py = ((float)idx.y + random() - 0.5f) / ((float)dim.y);
 
 		auto ray_dir = rg_data.camera.getRayDirection(px, py);
-		owl::RayT<0, 1> ray(rg_data.camera.eye,
-			owl::normalize(ray_dir),
-			rg_data.min_depth, rg_data.max_depth
-		);
+		owl::RayT<0, 1> ray(rg_data.camera.eye, owl::normalize(ray_dir), rg_data.min_depth, rg_data.max_depth);
 		owl::trace(rg_data.world, ray, RAY_TYPE_COUNT, payload, RAY_TYPE_RADIANCE);
-		color.x += (payload.s_normal.x + 1.0f) * 0.5f;
-		color.y += (payload.s_normal.y + 1.0f) * 0.5f;
-		color.z += (payload.s_normal.z + 1.0f) * 0.5f;
+		// CLOSEST HIT
+		if (payload.mat_idx > 0) {
+			auto& material = optixLaunchParams.material_buffer[payload.mat_idx-1];
+			// Emission
+			// Legacy  Phong Composite
+			if (material.material_type == MATERIAL_TYPE_LEGACY_PHONG_COMPOSITE) {
+				auto material_legacy_phong_composite = MaterialParamsLagacyPhongComposite();
+				material_legacy_phong_composite.set(material);
+				if (material_legacy_phong_composite.texid_color_ambient  > 0) {
+					material_legacy_phong_composite.color_ambient  *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_legacy_phong_composite.texid_color_ambient - 1], payload.texcoord.x, payload.texcoord.y));
+				}
+				if (material_legacy_phong_composite.texid_color_specular > 0) {
+					material_legacy_phong_composite.color_specular *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_legacy_phong_composite.texid_color_specular - 1], payload.texcoord.x, payload.texcoord.y));
+				}
+				color += material_legacy_phong_composite.color_ambient;
+			}
+		}
+		// MISS
+		else
+		{
+			color += optixLaunchParams.light_intensity * owl::vec3f(sample_sphere_map(optixLaunchParams.light_envmap, { ray.direction.x,ray.direction.y,ray.direction.z }));
+		}
+		//color.x += (payload.s_normal.x + 1.0f) * 0.5f;
+		//color.y += (payload.s_normal.y + 1.0f) * 0.5f;
+		//color.z += (payload.s_normal.z + 1.0f) * 0.5f;
 	}
 
 	auto res = optixLaunchParams.accum_buffer[dim.x * idx.y + idx.x];
@@ -75,17 +92,8 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	col *= (1.0f / smp);
 	optixLaunchParams.frame_buffer[dim.x * idx.y + idx.x] = col;
 }
-OPTIX_MISS_PROGRAM(occludedMS)() {
-	optixSetPayload_0(0);
-}
-OPTIX_MISS_PROGRAM(radianceMS)() {
-	auto& payload         = owl::getPRD<PayloadData>();
-	payload.mat_idx       = 0;
-	payload.texcoord      = {0.0f, 0.0f};
-	payload.distance      =  0.0f;
-	payload.g_normal      = { 0.0f,0.0f, 0.0f };
-	payload.s_normal      = { 0.0f,0.0f, 0.0f };
-}
+// レイタイプ: Radiance
+// 最近傍シェーダ(サーフェス情報を取得)
 OPTIX_CLOSEST_HIT_PROGRAM(radianceCH)() {
 	auto& ch_data    = owl::getProgramData<HitgroupData>();
 	auto& payload    = owl::getPRD<PayloadData>();
@@ -102,7 +110,7 @@ OPTIX_CLOSEST_HIT_PROGRAM(radianceCH)() {
 	auto vt1         = ch_data.uvs[tri_idx.y];
 	auto vt2         = ch_data.uvs[tri_idx.z];
 	auto vt          = normalize_uv((1.0f - (bary.x + bary.y)) * vt0 + bary.x * vt1 + bary.y * vt2);
-	payload.mat_idx  = 0;
+	payload.mat_idx  = ch_data.mat_idx+1;
 	payload.texcoord = vt;
 	payload.distance = optixGetRayTmax();
 	payload.g_normal = f_normal;
@@ -128,7 +136,7 @@ OPTIX_CLOSEST_HIT_PROGRAM(radianceCHWithNormalShading)() {
 	auto vt2                = ch_data.uvs[tri_idx.z];
 	auto vt                 = normalize_uv((1.0f - (bary.x + bary.y)) * vt0 + bary.x * vt1 + bary.y * vt2);
 	auto v_normal           = owl::normalize((1.0f - (bary.x + bary.y)) * vn0 + bary.x * vn1 + bary.y * vn2);
-	payload.mat_idx         = 0;
+	payload.mat_idx         = ch_data.mat_idx+1;
 	payload.texcoord        = vt;
 	payload.distance        = optixGetRayTmax();
 	payload.g_normal        = f_normal;
@@ -169,15 +177,31 @@ OPTIX_CLOSEST_HIT_PROGRAM(radianceCHWithNormalMap)() {
 	auto v_binormal         = owl::normalize((1.0f - (bary.x + bary.y)) * vbn0 + bary.x * vbn1 + bary.y * vbn2);
 	auto v_tangent          = owl::normalize(owl::cross(v_binormal, v_normal));
 	auto tmp_bump           = tex2D<float4>(ch_data.texture_normal, vt.x, vt.y);
-	payload.mat_idx         = 0;
+	payload.mat_idx         = ch_data.mat_idx+1;
 	payload.texcoord        = vt;
 	payload.distance        = optixGetRayTmax();
 	payload.g_normal        = f_normal;
 	payload.s_normal        = owl::normalize(tmp_bump.z * v_normal + (2.0f * tmp_bump.x - 1.0f) * v_tangent + (2.0f * tmp_bump.y - 1.0f) * v_binormal);
 }
+// ミスシェーダ  (サーフェス情報を取得)
+OPTIX_MISS_PROGRAM(radianceMS)() {
+	auto& payload = owl::getPRD<PayloadData>();
+	payload.mat_idx = 0;
+	payload.texcoord = { 0.0f, 0.0f };
+	payload.distance = 0.0f;
+	payload.g_normal = { 0.0f,0.0f, 0.0f };
+	payload.s_normal = { 0.0f,0.0f, 0.0f };
+}
+// レイタイプ: Occluded
+// 最近傍シェーダ(可視情報を取得)
 OPTIX_CLOSEST_HIT_PROGRAM(occludedCH)() {
 	optixSetPayload_0(1);
 }
+// ミスシェーダ  (可視情報を取得)
+OPTIX_MISS_PROGRAM(occludedMS)() {
+	optixSetPayload_0(0);
+}
+// AnyHitシェーダ(αテストを起動）
 OPTIX_ANY_HIT_PROGRAM(simpleAH)() {
 	auto& ch_data = owl::getProgramData<HitgroupData>();
 	if (optixIsTriangleHit()) {

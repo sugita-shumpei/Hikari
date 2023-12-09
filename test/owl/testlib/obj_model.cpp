@@ -467,6 +467,7 @@ bool hikari::test::owl::testlib::ObjModel::load(std::string filename)
 		for (auto& material : materials) {
 			auto mat             = ObjMaterial();
 			mat.name             = material.name;
+			mat.illum            = material.illum;
 			mat.diffuse.x        = material.diffuse[0];
 			mat.diffuse.y        = material.diffuse[1];
 			mat.diffuse.z        = material.diffuse[2];

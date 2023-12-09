@@ -64,6 +64,7 @@ namespace hikari {
                 };
                 struct ObjMaterial { 
                     std::string name             = "";
+                    unsigned    illum            = 0;
                     ObjVec3     diffuse          = ObjVec3{ 1.0f,1.0f,1.0f };
                     ObjVec3     specular         = ObjVec3{ 1.0f,1.0f,1.0f };
                     ObjVec3     emission         = ObjVec3{ 0.0f,0.0f,0.0f };
