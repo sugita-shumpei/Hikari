@@ -52,10 +52,7 @@ __device__ float  getLuminance(float3 v) {
 __device__ float3 changeLuminance(float3 v,float luminance_out) {
 	float luminance_in = getLuminance(v);
 	float l_c          = luminance_in > 0.0f ? luminance_out / luminance_in : 0.0f;
-	float v_max        = fmaxf(v.x,fmaxf(v.y,v.z));
-	float l_th         = (v_max > 0.0f) ? 1.0f/v_max:1.0f;
-	l_c                = fminf(l_th,l_c);
-	return { v.x * l_c,v.y * l_c ,v.z * l_c   };
+	return { fminf(v.x * l_c,1.0f),fminf(v.y * l_c,1.0f),fminf(v.z * l_c,1.0f) };
 }
 __device__ float3 reinhard(float3 v, float luminance, float max_luminance) {
 	float l_old = luminance;

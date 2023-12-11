@@ -41,14 +41,14 @@ struct ParallelLight {
 };
 
 enum MaterialType {
-	MATERIAL_TYPE_NONE                    ,// シェーディングを行わない
-	MATERIAL_TYPE_LIGHT                   ,// 光源
-	MATERIAL_TYPE_DIFFUSE_LAMBERT         ,// ランバート拡散モデル
-	MATERIAL_TYPE_SPECULAR_ROUGH_PHONG    ,// フォン反射モデル
-	MATERIAL_TYPE_SPECULAR_DELTA          ,// 完全鏡面
-	MATERIAL_TYPE_DIELECTRIC_DELTA        ,// 完全誘電体
-	MATERIAL_TYPE_LEGACY_PHONG_COMPOSITE  ,// 古典的Phong+LambertBRDF
-	MATERIAL_TYPE_THIN_DIELECTRIC_DELTA   ,// 薄い完全誘電体
+	MATERIAL_TYPE_NONE                         ,// シェーディングを行わない
+	MATERIAL_TYPE_LIGHT                        ,// 光源
+	MATERIAL_TYPE_DIFFUSE_LAMBERT              ,// ランバート拡散モデル
+	MATERIAL_TYPE_SPECULAR_ROUGH_PHONG         ,// フォン反射モデル
+	MATERIAL_TYPE_SPECULAR_DELTA               ,// 完全鏡面
+	MATERIAL_TYPE_DIELECTRIC_DELTA             ,// 完全誘電体
+	MATERIAL_TYPE_LEGACY_PHONG_COMPOSITE       ,// 古典的Phong+LambertBRDF
+	MATERIAL_TYPE_THIN_DIELECTRIC_DELTA        ,// 薄い完全誘電体
 	// 物理ベースレンダリング
 	MATERIAL_TYPE_BLEND                        ,// ２つのマテリアルを一定割合で混ぜる
 	MATERIAL_TYPE_SPECULAR_ROUGH_BECKMAN       ,// Beckman分布に基づく荒い反射

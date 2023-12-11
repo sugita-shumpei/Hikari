@@ -193,9 +193,8 @@ OPTIX_CLOSEST_HIT_PROGRAM(radianceCH)() {
 				occluded);
 			// 遮蔽がなければ寄与をとる
 			if (!occluded) {
-
 				auto light_cosine = fmaxf(owl::dot(ref_direction, optixLaunchParams.light_parallel.direction), 0.0f);
-				payload.color += payload.attenuation * optixLaunchParams.light_parallel.color * eval_bsdf_phong(ambient_col, specular_col, shininess, light_cosine) * fmaxf(owl::dot(normal,optixLaunchParams.light_parallel.direction), 0.0f);
+				payload.color    += payload.attenuation * optixLaunchParams.light_parallel.color * eval_bsdf_phong(ambient_col, specular_col, shininess, light_cosine) * fmaxf(owl::dot(normal,optixLaunchParams.light_parallel.direction), 0.0f);
 			}
 		}
 

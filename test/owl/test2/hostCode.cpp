@@ -21,8 +21,9 @@ extern "C" char* deviceCode_ptx[];
 int main() {
 	hikari::test::owl::testlib::ObjModel model;
 	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
-    model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
-	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");/*
+	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Water.obj)");
+    //model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");
 	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
     //auto envlit_filename = std::string("");
 	auto center          = model.getBBox().getCenter();
@@ -220,19 +221,55 @@ int main() {
 	for (size_t i = 0; i < materials.size(); ++i) {
 		auto& material = model.getMaterials()[i];
 		if   (material.illum == 2) {
-			MaterialParamsLagacyPhongComposite phong;
-			phong.color_ambient.x  = material.diffuse.x;
-			phong.color_ambient.y  = material.diffuse.y;
-			phong.color_ambient.z  = material.diffuse.z;
-			phong.color_specular.x = material.specular.x;
-			phong.color_specular.y = material.specular.y;
-			phong.color_specular.z = material.specular.z;
-			phong.shininess        = material.shinness;
-			phong.texid_color_ambient   = material.tex_diffuse ;
-			phong.texid_color_specular  = material.tex_specular;
-			phong.texid_color_shininess = material.tex_shinness;
-			materials[i].material_type  = MATERIAL_TYPE_LEGACY_PHONG_COMPOSITE;
-			phong.get(materials[i]);
+			auto ke = material.emission.x + material.emission.y + material.emission.z;
+			if (ke > 0.0f) {
+				MaterialParamsLight light;
+				light.color.x = material.emission.x;
+				light.color.y = material.emission.y;
+				light.color.z = material.emission.z;
+				light.texid   = material.tex_emission;
+				materials[i].material_type = MATERIAL_TYPE_LIGHT;
+				light.get(materials[i]);
+			}
+			else {
+				MaterialParamsLagacyPhongComposite phong;
+				phong.color_ambient.x = material.diffuse.x;
+				phong.color_ambient.y = material.diffuse.y;
+				phong.color_ambient.z = material.diffuse.z;
+				phong.color_specular.x = material.specular.x;
+				phong.color_specular.y = material.specular.y;
+				phong.color_specular.z = material.specular.z;
+				phong.shininess = material.shinness;
+				phong.texid_color_ambient = material.tex_diffuse;
+				phong.texid_color_specular = material.tex_specular;
+				phong.texid_color_shininess = material.tex_shinness;
+				materials[i].material_type = MATERIAL_TYPE_LEGACY_PHONG_COMPOSITE;
+				phong.get(materials[i]);
+			}
+		}
+		if (material.illum == 5) {
+			MaterialParamsSpecular specular;
+			specular.color.x = material.specular.x;
+			specular.color.y = material.specular.y;
+			specular.color.z = material.specular.z;
+			specular.factor1 = material.shinness;
+			specular.factor2 = material.shinness;
+			specular.texid_color   = material.tex_specular;
+			specular.texid_factor1 = material.tex_shinness;
+			specular.texid_factor2 = material.tex_shinness;
+			if (material.shinness > 100) {
+				materials[i].material_type = MATERIAL_TYPE_SPECULAR_DELTA;  
+			}
+			else {
+				materials[i].material_type = MATERIAL_TYPE_SPECULAR_ROUGH_PHONG;
+			}
+			specular.get(materials[i]);
+		}
+		if (material.illum == 7) {
+			MaterialParamsDielectric dielectric;
+			dielectric.ior = material.ior;
+			materials[i].material_type = MATERIAL_TYPE_DIELECTRIC_DELTA;
+			dielectric.get(materials[i]);
 		}
 	}
 	auto material_buffer = owlDeviceBufferCreate(context, (OWLDataType)(OWL_USER_TYPE_BEGIN + sizeof(MaterialParams)), model.getMaterials().size(), materials.data());
@@ -442,8 +479,8 @@ int main() {
 					auto tri_indices          = mesh.getSubMeshIndices(i);
 					unsigned int idx_alpha    = material.tex_alpha  != 0;
 					unsigned int has_vnormal  = norm_buf != nullptr;
-					unsigned int has_tnormal  = has_vnormal & (material.tex_normal != 0);
-					unsigned int idx_normal   = has_vnormal ? (1u + has_tnormal) : 0u;
+					unsigned int has_tnormal  = (unsigned int)(has_vnormal && (material.tex_bump > 0));
+					unsigned int idx_normal   = has_vnormal ? (1u + has_tnormal) : has_vnormal;
 					auto trim                 = owlGeomCreate(context, geom_types[idx_normal][idx_alpha]);
 					auto indx_buf             = owlDeviceBufferCreate(context, OWLDataType::OWL_UINT3, tri_indices.size(), tri_indices.data());
 					owlTrianglesSetVertices(trim, vert_buf, owlBufferSizeInBytes(vert_buf) / sizeof(owl::vec3f), sizeof(owl::vec3f), 0);
@@ -456,7 +493,7 @@ int main() {
 					owlGeomSetBuffer(trim, "indices" , indx_buf);
 					owlGeomSet1us(trim, "mat_idx", mesh.materials[i]);
 					if (has_tnormal) {
-						owlGeomSetTexture(trim, "texture_normal", textures[material.tex_normal + texture_idx_offset]);
+						owlGeomSetTexture(trim, "texture_normal", textures[material.tex_bump    + texture_idx_offset]);
 					}
 					if (idx_alpha) {
 						owlGeomSetTexture(trim, "texture_alpha"  , textures[material.tex_alpha  + texture_idx_offset]);

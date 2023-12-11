@@ -488,6 +488,7 @@ bool hikari::test::owl::testlib::ObjModel::load(std::string filename)
 			mat.tex_normal       = get_tex_idx(material.bump_texname);
 			mat.tex_reflection   = get_tex_idx(material.reflection_texname);
 			mat.tex_normal       = get_tex_idx(material.normal_texname);
+			mat.tex_bump         = get_tex_idx(material.bump_texname);
 			mat.tex_displacement = get_tex_idx(material.displacement_texname);
 			m_materials.push_back(mat);
 		}
