@@ -73,7 +73,192 @@ __forceinline__ __device__ owl::vec3f random_in_pdf_cosine(owl::LCG<24>& random)
 __forceinline__ __device__ float      fresnel(float f0, float geom_cosine) {
 	return f0 + (1.0f - f0) * (1.0f - geom_cosine) * (1.0f - geom_cosine) * (1.0f - geom_cosine) * (1.0f - geom_cosine) * (1.0f - geom_cosine);
 }
+__forceinline__ __device__ bool       shade_material(
+	const PayloadData& payload,
+	float              min_depth,
+	float              max_depth,
+	owl::vec3f&        ray_org,
+	owl::vec3f&        ray_dir,
+	owl::vec3f&        color,
+	owl::vec3f&        throughput,
+	owl::LCG<24>&      random) {
+	bool done = false;
+	ray_org = ray_org + payload.distance * ray_dir;
+	auto normal   = payload.s_normal;
+	auto n_cosine = -owl::dot(normal, ray_dir);
+	auto refl_dir = owl::normalize(ray_dir + 2.0f * n_cosine * normal);
+	// CLOSEST HIT
+	if (payload.mat_idx > 0) {
+		// Materialを取得
+		auto& material = optixLaunchParams.material_buffer[payload.mat_idx - 1];
+		// Light
+		if (material.material_type      == MATERIAL_TYPE_LIGHT) {
+			ray_org += 0.01f * normal;
+			auto material_light = MaterialParamsLight();
+			material_light.set(material);
+			if (material_light.texid > 0) {
+				material_light.color *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_light.texid - 1], payload.texcoord.x, payload.texcoord.y));
+			}
+			color += throughput * material_light.color * fmaxf(n_cosine / M_PI, 0.0f);
+			done = true;
+		}
+		// Delta Specular
+		else if (material.material_type == MATERIAL_TYPE_SPECULAR_DELTA) {
+			ray_org += 0.01f * normal;
+			auto material_specular = MaterialParamsSpecular();
+			material_specular.set(material);
+			throughput *= material_specular.color;
+			ray_dir = refl_dir;
+		}
+		// Delta Dielectric
+		else if (material.material_type == MATERIAL_TYPE_DIELECTRIC_DELTA) {
+			auto material_dielectric = MaterialParamsDielectric();
+			material_dielectric.set(material);
+			// 屈折率
+			float ior = material_dielectric.ior;
+			if (n_cosine < 0.0f) {
+				normal   = -normal;
+				n_cosine = -n_cosine;
+				ior = 1.0f / ior;
+			}
+			auto n_cosine2 = n_cosine * n_cosine;
+			auto n_sine2 = fmaxf(1.0f - n_cosine2, 0.0f);
+			// 1.0 * sine_tht1 = n * sine_tht2;
+			auto n_refr_sine2 = n_sine2 / (ior * ior);
+			auto n_refr_cosine2 = 1.0f - n_refr_sine2;
+			auto fr = 0.0f;
+			if (n_refr_cosine2 < 0.0f) {
+				fr = 1.0f;
+			}
+			else {
+				auto n_refr_cosine = sqrtf(n_refr_cosine2);
+				auto r_p = (ior * n_cosine - n_refr_cosine) / (ior * n_cosine + n_refr_cosine);
+				auto r_s = (n_cosine - ior * n_refr_cosine) / (n_cosine + ior * n_refr_cosine);
+				fr = (r_p * r_p + r_s * r_s) * 0.5f;
+			}
+			if (random() < fr) {
+				ray_org += 0.01f * normal;
+				ray_dir = refl_dir;
+			}
+			else {
+				ray_org -= 0.01f * normal;
+				auto refr_dir = owl::normalize((1.0f / ior) * ray_dir + ((1.0f / ior) * n_cosine - sqrtf(n_refr_cosine2)) * normal);
+				ray_dir = refr_dir;
+			}
 
+		}
+		// Phong 
+		else if (material.material_type == MATERIAL_TYPE_SPECULAR_ROUGH_PHONG) {
+			ray_org += +0.01f * normal;
+			auto material_specular = MaterialParamsSpecular();
+			material_specular.set(material);
+			if (material_specular.texid_color > 0) {
+				material_specular.color *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_specular.texid_color - 1], payload.texcoord.x, payload.texcoord.y));
+			}
+			if (material_specular.texid_factor1 > 0) {
+				material_specular.factor1 *= (tex2D<float4>(optixLaunchParams.texture_buffer[material_specular.texid_factor1 - 1], payload.texcoord.x, payload.texcoord.y)).x;
+			}
+
+			if (optixLaunchParams.light_parallel.active) {
+				owl::RayT<0, 1> shadow_ray(ray_org, optixLaunchParams.light_parallel.direction, min_depth, max_depth);
+				if (!traceOccluded(shadow_ray)) {
+					auto bsdf = eval_bsdf_phong({ 0.0f,0.0f,0.0f }, material_specular.color, material_specular.factor1, fmaxf(owl::dot(refl_dir, optixLaunchParams.light_parallel.direction), 0.0f));
+					color += throughput * bsdf * fmaxf(owl::dot(normal, optixLaunchParams.light_parallel.direction), 0.0f) * optixLaunchParams.light_parallel.color;
+				}
+			}
+
+			Onb onb1(refl_dir);
+			auto direction = onb1.local(random_in_pdf_phong(material_specular.factor1, random));
+			auto bsdf = eval_bsdf_phong({ 0.0f,0.0f,0.0f }, material_specular.color, material_specular.factor1, fmaxf(owl::dot(refl_dir, direction), 0.0f));
+			if (owl::dot(normal, direction) > 0.0f) {
+				throughput *= (owl::vec3f(M_PI) * bsdf);
+			}
+			else {
+				done = true;
+			}
+			ray_dir = direction;
+		}
+		// Legacy Phong Composite
+		else if (material.material_type == MATERIAL_TYPE_LEGACY_PHONG_COMPOSITE) {
+			ray_org += +0.01f * normal;
+			auto material_legacy_phong_composite = MaterialParamsLagacyPhongComposite();
+			
+			material_legacy_phong_composite.set(material);
+			if (material_legacy_phong_composite.texid_color_ambient  > 0) {
+				material_legacy_phong_composite.color_ambient *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_legacy_phong_composite.texid_color_ambient - 1], payload.texcoord.x, payload.texcoord.y));
+			}
+			if (material_legacy_phong_composite.texid_color_specular > 0) {
+				material_legacy_phong_composite.color_specular *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_legacy_phong_composite.texid_color_specular - 1], payload.texcoord.x, payload.texcoord.y));
+			}
+			if (optixLaunchParams.light_parallel.active) {
+				owl::RayT<0, 1> shadow_ray(ray_org, optixLaunchParams.light_parallel.direction,  min_depth, max_depth);
+				if (!traceOccluded(shadow_ray)) {
+					auto bsdf = eval_bsdf_phong(material_legacy_phong_composite.color_ambient, material_legacy_phong_composite.color_specular, material_legacy_phong_composite.shininess, fmaxf(owl::dot(refl_dir, optixLaunchParams.light_parallel.direction), 0.0f));
+					color += throughput * bsdf * fmaxf(owl::dot(normal, optixLaunchParams.light_parallel.direction), 0.0f) * optixLaunchParams.light_parallel.color;
+				}
+			}
+
+			Onb onb1(normal);
+			auto direction1 = onb1.local(random_in_pdf_cosine(random));
+			auto n_cosine1  = fmaxf(owl::dot(normal  , direction1), 0.0f);
+			auto l_cosine1  = fmaxf(owl::dot(refl_dir, direction1), 0.0f);
+			auto pdf11 = eval_pdf_cosine(n_cosine1);
+			auto pdf12 = eval_pdf_phong(material_legacy_phong_composite.shininess, l_cosine1);
+
+			Onb onb2(refl_dir);
+			auto direction2 = onb2.local(random_in_pdf_phong(material_legacy_phong_composite.shininess, random));
+			auto n_cosine2  = fmaxf(owl::dot(normal  , direction2), 0.0f);
+			auto l_cosine2  = fmaxf(owl::dot(refl_dir, direction2), 0.0f);
+			auto pdf21      = eval_pdf_cosine(n_cosine2);
+			auto pdf22      = eval_pdf_phong(material_legacy_phong_composite.shininess, l_cosine2);
+
+			auto kd         = owl::dot(material_legacy_phong_composite.color_ambient , owl::vec3f(1.0f / 3.0f));
+			auto ks         = owl::dot(material_legacy_phong_composite.color_specular, owl::vec3f(1.0f / 3.0f));
+			auto prob       = (kd + ks) > 0.0f ? kd / (kd + ks) : 0.5f;
+
+			auto weight    = 0.0f;
+			auto pdf       = 0.0f;
+			auto n_cosine  = 0.0f;
+			auto l_cosine  = 0.0f;
+			auto direction = owl::vec3f();
+
+			if (random() < prob) {
+				weight = prob * pdf11 / (prob * pdf11 + (1.0f - prob) * pdf12);
+				pdf = prob * pdf11;
+				n_cosine = n_cosine1;
+				l_cosine = l_cosine1;
+				direction = direction1;
+			}
+			else {
+				weight = (1.0f - prob) * pdf22 / (prob * pdf21 + (1.0f - prob) * pdf22);
+				pdf = (1.0f - prob) * pdf22;
+				n_cosine = n_cosine2;
+				l_cosine = l_cosine2;
+				direction = direction2;
+			}
+
+			auto bsdf = eval_bsdf_phong(material_legacy_phong_composite.color_ambient, material_legacy_phong_composite.color_specular, material_legacy_phong_composite.shininess, l_cosine);
+			if (n_cosine > 0.0f) {
+				throughput *= (bsdf * n_cosine * weight / pdf);
+			}
+			else {
+				done = true;
+			}
+			ray_dir = direction;
+		}
+		// None
+		else {
+			done = true;
+		}
+	}
+	// MISS
+	else
+	{
+		color += throughput * optixLaunchParams.light_intensity * owl::vec3f(sample_sphere_map(optixLaunchParams.light_envmap, { ray_dir.x,ray_dir.y,ray_dir.z }));
+		done = true;
+	}
+	return done;
+}
 // 実際の描画処理はここで実行
 OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 	const owl::vec2i idx = owl::getLaunchIndex();
@@ -99,179 +284,8 @@ OPTIX_RAYGEN_PROGRAM(simpleRG)() {
 		for (int j = 0; (j < trace_depth) && !done; ++j) {
 			owl::RayT<0, 1> ray(ray_org, ray_dir, rg_data.min_depth, rg_data.max_depth);
 			traceRadiance(ray, payload);
-			ray_org       = ray_org + payload.distance * ray_dir;
-			auto normal   = payload.g_normal;
-			auto refl_dir = owl::normalize(ray_dir - 2.0f * owl::dot(ray_dir, normal) * normal);
-			// CLOSEST HIT
-			if (payload.mat_idx > 0) {
-				auto& material = optixLaunchParams.material_buffer[payload.mat_idx - 1];
-				// Light
-				if (material.material_type == MATERIAL_TYPE_LIGHT) {
-					ray_org += 0.01f * normal;
-					auto material_light = MaterialParamsLight();
-					material_light.set(material);
-					if (material_light.texid > 0) {
-						material_light.color *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_light.texid - 1], payload.texcoord.x, payload.texcoord.y));
-					}
-					color += throughput * material_light.color * fmaxf(-owl::dot(normal, ray_dir) / M_PI, 0.0f);
-					done = true;
-				}
-				// Delta Specular
-				else if (material.material_type == MATERIAL_TYPE_SPECULAR_DELTA) {
-					ray_org +=  0.01f * normal;
-					auto material_specular = MaterialParamsSpecular();
-					material_specular.set(material);
-					throughput *= material_specular.color;
-					ray_dir     = refl_dir;
-				}
-				// Phong 
-				else if (material.material_type == MATERIAL_TYPE_SPECULAR_ROUGH_PHONG) {
-					ray_org += + 0.01f * normal;
-					auto material_specular = MaterialParamsSpecular();
-					material_specular.set(material);
-					if (material_specular.texid_color > 0) {
-						material_specular.color *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_specular.texid_color - 1], payload.texcoord.x, payload.texcoord.y));
-					}
-					if (material_specular.texid_factor1 > 0) {
-						material_specular.factor1 *= (tex2D<float4>(optixLaunchParams.texture_buffer[material_specular.texid_factor1 - 1], payload.texcoord.x, payload.texcoord.y)).x;
-					}
-
-					if (optixLaunchParams.light_parallel.active) {
-						owl::RayT<0, 1> shadow_ray(ray_org, optixLaunchParams.light_parallel.direction, rg_data.min_depth, rg_data.max_depth);
-						if (!traceOccluded(shadow_ray)) {
-							auto bsdf = eval_bsdf_phong({ 0.0f,0.0f,0.0f }, material_specular.color, material_specular.factor1, fmaxf(owl::dot(refl_dir, optixLaunchParams.light_parallel.direction), 0.0f));
-							color += throughput * bsdf * fmaxf(owl::dot(normal, optixLaunchParams.light_parallel.direction), 0.0f) * optixLaunchParams.light_parallel.color;
-						}
-					}
-
-					Onb onb1(refl_dir);
-					auto direction = onb1.local(random_in_pdf_phong(material_specular.factor1, random));
-					auto bsdf = eval_bsdf_phong({ 0.0f,0.0f,0.0f }, material_specular.color, material_specular.factor1, fmaxf(owl::dot(refl_dir, direction), 0.0f));
-					if (owl::dot(normal, direction) > 0.0f) {
-						throughput *= (owl::vec3f(M_PI) * bsdf);
-					}
-					else {
-						done = true;
-					}
-					ray_dir = direction;
-				}
-				// Delta Dielectric
-				else if (material.material_type == MATERIAL_TYPE_DIELECTRIC_DELTA) {
-					auto material_dielectric = MaterialParamsDielectric();
-					material_dielectric.set(material);
-					// 屈折率
-					float ior     = material_dielectric.ior;
-					auto n_cosine = -owl::dot(normal, ray_dir);
-					if (n_cosine < 0.0f) {
-						normal   = -normal;
-						n_cosine = -n_cosine;
-						ior      = 1.0f/ior;
-					}
-					auto n_cosine2      = n_cosine * n_cosine;
-					auto n_sine2        = fmaxf(1.0f - n_cosine2,0.0f);
-					// 1.0 * sine_tht1 = n * sine_tht2;
-					auto n_refr_sine2   = n_sine2/(ior*ior);
-					auto n_refr_cosine2 = 1.0f - n_refr_sine2;
-					auto fr = 0.0f;
-					if (n_refr_cosine2 < 0.0f) {
-						fr = 1.0f;
-					}
-					else {
-						auto n_refr_cosine = sqrtf(n_refr_cosine2);
-						auto r_p = (ior * n_cosine - n_refr_cosine) / (ior * n_cosine + n_refr_cosine);
-						auto r_s = ( n_cosine - ior * n_refr_cosine) /(n_cosine + ior * n_refr_cosine);
-						fr = (r_p * r_p + r_s * r_s) * 0.5f;
-					}
-					if (random() < fr) {
-						ray_org += + 0.01f * normal;
-						ray_dir = refl_dir;
-					}
-					else {
-						ray_org +=-0.01f * normal;
-						auto refr_dir = owl::normalize((1.0f/ior)*ray_dir + ((1.0f / ior) * n_cosine - sqrtf(n_refr_cosine2)) * normal);
-						ray_dir = refr_dir;
-					}
-
-				}
-				// Legacy  Phong Composite
-				else if (material.material_type == MATERIAL_TYPE_LEGACY_PHONG_COMPOSITE) {
-					ray_org += + 0.01f * normal;
-					auto material_legacy_phong_composite = MaterialParamsLagacyPhongComposite();
-					material_legacy_phong_composite.set(material);
-					if (material_legacy_phong_composite.texid_color_ambient > 0) {
-						material_legacy_phong_composite.color_ambient *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_legacy_phong_composite.texid_color_ambient - 1], payload.texcoord.x, payload.texcoord.y));
-					}
-					if (material_legacy_phong_composite.texid_color_specular > 0) {
-						material_legacy_phong_composite.color_specular *= owl::vec3f(tex2D<float4>(optixLaunchParams.texture_buffer[material_legacy_phong_composite.texid_color_specular - 1], payload.texcoord.x, payload.texcoord.y));
-					}
-					if (optixLaunchParams.light_parallel.active) {
-						owl::RayT<0, 1> shadow_ray(ray_org, optixLaunchParams.light_parallel.direction, rg_data.min_depth, rg_data.max_depth);
-						if (!traceOccluded(shadow_ray)) {
-							auto bsdf = eval_bsdf_phong(material_legacy_phong_composite.color_ambient, material_legacy_phong_composite.color_specular, material_legacy_phong_composite.shininess, fmaxf(owl::dot(refl_dir, optixLaunchParams.light_parallel.direction), 0.0f));
-							color += throughput * bsdf * fmaxf(owl::dot(normal, optixLaunchParams.light_parallel.direction), 0.0f) * optixLaunchParams.light_parallel.color;
-						}
-					}
-					Onb onb1(normal);
-					auto direction1 = onb1.local(random_in_pdf_cosine(random));
-					auto n_cosine1 = fmaxf(owl::dot(normal  , direction1), 0.0f);
-					auto l_cosine1 = fmaxf(owl::dot(refl_dir, direction1), 0.0f);
-					auto pdf11 = eval_pdf_cosine(n_cosine1);
-					auto pdf12 = eval_pdf_phong(material_legacy_phong_composite.shininess, l_cosine1);
-
-					Onb onb2(refl_dir);
-					auto direction2 = onb2.local(random_in_pdf_phong(material_legacy_phong_composite.shininess, random));
-					auto n_cosine2 = fmaxf(owl::dot(normal  , direction2), 0.0f);
-					auto l_cosine2 = fmaxf(owl::dot(refl_dir, direction2), 0.0f);
-					auto pdf21 = eval_pdf_cosine(n_cosine2);
-					auto pdf22 = eval_pdf_phong(material_legacy_phong_composite.shininess, l_cosine2);
-
-					auto kd = owl::dot(material_legacy_phong_composite.color_ambient, owl::vec3f(1.0f / 3.0f));
-					auto ks = owl::dot(material_legacy_phong_composite.color_specular, owl::vec3f(1.0f / 3.0f));
-					auto prob = (kd + ks) > 0.0f ? kd / (kd + ks) : 0.5f;
-
-					auto weight = 0.0f;
-					auto pdf = 0.0f;
-					auto n_cosine = 0.0f;
-					auto l_cosine = 0.0f;
-					auto direction = owl::vec3f();
-
-					if (random() < prob) {
-						weight = prob * pdf11 / (prob * pdf11 + (1.0f - prob) * pdf12);
-						pdf = prob * pdf11;
-						n_cosine = n_cosine1;
-						l_cosine = l_cosine1;
-						direction = direction1;
-					}
-					else {
-						weight = (1.0f - prob) * pdf22 / (prob * pdf21 + (1.0f - prob) * pdf22);
-						pdf = (1.0f - prob) * pdf22;
-						n_cosine = n_cosine2;
-						l_cosine = l_cosine2;
-						direction = direction2;
-					}
-					auto bsdf = eval_bsdf_phong(material_legacy_phong_composite.color_ambient, material_legacy_phong_composite.color_specular, material_legacy_phong_composite.shininess, l_cosine);
-					if (n_cosine > 0.0f) {
-						throughput *= (bsdf * n_cosine * weight / pdf);
-					}
-					else {
-						done = true;
-					}
-					ray_dir = direction;
-				}
-				else {
-					done = true;
-				}
-			}
-			// MISS
-			else
-			{
-				color += throughput * optixLaunchParams.light_intensity * owl::vec3f(sample_sphere_map(optixLaunchParams.light_envmap, { ray.direction.x,ray.direction.y,ray.direction.z }));
-				done   = true;
-			}
+			done = shade_material(payload, rg_data.min_depth,rg_data.max_depth, ray_org, ray_dir, color, throughput, random);
 		}
-		//color.x += (payload.s_normal.x + 1.0f) * 0.5f;
-		//color.y += (payload.s_normal.y + 1.0f) * 0.5f;
-		//color.z += (payload.s_normal.z + 1.0f) * 0.5f;
 	}
 
 	auto res = optixLaunchParams.accum_buffer[dim.x * idx.y + idx.x];

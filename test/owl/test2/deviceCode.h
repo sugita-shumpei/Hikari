@@ -40,7 +40,7 @@ struct ParallelLight {
 	unsigned int           dummy    ;
 };
 
-enum MaterialType {
+enum   MaterialType {
 	MATERIAL_TYPE_NONE                         ,// シェーディングを行わない
 	MATERIAL_TYPE_LIGHT                        ,// 光源
 	MATERIAL_TYPE_DIFFUSE_LAMBERT              ,// ランバート拡散モデル
@@ -58,12 +58,12 @@ enum MaterialType {
 	MATERIAL_TYPE_THIN_DIELECTRIC_ROUGH_BECKMAN,// Beckman分布に基づく荒い薄い誘電体
 	MATERIAL_TYPE_THIN_DIELECTRIC_ROUGH_GGX    ,// GGX分布に基づく荒い薄い誘電体
 };
-
 struct MaterialParams {
 	unsigned int          material_type ;
 	float                 f32_values[11];//32bit*12
 	unsigned short        u16_values[16];//32bit* 8
 };
+
 //  Material Parameter
 struct MaterialParamsLight {
 #if defined(__CUDACC__)
@@ -195,7 +195,6 @@ struct LaunchParams
 	MaterialParams*        material_buffer   ;
 	CUtexObject*           texture_buffer    ;
 };
-
 struct RayGenData   
 {
 	OptixTraversableHandle world    ;
@@ -203,12 +202,10 @@ struct RayGenData
 	float                  min_depth;
 	float                  max_depth;
 };
-
 struct MissProgData 
 {
 	cudaTextureObject_t texture_envlight;
 };
-
 struct HitgroupData {
 	owl::vec3f *         vertices      ;
 	owl::vec3f *         normals       ;
@@ -220,7 +217,6 @@ struct HitgroupData {
 	cudaTextureObject_t  texture_normal;
 	unsigned short       mat_idx       ;
 };
-
 struct Onb {
 #if defined(__CUDACC__)
 	__device__ 
