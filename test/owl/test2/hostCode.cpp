@@ -604,13 +604,13 @@ int main() {
 			auto [dir_u, dir_v, dir_w] = p_tracer_data->p_camera->getUVW();
 			owlBufferClear(p_tracer_data->accum_buffer);
 			owlBufferClear(p_tracer_data->frame_buffer);
-			owlRayGenSet3fv(p_tracer_data->raygen, "camera.eye", (const float*)&p_tracer_data->p_camera->origin);
+			owlRayGenSet3fv(p_tracer_data->raygen, "camera.eye"  , (const float*)&p_tracer_data->p_camera->origin);
 			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_u", (const float*)&dir_u);
 			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_v", (const float*)&dir_v);
 			owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_w", (const float*)&dir_w);
-			owlParamsSet1f(p_tracer_data->params, "light_intensity", p_tracer_data->env_light_intensity);
-			owlParamsSet1ui(p_tracer_data->params, "light_parallel.active", p_tracer_data->use_parallel_light);
-			owlParamsSet3f(p_tracer_data->params, "light_parallel.color",
+			owlParamsSet1f(p_tracer_data->params , "light_intensity"       , p_tracer_data->env_light_intensity);
+			owlParamsSet1ui(p_tracer_data->params, "light_parallel.active" , p_tracer_data->use_parallel_light);
+			owlParamsSet3f(p_tracer_data->params , "light_parallel.color"  ,
 				p_tracer_data->parallel_light_color.x * p_tracer_data->parallel_light_intensity,
 				p_tracer_data->parallel_light_color.y * p_tracer_data->parallel_light_intensity,
 				p_tracer_data->parallel_light_color.z * p_tracer_data->parallel_light_intensity
