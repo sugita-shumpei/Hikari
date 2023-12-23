@@ -3,3 +3,4 @@ data
 ext
 .vs
 .vscode
+vcpkg_installed

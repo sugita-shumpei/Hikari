@@ -2,12 +2,21 @@
   "name": "optix-toolkit",
   "description" : "a clean reconfiguration is required if this file is modified",
   "dependencies": [
-    
-    
-    
-    "glad",
+    "tinyobjloader",
+    "mikktspace",
+    "tinyxml2",
+    "stduuid",
+    "stb",
+    "imath",
+    "glad" ,
     "glfw3",
-    "gtest"
+    "gtest",
+    "glm",
+    "zlib",
+    {
+      "name": "imgui",
+      "features": ["glfw-binding","opengl3-binding"]
+    }
   ]
 }
 

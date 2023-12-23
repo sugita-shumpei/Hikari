@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <string>
 #include <imgui.h>
 namespace hikari {
     namespace test {
@@ -52,18 +53,18 @@ namespace hikari {
                         Pfn_GLViewerGuiCallback              guiCallback
                     );
 
-                    void  getCursorPosition(double& cursor_pos_x, double& cursor_pos_y)const;
-                    void  getWindowSize(int& width, int& m_height)const;
-                    void* getUserPtr();
-                    void* getInternalData();
-                    void  updateNextFrame();
+                    void   getCursorPosition(double& cursor_pos_x, double& cursor_pos_y)const;
+                    void   getWindowSize(int& width, int& m_height)const;
+                    void*  getUserPtr();
+                    void*  getInternalData();
+                    void   updateNextFrame();
                     double getTime()const { return m_delta_time; }
                     
                 protected:
                     void         setUserPtr(void* ptr);
                     virtual bool onResize(int old_width, int old_height,int new_width, int new_height) { return false; }
-                    virtual bool onPressKey(KeyType key)                          { return false; }
-                    virtual bool onPressMouseButton(MouseButtonType mouse_button) { return false; }
+                    virtual bool onPressKey(KeyType key)                            { return false; }
+                    virtual bool onPressMouseButton(MouseButtonType mouse_button)   { return false; }
                     virtual bool onMouseScroll(double delta_x, double      delta_y) { return false; }
                     virtual void onUpdate()                {}
                     virtual void onRender(void* frame_ptr) {}
@@ -104,7 +105,6 @@ namespace hikari {
                     void* getFramePtr();
                 private:
                     void*    m_stream     = nullptr;
-                    // Window ƒnƒ“ƒhƒ‹
                     void*    m_window     = nullptr;
                     void*    m_resource   = nullptr;
                     void*    m_device_ptr = nullptr;

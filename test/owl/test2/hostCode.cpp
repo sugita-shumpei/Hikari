@@ -21,9 +21,9 @@ extern "C" char* deviceCode_ptx[];
 int main() {
 	hikari::test::owl::testlib::ObjModel model;
 	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Original.obj)");
-	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Sphere.obj)");
-    //model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
-	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");
+	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Sphere.obj)");
+        //model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
+	model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");
 	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
     //auto envlit_filename = std::string("");
 	auto center          = model.getBBox().getCenter();
@@ -546,8 +546,10 @@ int main() {
 			float                                      parallel_light_axis_phi;
 			float                                      parallel_light_axis_tht;
 			float                                      parallel_light_angle;
-		} tracer_data = {
-			 &camera,&tonemap,context, raygen,params,accum_buffer,frame_buffer, 0,true, false,LIGHT_TYPE_ENVMAP,1.0f,{0.0f,0.0f,0.0f},1.0f,0.0f,0.0f
+                        std::string                                screen_filename;
+                        bool                                       screen_shot;
+                } tracer_data = {
+                         &camera,& tonemap,context, raygen,params,accum_buffer,frame_buffer, 0,true, false,LIGHT_TYPE_ENVMAP,1.0f,{0.0f,0.0f,0.0f},1.0f,0.0f,0.0f,0.0f,std::string(""),false
 		};
 		 
 		auto resize_callback             = [](hikari::test::owl::testlib::GLViewer* p_viewer, int old_w, int old_h, int new_w, int        new_h) {
@@ -645,11 +647,27 @@ int main() {
 				(unsigned int*)p_fb_data,
 				!p_tracer_data->estimate_luminance
 			);
+                        if (p_tracer_data->screen_shot) {
+                            std::vector<unsigned int> pixel_data(p_tracer_data->p_camera->width*p_tracer_data->p_camera->height);
+                            cuMemcpyDtoHAsync(pixel_data.data(),(CUdeviceptr)p_fb_data,sizeof(unsigned int)*pixel_data.size(), owlContextGetStream(p_tracer_data->context, 0));
+                            stbi_write_png(p_tracer_data->screen_filename.c_str(), p_tracer_data->p_camera->width, p_tracer_data->p_camera->height, 4, pixel_data.data(), p_tracer_data->p_camera->width * 4);
+                            p_tracer_data->screen_shot = false;
+                        }
 			p_tracer_data->accum_sample++;
 		};
 		auto ui_callback                 = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
 			TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
 			if (ImGui::Begin("Config")) {
+                                if (ImGui::TreeNode("Frame")) {
+                                  char temp[256] = {};
+                                  std::memcpy(temp, p_tracer_data->screen_filename.c_str(), p_tracer_data->screen_filename.size());
+                                  if (ImGui::InputText("filename", temp, sizeof(temp))) {
+                                      p_tracer_data->screen_filename = std::string(temp);
+                                  }
+                                  if (ImGui::Checkbox ("save", &p_tracer_data->screen_shot)) {
+                                  }
+                                  ImGui::TreePop();
+                                }
 				if (ImGui::TreeNode("Tonemap")) {
 					float new_key_value = p_tracer_data->p_tonemap->getKeyValue();
 					float old_key_value = new_key_value;
