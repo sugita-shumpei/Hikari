@@ -4,9 +4,8 @@
 namespace hikari {
   struct Spectrum : public std::enable_shared_from_this<Spectrum> {
     virtual   ~Spectrum() noexcept {}
-    virtual Uuid getID() const = 0;
-    // virtual Color3F getXYZ (ColorSpace colorSpace) const = 0;
-    // virtual Color3F getSRGB(ColorSpace colorSpace) const = 0;
+    virtual Uuid  getID() const =  0;
+
     template<typename DeriveType>
     auto convert() -> std::shared_ptr<DeriveType> {
       if (DeriveType::ID() == getID()) {

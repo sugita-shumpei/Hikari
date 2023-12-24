@@ -1,8 +1,9 @@
 #pragma once
 #include <hikari/core/data_type.h>
-
+#include <unordered_map>
+#include <optional>
 namespace hikari {
-  inline auto   splitString(const String& str, Char delim) -> std::vector<String>
+  inline auto splitString(const String& str, Char delim) -> std::vector<String>
   {
     std::vector<String> res = {};
     std::size_t off = 0;
@@ -21,5 +22,19 @@ namespace hikari {
       }
     };
     return res;
+  }
+  template<typename Key, typename Val>
+  inline auto getValueFromMap(const std::unordered_map<Key,Val>& map,const Key& key, const Val& def_val) -> Val
+  {
+    auto iter = map.find(key);
+    if (iter == map.end()) { return def_val; }
+    else { return iter->second; }
+  }
+  template<typename Key, typename Val>
+  inline auto getValueFromMap(const std::unordered_map<Key, Val>& map, const Key& key) -> std::optional<Val>
+  {
+    auto iter = map.find(key);
+    if (iter == map.end()) { return std::nullopt; }
+    else { return iter->second; }
   }
 }

@@ -4,8 +4,11 @@
 namespace hikari {
   struct ShapeMesh : public Shape {
     static constexpr Uuid ID() {  return Uuid::from_string("F127AAE2-4240-4910-A187-BBB1588B7FC4").value();  }
-
+    // 新規のmeshを作成する. 
     static auto create() -> std::shared_ptr<ShapeMesh> ;
+    // 既存のmeshを元にinstanceを作成する. 
+    // instanceは破壊的変更以外のすべてのメソッドが実行可能
+    static auto makeInstance(const std::shared_ptr<ShapeMesh>& shape) -> std::shared_ptr<ShapeMesh>;
     virtual ~ShapeMesh() noexcept {}
 
     virtual auto getVertexCount() const -> U32 =0;

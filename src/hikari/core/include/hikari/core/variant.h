@@ -51,9 +51,9 @@ namespace hikari {
     void setFloat  (F32             value) { m_value = value; }
     void setTexture(const TexturePtr& text) { m_value = text; }
 
-    auto getFloat  ()const->F32 {
+    auto getFloat  ()const->std::optional<F32> {
       if (m_value.index() == 0) { return std::get<0>(m_value); }
-      else { return 0.0f; }
+      else { return std::nullopt; }
     }
     auto getTexture()const-> TexturePtr {
       if (m_value.index() == 1) { return std::get<1>(m_value); }

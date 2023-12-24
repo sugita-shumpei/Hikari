@@ -61,4 +61,11 @@ namespace hikari {
     Bool                                   m_loaded            = false;
     Bool                                   m_has_binary        = false;
   };
+  struct     MitsubaSerializedDataManager {
+    MitsubaSerializedDataManager(const String& root):m_root{root}{}
+
+  private:
+    String                                                             m_root  = "";
+    std::unordered_map<String, std::shared_ptr<MitsubaSerializedData>> m_datas = {};
+  };
 }

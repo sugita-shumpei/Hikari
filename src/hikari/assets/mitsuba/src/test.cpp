@@ -1,8 +1,9 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <hikari/core/utils.h>
-#include <hikari/assets/mitsuba/serialized_data.h>
-#include <hikari/assets/mitsuba/spectrum_data.h>
-#include <hikari/assets/mitsuba/xml_data.h>
+#include <serialized_data.h>
+#include <spectrum_data.h>
+#include <xml_data.h>
+#include <hikari/assets/mitsuba/scene_importer.h>
 #include <hikari/camera/orthographic.h>
 #include <hikari/camera/perspective.h>
 #include <hikari/film/hdr.h>
@@ -496,14 +497,12 @@ void test2() {
 
 int  main()
 {
-  auto filepath    = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba\classroom\scene.xml)");
-  // auto filepath = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\data\scenes\cbox\cbox.xml)");
-  tinyxml2::XMLDocument doc;
-  auto str    = filepath.string();
-  doc.LoadFile(str.data());
-  auto parser = hikari::MitsubaXMLParser();
-  if (!doc.Accept(&parser)!=tinyxml2::XML_SUCCESS) {
-    std::cerr << "Failed To Load!\n" << std::endl;
-  }
+  auto filepath = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba\classroom\scene.xml)");
+  auto importer = hikari::MitsubaSceneImporter::create();
+  auto scene    = importer->loadScene(filepath.string());
+  auto cameras  = scene->getCameras();
+  auto lights   = scene->getLights() ;
+  auto shapes   = scene->getShapes();
+
   return 0;
 }

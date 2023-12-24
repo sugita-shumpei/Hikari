@@ -21,9 +21,10 @@ namespace hikari {
     auto getName() const->String;
 
     auto getNodesInHierarchy() -> std::vector<std::shared_ptr<Node>>;
-    auto getCameras  () ->std::vector<std::shared_ptr<Camera>>;
-    auto getLights   () ->std::vector<std::shared_ptr<Light>>;
-    auto getShapes   () ->std::vector<std::shared_ptr<Shape>>;
+    auto getCameras() -> std::vector<std::shared_ptr<Camera>>;
+    auto getLights () -> std::vector<std::shared_ptr<Light>> ;
+    auto getShapes () -> std::vector<std::shared_ptr<Shape>> ;
+    // auto getConfig() ->Config
   private:
     friend struct Node;
     Scene(const String& name);

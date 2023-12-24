@@ -6,6 +6,7 @@ namespace hikari
     struct MitsubaSpectrumData
     {
         Bool load(const String &filename);
+
         static auto d65()       -> MitsubaSpectrumData;
         static auto cie1931_x() -> MitsubaSpectrumData;
         static auto cie1931_y() -> MitsubaSpectrumData;

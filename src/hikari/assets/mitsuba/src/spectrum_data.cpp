@@ -1,4 +1,4 @@
-#include <hikari/assets/mitsuba/spectrum_data.h>
+#include "spectrum_data.h"
 #include <fstream>
 #include <sstream>
 

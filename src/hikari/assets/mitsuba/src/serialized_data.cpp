@@ -1,4 +1,4 @@
-#include <hikari/assets/mitsuba/serialized_data.h>
+#include "serialized_data.h"
 
 
 hikari::Bool hikari::MitsubaSerializedData::load(const String& filename, MitsubaSerializedLoadType load_type) {
