@@ -10,12 +10,12 @@ namespace hikari {
 
     void clear() override;
 
-    auto getVertexPositions() const -> const std::vector<Vec3>& override;
-    auto getVertexNormals()   const -> const std::vector<Vec3>& override;
-    auto getVertexBinormals() const -> const std::vector<Vec4>& override;
-    auto getVertexUVs()       const -> const std::vector<Vec2>& override;
-    auto getVertexColors()    const -> const std::vector<Vec3>& override;
-    auto getFaces()           const -> const std::vector<U32>& override;
+    auto getVertexPositions() const -> std::vector<Vec3> override;
+    auto getVertexNormals()   const -> std::vector<Vec3> override;
+    auto getVertexBinormals() const -> std::vector<Vec4> override;
+    auto getVertexUVs()       const -> std::vector<Vec2> override;
+    auto getVertexColors()    const -> std::vector<Vec3> override;
+    auto getFaces()           const -> std::vector<U32>  override;
 
     void setVertexPositions(const std::vector<Vec3>& vertex_positions) override;
     void setVertexNormals(const std::vector<Vec3>& vertex_normals) override;
@@ -57,12 +57,12 @@ namespace hikari {
     auto getVertexCount() const->U32 override;
     auto getFaceCount() const->U32 override;
     void clear() override;
-    auto getVertexPositions() const -> const std::vector<Vec3> & override;
-    auto getVertexNormals() const -> const std::vector<Vec3> & override;
-    auto getVertexBinormals() const -> const std::vector<Vec4> & override;
-    auto getVertexUVs() const -> const std::vector<Vec2> & override;
-    auto getVertexColors() const -> const std::vector<Vec3> & override;
-    auto getFaces() const -> const std::vector<U32> & override;
+    auto getVertexPositions() const ->  std::vector<Vec3>  override;
+    auto getVertexNormals() const ->  std::vector<Vec3>  override;
+    auto getVertexBinormals() const ->  std::vector<Vec4>  override;
+    auto getVertexUVs() const ->  std::vector<Vec2>  override;
+    auto getVertexColors() const ->  std::vector<Vec3>  override;
+    auto getFaces() const -> std::vector<U32> override;
     void setVertexPositions(const std::vector<Vec3>& vertex_positions) override;
     void setVertexNormals(const std::vector<Vec3>& vertex_normals) override;
     void setVertexBinormals(const std::vector<Vec4>& vertex_binormals) override;
@@ -114,17 +114,17 @@ void hikari::ShapeMeshImpl::clear()
   m_face_count = 0;
 }
 
-auto hikari::ShapeMeshImpl::getVertexPositions() const -> const std::vector<Vec3>& { return m_vertex_positions; }
+auto hikari::ShapeMeshImpl::getVertexPositions() const -> std::vector<Vec3> { return m_vertex_positions; }
 
-auto hikari::ShapeMeshImpl::getVertexNormals() const -> const std::vector<Vec3>& { return m_vertex_normals; }
+auto hikari::ShapeMeshImpl::getVertexNormals() const -> std::vector<Vec3> { return m_vertex_normals; }
 
-auto hikari::ShapeMeshImpl::getVertexBinormals() const -> const std::vector<Vec4>& { return m_vertex_binormals; }
+auto hikari::ShapeMeshImpl::getVertexBinormals() const -> std::vector<Vec4> { return m_vertex_binormals; }
 
-auto hikari::ShapeMeshImpl::getVertexUVs() const -> const std::vector<Vec2>& { return m_vertex_uvs; }
+auto hikari::ShapeMeshImpl::getVertexUVs() const -> std::vector<Vec2> { return m_vertex_uvs; }
 
-auto hikari::ShapeMeshImpl::getVertexColors() const -> const std::vector<Vec3>&{ return m_vertex_colors;}
+auto hikari::ShapeMeshImpl::getVertexColors() const -> std::vector<Vec3>{ return m_vertex_colors;}
 
-auto hikari::ShapeMeshImpl::getFaces() const -> const std::vector<U32>& { return m_faces; }
+auto hikari::ShapeMeshImpl::getFaces() const -> std::vector<U32> { return m_faces; }
 
 void hikari::ShapeMeshImpl::setVertexPositions(const std::vector<Vec3>& vertex_positions) {
   if (m_vertex_count != vertex_positions.size()) {
@@ -209,32 +209,32 @@ void hikari::ShapeMeshInstance::clear()
   return;
 }
 
-auto hikari::ShapeMeshInstance::getVertexPositions() const -> const std::vector<Vec3>&
+auto hikari::ShapeMeshInstance::getVertexPositions() const -> std::vector<Vec3>
 {
   return m_base->getVertexPositions();
 }
 
-auto hikari::ShapeMeshInstance::getVertexNormals() const -> const std::vector<Vec3>&
+auto hikari::ShapeMeshInstance::getVertexNormals() const -> std::vector<Vec3>
 {
   return m_base->getVertexNormals();
 }
 
-auto hikari::ShapeMeshInstance::getVertexBinormals() const -> const std::vector<Vec4>&
+auto hikari::ShapeMeshInstance::getVertexBinormals() const -> std::vector<Vec4>
 {
   return m_base->getVertexBinormals();
 }
 
-auto hikari::ShapeMeshInstance::getVertexUVs() const -> const std::vector<Vec2>&
+auto hikari::ShapeMeshInstance::getVertexUVs() const -> std::vector<Vec2>
 {
   return m_base->getVertexUVs();
 }
 
-auto hikari::ShapeMeshInstance::getVertexColors() const -> const std::vector<Vec3>&
+auto hikari::ShapeMeshInstance::getVertexColors() const -> std::vector<Vec3>
 {
   return m_base->getVertexColors();
 }
 
-auto hikari::ShapeMeshInstance::getFaces() const -> const std::vector<U32>&
+auto hikari::ShapeMeshInstance::getFaces() const -> std::vector<U32>
 {
   return m_base->getFaces();
 }

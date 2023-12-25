@@ -2,6 +2,7 @@
 #include <memory>
 #include <hikari/core/data_type.h>
 namespace hikari {
+  struct Texture;
   enum class BsdfDistributionType {
     eBeckman,
     eGGX
@@ -9,6 +10,7 @@ namespace hikari {
   struct Bsdf : public std::enable_shared_from_this<Bsdf> {
     virtual ~Bsdf();
     virtual Uuid getID() const = 0;
+
     template<typename DeriveType>
     auto convert() -> std::shared_ptr<DeriveType> {
       if (DeriveType::ID() == getID()) {

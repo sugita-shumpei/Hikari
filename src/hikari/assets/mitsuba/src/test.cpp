@@ -8,6 +8,7 @@
 #include <hikari/camera/perspective.h>
 #include <hikari/film/hdr.h>
 #include <hikari/film/spec.h>
+#include <hikari/core/material.h>
 #include <stb_image_write.h>
 #include <tinyxml2.h>
 #include <filesystem>
@@ -351,157 +352,25 @@ int  test() {
 // Rfilter   : ["box","tent","gaussian"]
 // Sampler   : ["independent"]
 
-void test2() {
-  auto rootpath = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba)");
-
-  auto integrators = std::unordered_set<std::string>();
-  auto shapes    = std::unordered_set<std::string>();
-  auto bsdfs     = std::unordered_set<std::string>();
-  auto volumes   = std::unordered_set<std::string>();
-  auto mediums   = std::unordered_set<std::string>();
-  auto sensors   = std::unordered_set<std::string>();
-  auto emitters  = std::unordered_set<std::string>();
-  auto films     = std::unordered_set<std::string>();
-  auto textures  = std::unordered_set<std::string>();
-  auto spectrums = std::unordered_set<std::string>();
-  auto samplers  = std::unordered_set<std::string>();
-  auto rfilters  = std::unordered_set<std::string>();
-  auto etas      = std::unordered_set<std::string>();
-  auto ks        = std::unordered_set<std::string>();
-  auto status    = std::unordered_set<std::string>();
-
-  auto iterateElement = [&integrators, &shapes, &bsdfs, &volumes, &sensors, &emitters, &films, &textures, &spectrums, &samplers, &rfilters, &mediums, &etas, &ks, &status](auto self, tinyxml2::XMLElement* element) ->void {
-    for (tinyxml2::XMLNode* node = element->FirstChildElement(); node; node = node->NextSibling()) {
-      tinyxml2::XMLElement* nodeElement = node->ToElement();
-      if (!nodeElement) { return; }
-      if (nodeElement->Value() == std::string_view("float")) {
-        auto attribute_name = nodeElement->FindAttribute("name");
-        if (attribute_name->Value() == std::string_view("fov")) {
-          status.insert("fov");
-        }
-        if (attribute_name->Value() == std::string_view("principal_point_offset_x")) {
-          status.insert("principal_point_offset_x");
-        }
-        if (attribute_name->Value() == std::string_view("principal_point_offset_y")) {
-          status.insert("principal_point_offset_y");
-        }
-      }
-      if (nodeElement->Value() == std::string_view("integrator")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { integrators.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("sensor")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { sensors.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("bsdf")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { bsdfs.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("shape")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { shapes.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("rfilter")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { rfilters.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("film")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { films.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("volume")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { volumes.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("medium")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { mediums.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("sampler")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { samplers.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("emitter")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { emitters.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("spectrum")) {
-        std::string type = "";
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) {
-          type = attribute_type->Value() + std::string("=");
-        }
-        auto attribute_value = nodeElement->FindAttribute("value");
-        if (attribute_value) { spectrums.insert(type + attribute_value->Value()); }
-        auto attribute_name = nodeElement->FindAttribute("name");
-        if (attribute_name) {
-          if (attribute_name->Value() == std::string_view("eta")) {
-            auto attribute_value = nodeElement->FindAttribute("value");
-            if (attribute_value) { etas.insert(attribute_value->Value()); }
-          }
-          if (attribute_name->Value() == std::string_view("k")) {
-            auto attribute_value = nodeElement->FindAttribute("value");
-            if (attribute_value) { ks.insert(attribute_value->Value()); }
-          }
-        }
-      }
-      if (nodeElement->Value() == std::string_view("rgb")) {
-        auto attribute_name = nodeElement->FindAttribute("name");
-        if (attribute_name) {
-          if (attribute_name->Value() == std::string_view("eta")) {
-            auto attribute_value = nodeElement->FindAttribute("value");
-            if (attribute_value) { etas.insert(attribute_value->Value()); }
-          }
-          if (attribute_name->Value() == std::string_view("k")) {
-            auto attribute_value = nodeElement->FindAttribute("value");
-            if (attribute_value) { ks.insert(attribute_value->Value()); }
-          }
-        }
-      }
-      if (nodeElement->Value() == std::string_view("texture")) {
-        auto attribute_type = nodeElement->FindAttribute("type");
-        if (attribute_type) { textures.insert(attribute_type->Value()); }
-      }
-      if (nodeElement->Value() == std::string_view("string")) {
-        auto attribute_name = nodeElement->FindAttribute("name");
-        if (attribute_name->Value() == std::string_view("focal_length")) {
-          status.insert("focal_length");
-        }
-        if (attribute_name->Value() == std::string_view("fov_axis")) {
-          status.insert("fov_axis");
-          auto attribute_value = nodeElement->FindAttribute("value");
-          if (attribute_value) {
-            status.insert("fov_axis=" + std::string(attribute_value->Value()));
-          }
-        }
-      }
-      self(self, nodeElement);
-    }
-    };
-
- for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(rootpath)) {
-
-      if (!entry.exists() || !entry.is_directory()) { continue; }
-      auto filepath = entry.path() / "scene.xml";
-      auto filepath_string = filepath.string();
-      if (!std::filesystem::exists(filepath)) { continue; }
-      auto document = tinyxml2::XMLDocument();
-      if (document.LoadFile(filepath_string.c_str()) != tinyxml2::XML_SUCCESS) { continue; }
-      auto docHandle = tinyxml2::XMLHandle(&document);
-      auto element = docHandle.FirstChildElement("scene").ToElement();
-      iterateElement(iterateElement, element);
-    }
-}
-
-
 int  main()
 {
-  auto filepath = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba\pool\scene.xml)");
-  auto importer = hikari::MitsubaSceneImporter::create();
-  auto scene    = importer->loadScene(filepath.string());
-  auto cameras  = scene->getCameras();
-  auto lights   = scene->getLights();
-  auto shapes   = scene->getShapes();
+  auto filepath   = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba\classroom\scene.xml)");
+  auto importer   = hikari::MitsubaSceneImporter::create();
+  auto scene      = importer->loadScene(filepath.string());
+  auto cameras    = scene->getCameras();// カメラ
+  auto lights     = scene->getLights() ;// 光源  
+  auto shapes     = scene->getShapes() ;// 形状
+  auto bsdfs      = std::unordered_map<hikari::Bsdf*, hikari::BsdfPtr>();
+  for (auto& shape : shapes) {
+    auto node     = shape->getNode();
+    auto material = node->getMaterial();
+    auto emitter  = node->getLight();
+    if (!material){ continue; }
+    auto bsdf     = material->getBsdf();
+    if (bsdfs.find(bsdf.get()) == std::end(bsdfs)) { bsdfs.insert({ bsdf.get() ,bsdf }); }
+  }
+  // TODO: 何のテクスチャを使用しているか、わからない
+  // これがわからないとMaterialの設定がしにくいが...
+  // TWOSIDED, BUMPMAP, NORMALMAP, MASKなどの依存関係を解決
   return 0;
 }

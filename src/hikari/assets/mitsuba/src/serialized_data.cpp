@@ -1,4 +1,5 @@
 #include "serialized_data.h"
+#include <hikari/shape/mesh.h>
 
 
 hikari::Bool hikari::MitsubaSerializedData::load(const String& filename, MitsubaSerializedLoadType load_type) {
@@ -76,7 +77,7 @@ hikari::Bool hikari::MitsubaSerializedData::load(const String& filename, Mitsuba
 bool hikari::MitsubaSerializedData::loadMesh(U32 idx) {
     if (!m_loaded    ) { return false; }
     if (idx < m_meshes.size()) {
-      if (!m_has_binary) { return m_meshes[idx].m_loaded; }
+      if (!m_has_binary) { return m_meshes[idx].isLoaded(); }
       auto header_size = sizeof(U16) * 2;
       m_meshes[idx].load(m_binary_data.get() + m_offsets[idx] + header_size, m_sizes[idx]- header_size);
       return true;
@@ -140,54 +141,148 @@ void hikari::MitsubaSerializedMeshData::load(const Byte* data, U64 size) {
       name.push_back(ch);
     } while (ch != '\0');
     m_name = name;
-
+    // vertex, face情報を読み取る
     ss.read((Char*)&m_vertex_count, sizeof(m_vertex_count));
-    ss.read((Char*)&m_face_count, sizeof(m_face_count));
-
+    ss.read((Char*)&m_face_count  , sizeof(m_face_count)  );
+    // 精度情報を取得
     bool isSinglePrecision = (m_flags & MitsubaSerializedDataFlagsSinglePrecision);
+    auto element_type_size = isSinglePrecision ? 4 : 8;
 
-    auto readFloats = [&ss, &isSinglePrecision](U64 count) {
-      if (isSinglePrecision) {
-        auto temp_data = std::vector<F32>(count);
-        ss.read((Char*)temp_data.data(), sizeof(F32) * temp_data.size());
-        auto f64_data = std::vector<F64>(count);
-        std::ranges::copy(temp_data, f64_data.begin());
-        return f64_data;
-      }
-      else {
-        auto temp_data = std::vector<F64>(count);
-        ss.read((Char*)temp_data.data(), sizeof(F64) * temp_data.size());
-        return temp_data;
-      }
-      };
-    auto readUInts = [&ss, &isSinglePrecision](U64 count) {
-      if (isSinglePrecision) {
-        auto temp_data = std::vector<U32>(count);
-        ss.read((Char*)temp_data.data(), sizeof(U32) * temp_data.size());
-        auto f64_data = std::vector<U64>(count);
-        std::ranges::copy(temp_data, f64_data.begin());
-        return f64_data;
-      }
-      else {
-        auto temp_data = std::vector<U64>(count);
-        ss.read((Char*)temp_data.data(), sizeof(U64) * temp_data.size());
-        return temp_data;
-      }
-      };
-    {
-      m_vertex_positions = readFloats(3 * m_vertex_count);
-    }
+    auto whole_size = m_vertex_count * 3 * element_type_size + m_face_count * 3 * element_type_size;
     if (m_flags & MitsubaSerializedDataFlagsHasVertexNormal) {
-      m_vertex_normals = readFloats(3 * m_vertex_count);
+      whole_size += m_vertex_count * 3 * element_type_size;
     }
     if (m_flags & MitsubaSerializedDataFlagsHasVertexUV) {
-      m_vertex_uvs = readFloats(2 * m_vertex_count);
+      whole_size += m_vertex_count * 2 * element_type_size;
     }
     if (m_flags & MitsubaSerializedDataFlagsHasVertexColor) {
-      m_vertex_colors = readFloats(3 * m_vertex_count);
+      whole_size += m_vertex_count * 3 * element_type_size;
     }
-    m_faces = readUInts(3 * m_face_count);
+    m_data      = std::unique_ptr<Byte[]>(new Byte[whole_size]);
+    m_data_size = whole_size;
+
+    ss.read((Char*)m_data.get(), whole_size);
   }
 
   m_loaded = true;
+}
+
+auto hikari::ShapeMeshMitsubaSerialized::create(const MitsubaSerializedMeshData& data) -> std::shared_ptr<ShapeMeshMitsubaSerialized>
+{
+  return std::shared_ptr<ShapeMeshMitsubaSerialized>(new ShapeMeshMitsubaSerialized(data));
+}
+
+hikari::ShapeMeshMitsubaSerialized::~ShapeMeshMitsubaSerialized()
+{
+}
+
+auto hikari::ShapeMeshMitsubaSerialized::getVertexCount() const -> U32 { return m_data.getVertexCount(); }
+
+auto hikari::ShapeMeshMitsubaSerialized::getFaceCount() const -> U32 { return m_data.getFaceCount(); }
+
+void hikari::ShapeMeshMitsubaSerialized::clear() { return;}
+
+auto hikari::ShapeMeshMitsubaSerialized::getVertexPositions() const -> std::vector<Vec3> {
+
+  return convertToArrayVec3(m_data.getVertexPositionPtr<void>(),m_data.getVertexCount(),m_data.getTypeSizeInBytes());
+}
+
+auto hikari::ShapeMeshMitsubaSerialized::getVertexNormals() const -> std::vector<Vec3>
+{
+  return convertToArrayVec3(m_data.getVertexNormalPtr<void>(), m_data.getVertexCount(), m_data.getTypeSizeInBytes());
+}
+
+auto hikari::ShapeMeshMitsubaSerialized::getVertexBinormals() const -> std::vector<Vec4>
+{
+  return std::vector<Vec4>();
+}
+
+auto hikari::ShapeMeshMitsubaSerialized::getVertexUVs() const -> std::vector<Vec2>
+{
+  return convertToArrayVec2(m_data.getVertexUVPtr<void>(), m_data.getVertexCount(), m_data.getTypeSizeInBytes());
+}
+
+auto hikari::ShapeMeshMitsubaSerialized::getVertexColors() const -> std::vector<Vec3>
+{
+  return convertToArrayVec3(m_data.getVertexColorPtr<void>(), m_data.getVertexCount(), m_data.getTypeSizeInBytes());
+}
+
+auto hikari::ShapeMeshMitsubaSerialized::getFaces() const -> std::vector<U32>
+{
+  return convertToArrayU32(m_data.getFacePtr<void>(), m_data.getFaceCount()*3, m_data.getTypeSizeInBytes());
+}
+
+void hikari::ShapeMeshMitsubaSerialized::setVertexPositions(const std::vector<Vec3>& vertex_positions)
+{
+  return;
+}
+
+void hikari::ShapeMeshMitsubaSerialized::setVertexNormals(const std::vector<Vec3>& vertex_normals)
+{
+  return;
+}
+
+void hikari::ShapeMeshMitsubaSerialized::setVertexBinormals(const std::vector<Vec4>& vertex_binormals)
+{
+  return;
+}
+
+void hikari::ShapeMeshMitsubaSerialized::setVertexUVs(const std::vector<Vec2>& vertex_uvs)
+{
+  return;
+}
+
+void hikari::ShapeMeshMitsubaSerialized::setVertexColors(const std::vector<Vec3>& vertex_colors)
+{
+  return;
+}
+
+void hikari::ShapeMeshMitsubaSerialized::setFaces(const std::vector<U32>& faces)
+{
+  return;
+}
+
+hikari::Bool hikari::ShapeMeshMitsubaSerialized::getFlipUVs() const
+{
+  return m_flip_uvs;
+}
+
+hikari::Bool hikari::ShapeMeshMitsubaSerialized::getFaceNormals() const
+{
+  return m_face_normals;
+}
+
+void hikari::ShapeMeshMitsubaSerialized::setFlipUVs(Bool flip_uvs)
+{
+  m_flip_uvs = flip_uvs;
+}
+
+void hikari::ShapeMeshMitsubaSerialized::setFaceNormals(Bool face_normals)
+{
+  m_face_normals = face_normals;
+}
+
+hikari::Bool hikari::ShapeMeshMitsubaSerialized::hasVertexNormals() const
+{
+  return m_data.hasVertexNormal();
+}
+
+hikari::Bool hikari::ShapeMeshMitsubaSerialized::hasVertexBinormals() const
+{
+  return false;
+}
+
+hikari::Bool hikari::ShapeMeshMitsubaSerialized::hasVertexUVs() const
+{
+  return m_data.hasVertexUV();
+}
+
+hikari::Bool hikari::ShapeMeshMitsubaSerialized::hasVertexColors() const
+{
+  return m_data.hasVertexColor();
+}
+
+hikari::ShapeMeshMitsubaSerialized::ShapeMeshMitsubaSerialized(const MitsubaSerializedMeshData& data)
+  :m_data{data},m_face_normals{ data.getFaceNormal()}, m_flip_uvs{false}
+{
 }

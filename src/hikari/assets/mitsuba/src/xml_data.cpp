@@ -113,7 +113,7 @@ bool hikari::MitsubaXMLParser::parsePointOrVector(const tinyxml2::XMLElement* el
   auto attr_value = element_pnt->FindAttribute("value");
   if (attr_name){ name = normalizeString(attr_name->Value()); }
   if (attr_value) {
-    auto value_strs    = splitString(normalizeString(attr_name->Value()),',');
+    auto value_strs = splitString(normalizeString(attr_value->Value()),',');
     MitsubaXMLVector v = {};
     try {
       v.x = std::stof(value_strs[0]);
@@ -541,8 +541,20 @@ bool hikari::MitsubaXMLParser::parseProperties(const tinyxml2::XMLElement* eleme
   HK_MITSUBA_XML_FOR_EACH_OF(element_ref, element_object, "ref") {
     String name; MitsubaXMLRef value;
     if (!parseRef(element_ref, name, value)) { return false; }
-    if (name != "") { properties.refs.insert({ name,value }); }
-    else { properties.nested_refs.push_back(value); }
+    if (name != "") {
+      // 注意 Mitsuba 0.5.0系ではBSDFの参照に"bsdf"と名前を付けているケースがあるため,
+      // 特殊化する
+      if (m_data.version.major == 0 && m_data.version.minor == 5 && m_data.version.patch == 0 && name == "bsdf")
+      {
+        properties.nested_refs.push_back(value);
+      }
+      else {
+        properties.refs.insert({ name,value });
+      }
+    }
+    else {
+      properties.nested_refs.push_back(value);
+    }
   }
   HK_MITSUBA_XML_FOR_EACH_OF(element_rgb, element_object, "rgb") {
     String name; MitsubaXMLRgb value;

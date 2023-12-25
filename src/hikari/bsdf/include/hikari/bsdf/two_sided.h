@@ -1,5 +1,4 @@
 #pragma once
-
 #include <hikari/core/bsdf.h>
 #include <hikari/core/variant.h>
 namespace hikari {

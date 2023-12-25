@@ -16,12 +16,12 @@ namespace hikari {
 
     virtual void clear() =0;
 
-    virtual auto getVertexPositions() const -> const std::vector<Vec3>& =0;
-    virtual auto getVertexNormals()   const -> const std::vector<Vec3>& =0;
-    virtual auto getVertexBinormals() const -> const std::vector<Vec4>& =0;
-    virtual auto getVertexUVs()       const -> const std::vector<Vec2>& =0;
-    virtual auto getVertexColors()    const -> const std::vector<Vec3>& =0;
-    virtual auto getFaces()           const -> const std::vector<U32> & =0;
+    virtual auto getVertexPositions() const -> std::vector<Vec3> =0;
+    virtual auto getVertexNormals()   const -> std::vector<Vec3> =0;
+    virtual auto getVertexBinormals() const -> std::vector<Vec4> =0;
+    virtual auto getVertexUVs()       const -> std::vector<Vec2> =0;
+    virtual auto getVertexColors()    const -> std::vector<Vec3> =0;
+    virtual auto getFaces()           const -> std::vector<U32>  =0;
 
     virtual void setVertexPositions(const std::vector<Vec3>& vertex_positions) =0;
     virtual void setVertexNormals  (const std::vector<Vec3>& vertex_normals  ) =0;
