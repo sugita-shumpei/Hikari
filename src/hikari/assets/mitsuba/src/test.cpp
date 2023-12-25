@@ -355,20 +355,20 @@ void test2() {
   auto rootpath = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba)");
 
   auto integrators = std::unordered_set<std::string>();
-  auto shapes = std::unordered_set<std::string>();
-  auto bsdfs = std::unordered_set<std::string>();
-  auto volumes = std::unordered_set<std::string>();
-  auto mediums = std::unordered_set<std::string>();
-  auto sensors = std::unordered_set<std::string>();
-  auto emitters = std::unordered_set<std::string>();
-  auto films = std::unordered_set<std::string>();
-  auto textures = std::unordered_set<std::string>();
+  auto shapes    = std::unordered_set<std::string>();
+  auto bsdfs     = std::unordered_set<std::string>();
+  auto volumes   = std::unordered_set<std::string>();
+  auto mediums   = std::unordered_set<std::string>();
+  auto sensors   = std::unordered_set<std::string>();
+  auto emitters  = std::unordered_set<std::string>();
+  auto films     = std::unordered_set<std::string>();
+  auto textures  = std::unordered_set<std::string>();
   auto spectrums = std::unordered_set<std::string>();
-  auto samplers = std::unordered_set<std::string>();
-  auto rfilters = std::unordered_set<std::string>();
-  auto etas = std::unordered_set<std::string>();
-  auto ks = std::unordered_set<std::string>();
-  auto status = std::unordered_set<std::string>();
+  auto samplers  = std::unordered_set<std::string>();
+  auto rfilters  = std::unordered_set<std::string>();
+  auto etas      = std::unordered_set<std::string>();
+  auto ks        = std::unordered_set<std::string>();
+  auto status    = std::unordered_set<std::string>();
 
   auto iterateElement = [&integrators, &shapes, &bsdfs, &volumes, &sensors, &emitters, &films, &textures, &spectrums, &samplers, &rfilters, &mediums, &etas, &ks, &status](auto self, tinyxml2::XMLElement* element) ->void {
     for (tinyxml2::XMLNode* node = element->FirstChildElement(); node; node = node->NextSibling()) {
@@ -497,12 +497,11 @@ void test2() {
 
 int  main()
 {
-  auto filepath = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba\classroom\scene.xml)");
+  auto filepath = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba\pool\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
   auto scene    = importer->loadScene(filepath.string());
   auto cameras  = scene->getCameras();
-  auto lights   = scene->getLights() ;
+  auto lights   = scene->getLights();
   auto shapes   = scene->getShapes();
-
   return 0;
 }

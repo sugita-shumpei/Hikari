@@ -72,8 +72,7 @@ namespace hikari   {
     }
     auto      getMat() const noexcept  -> TransformMatData {
       if (m_data.index() == 0) {
-        auto trs = std::get<0>(m_data);
-        return trs.getMat();
+        return std::get<0>(m_data).getMat();
       }
       else {
         return std::get<1>(m_data);

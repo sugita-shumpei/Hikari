@@ -34,14 +34,15 @@
 #include "xml_data.h"
 #include "serialized_data.h"
 
-
-
 struct hikari::MitsubaSceneImporter::Impl {
   std::filesystem::path  file_path = "";
   std::shared_ptr<Scene> scene     = nullptr;
   std::unordered_map<String, std::shared_ptr<MitsubaSerializedMeshData>> serialized_datas = {};
   std::unordered_map<String, BsdfPtr   >  ref_bsdfs     = {};//bsdf
   std::unordered_map<String, TexturePtr>  ref_textures  = {};//texture
+  std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String, U32>> meshes_serialized;
+  std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String>>      meshes_obj;
+  std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String>>      meshes_ply;
   // Spectrum を読み取る
   auto loadSpectrum(const MitsubaXMLData& xml_data, const MitsubaXMLSpectrum& spe_data) -> std::shared_ptr<Spectrum> { return nullptr; }
   auto loadPropSpectrum(const MitsubaXMLData& xml_data, const String& name, const MitsubaXMLProperties& properties) -> SpectrumPtr {
@@ -772,14 +773,18 @@ struct hikari::MitsubaSceneImporter::Impl {
       // OBJ
       if (shp_data.type == "obj") {
         auto res = hikari::ShapeMesh::create();
+        auto filename = getValueFromMap(shp_data.properties.strings, "filename"s, ""s);
+        meshes_obj.push_back({ res,filename });
         res->setFaceNormals(getValueFromMap(shp_data.properties.booleans, "face_normals"s, false));
-        res->setFlipUVs(getValueFromMap(shp_data.properties.booleans, "flip_tex_coords"s, true));
+        res->setFlipUVs(getValueFromMap(shp_data.properties.booleans  , "flip_tex_coords"s, true));
         res->setFlipNormals(flip_normals);
         return res;
       }
       // PLY
-      if (shp_data.type == "obj") {
+      if (shp_data.type == "ply") {
         auto res = hikari::ShapeMesh::create();
+        auto filename = getValueFromMap(shp_data.properties.strings, "filename"s, ""s);
+        meshes_ply.push_back({ res,filename });
         res->setFaceNormals(getValueFromMap(shp_data.properties.booleans, "face_normals"s, false));
         res->setFlipUVs(getValueFromMap(shp_data.properties.booleans, "flip_tex_coords"s, false));
         res->setFlipNormals(flip_normals);
@@ -787,9 +792,15 @@ struct hikari::MitsubaSceneImporter::Impl {
       }
       // SERIALIZED
       if (shp_data.type == "serialized") {
-        auto res = hikari::ShapeMesh::create();
-        res->setFaceNormals(getValueFromMap(shp_data.properties.booleans, "face_normals"s, false));
-        res->setFlipUVs(getValueFromMap(shp_data.properties.booleans, "flip_tex_coords"s, false));
+        auto res        = hikari::ShapeMesh::create();
+        auto filename   = getValueFromMap(shp_data.properties.strings , "filename"s   ,""s);
+        auto shape_idx  = getValueFromMap(shp_data.properties.ingegers, "shape_index"s,  0);
+        if (shape_idx == 0) {
+          shape_idx = getValueFromMap(shp_data.properties.ingegers, "shapeIndex"s, 0);
+        }
+        meshes_serialized.push_back({ res,filename,shape_idx });
+        res->setFaceNormals(getValueFromMap(shp_data.properties.booleans, "face_normals"s   , false));
+        res->setFlipUVs(getValueFromMap(shp_data.properties.booleans    , "flip_tex_coords"s, false));
         res->setFlipNormals(flip_normals);
         return res;
       }
@@ -848,6 +859,8 @@ auto hikari::MitsubaSceneImporter::loadScene(const String& filename) -> std::sha
     if (document.LoadFile(filename.c_str()) != tinyxml2::XML_SUCCESS) { return nullptr; }
     hikari::MitsubaXMLParser parser = {};
     if (!document.Accept(&parser)) { return nullptr; }
+    parser.setFilepath(filename);
+
     auto& xml_data      = parser.getData()     ;
     auto& sensor        = xml_data.sensor      ;
     auto& emitters      = xml_data.emitters    ;

@@ -162,6 +162,7 @@ namespace hikari {
   using  MitsubaXMLShapePtr = std::shared_ptr<MitsubaXMLShape>;
   // 中間データ構造(XMLのままだと変換が大変なため, ある程度扱いやすい単位にまとめておく)
   struct MitsubaXMLData   {
+    String                                                    filepath;
     MitsubaXMLVersion                                         version     ;
     std::unordered_map<MitsubaXMLString,MitsubaXMLString>     defaults    ;
     MitsubaXMLIntegrator                                      integrator  ;
@@ -179,6 +180,7 @@ namespace hikari {
     virtual bool VisitExit(const tinyxml2::XMLDocument&  doc) override;
     auto getData() const -> const MitsubaXMLData&;
 
+    void setFilepath(const String& filepath);
     bool parseVersion(const tinyxml2::XMLElement*    element_scene);
     bool parseDefault(const tinyxml2::XMLElement*    element_scene);
     bool parseInteger(const tinyxml2::XMLElement*    element_int, MitsubaXMLString& name, MitsubaXMLInteger& value);

@@ -34,6 +34,11 @@ bool hikari::MitsubaXMLParser::VisitExit(const tinyxml2::XMLDocument& doc) {
 
 auto hikari::MitsubaXMLParser::getData() const -> const MitsubaXMLData& { return m_data; }
 
+void hikari::MitsubaXMLParser::setFilepath(const String& filepath_)
+{
+  m_data.filepath = filepath_;
+}
+
 bool hikari::MitsubaXMLParser::parseVersion(const tinyxml2::XMLElement* element_scene) {
   if (!element_scene) { return false; }
   auto attr_version = element_scene->FindAttribute("version");
@@ -106,7 +111,7 @@ bool hikari::MitsubaXMLParser::parsePointOrVector(const tinyxml2::XMLElement* el
   if (!element_pnt) { return false; }
   auto attr_name = element_pnt->FindAttribute("name");
   auto attr_value = element_pnt->FindAttribute("value");
-  if (!attr_name){ name = normalizeString(attr_name->Value()); }
+  if (attr_name){ name = normalizeString(attr_name->Value()); }
   if (attr_value) {
     auto value_strs    = splitString(normalizeString(attr_name->Value()),',');
     MitsubaXMLVector v = {};
