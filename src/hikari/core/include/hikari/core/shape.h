@@ -3,6 +3,7 @@
 #include <memory>
 namespace hikari {
   struct Node;
+  struct Material;
   struct Shape : public std::enable_shared_from_this<Shape> {
     virtual ~Shape() noexcept;
     void    setFlipNormals(Bool flip_normals);
@@ -18,6 +19,8 @@ namespace hikari {
         return nullptr;
       }
     }
+    void setMaterial(const std::shared_ptr<Material>& material);
+    auto getMaterial() const->std::shared_ptr<Material>;
   protected:
     Shape();
   private:
@@ -26,6 +29,7 @@ namespace hikari {
     void onDetach();
   private:
     std::weak_ptr<Node> m_node;
+    std::shared_ptr<Material> m_material;
     Bool m_flip_normals = false;
   };
   using ShapePtr = std::shared_ptr<Shape>;

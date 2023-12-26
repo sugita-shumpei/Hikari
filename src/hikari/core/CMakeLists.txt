@@ -20,6 +20,8 @@ include/hikari/core/mipmap.h
 include/hikari/core/node.h
 include/hikari/core/scene.h
 include/hikari/core/spectrum.h
+include/hikari/core/surface.h
+include/hikari/core/subsurface.h
 include/hikari/core/variant.h
 include/hikari/core/shape.h
 include/hikari/core/texture.h
@@ -40,6 +42,8 @@ src/node.cpp
 src/scene.cpp
 src/variant.cpp
 src/spectrum.cpp
+src/surface.cpp
+src/subsurface.cpp
 src/shape.cpp
 src/texture.cpp
 )

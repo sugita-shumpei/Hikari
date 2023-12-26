@@ -17,7 +17,17 @@ auto hikari::Shape::getFlipNormals() const -> Bool
 
 auto hikari::Shape::getNode() -> std::shared_ptr<Node> { return m_node.lock(); }
 
-hikari::Shape::Shape() :m_node{}
+void hikari::Shape::setMaterial(const std::shared_ptr<Material>& material)
+{
+  m_material = material;
+}
+
+auto hikari::Shape::getMaterial() const -> std::shared_ptr<Material>
+{
+  return m_material;
+}
+
+hikari::Shape::Shape() :m_node{}, m_material{nullptr}
 {
 }
 

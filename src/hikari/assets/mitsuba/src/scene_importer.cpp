@@ -1,12 +1,14 @@
 #include <hikari/assets/mitsuba/scene_importer.h>
 #include <hikari/core/material.h>
+#include <hikari/core/surface.h>
+#include <hikari/core/subsurface.h>
 #include <hikari/camera/perspective.h>
 #include <hikari/camera/orthographic.h>
-#include <hikari/film/hdr.h>
-#include <hikari/film/spec.h>
 #include <hikari/light/constant.h>
 #include <hikari/light/envmap.h>
 #include <hikari/light/area.h>
+#include <hikari/film/hdr.h>
+#include <hikari/film/spec.h>
 #include <hikari/shape/rectangle.h>
 #include <hikari/shape/sphere.h>
 #include <hikari/shape/mesh.h>
@@ -38,7 +40,9 @@ struct hikari::MitsubaSceneImporter::Impl {
   std::filesystem::path  file_path = "";
   std::shared_ptr<Scene> scene     = nullptr;
   std::unordered_map<String, std::shared_ptr<MitsubaSerializedData>>  serialized_datas  = {};
-  std::unordered_map<String, BsdfPtr   >                              ref_bsdfs         = {};//bsdf
+  std::unordered_map<String, SurfacePtr>                              ref_surfaces      = {};//surface
+  std::vector<std::pair<ShapePtr, BsdfPtr>>                           tmp_shapes        = {};
+  std::unordered_map<String, BsdfPtr>                                 ref_bsdfs         = {};//bsdf
   std::unordered_map<String, TexturePtr>                              ref_textures      = {};//texture
   std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String, U32>>    meshes_serialized;
   std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String>>         meshes_obj;
@@ -759,19 +763,19 @@ struct hikari::MitsubaSceneImporter::Impl {
     auto tail = std::shared_ptr<Node>();
 
     if (shp_data.to_world) {
-      auto res = loadTransform(xml_data, shp_data.to_world.value(), name);
+      auto res = loadTransform(xml_data, shp_data.to_world.value(), "");
       head = res.first;
       tail = res.second;
     }
     else {
-      auto node = Node::create(name);
+      auto node = Node::create("");
       head = node;
       tail = node;
     }
     if (!head) { return nullptr; }
 
-
-    auto shape = [&xml_data, &shp_data, this]()->ShapePtr {
+    std::string node_name = name;
+    auto shape = [&xml_data, &shp_data, this,&node_name]()->ShapePtr {
       auto flip_normals = getValueFromMap(shp_data.properties.booleans, "flip_normals"s, false);
       // OBJ
       if (shp_data.type == "obj") {
@@ -810,6 +814,8 @@ struct hikari::MitsubaSceneImporter::Impl {
           }
           // serialialized meshを読み取る
           if (!serialized_data->loadMesh(shape_idx)) { throw std::runtime_error("Failed To Load Serialied Data!"); }
+          auto serialized_name = serialized_data->getMeshes()[shape_idx].getName();
+          if (serialized_name != "") { node_name = serialized_name; }
         }
         auto res = hikari::ShapeMeshMitsubaSerialized::create(serialized_data->getMeshes()[shape_idx]);
         auto op_flip_normals    = getValueFromMap(shp_data.properties.booleans, "face_normals"s);
@@ -844,12 +850,6 @@ struct hikari::MitsubaSceneImporter::Impl {
     if (!shape) { return nullptr; }
 
     tail->setShape(shape);
-    auto material = hikari::Material::create();
-    if (shp_data.bsdf) {
-      auto bsdf = loadBsdf(xml_data, shp_data.bsdf);
-      if (bsdf) { material->setBsdf(bsdf); }
-    }
-
     if (shp_data.emitter) {
       if (shp_data.emitter->type != "area") { throw std::runtime_error("Failed To Load Emitter!"); }
       auto area_light = hikari::LightArea::create();
@@ -857,9 +857,279 @@ struct hikari::MitsubaSceneImporter::Impl {
       if (radiance) { area_light->setRadiance(*radiance); }
       tail->setLight(area_light);
     }
-    
-    tail->setMaterial(material);
+
+    bool has_material = false;
+    if (shp_data.bsdf) {
+      auto bsdf = loadBsdf(xml_data, shp_data.bsdf);
+      // 読み込んだBSDFをMaterialにくっつける必要有
+      if (bsdf) {
+        tmp_shapes.push_back({ shape,bsdf });
+        has_material = true;
+      }
+    }
+    if (has_material) {
+      auto material = Material::create();
+      shape->setMaterial(material);
+    }
+
+    head->setName(node_name);
     return head;
+  }
+  // Materialの解決を行う
+  void solveMaterials() {
+    auto bsdf_map = std::unordered_map<Bsdf*, BsdfPtr>();
+    {
+      for (auto& [shape, bsdf] : tmp_shapes) {
+        bsdf_map.insert({ bsdf.get(),bsdf });
+      }
+    }
+    // BSDF TWOは最大一つしか含まれていないと仮定する. 
+    // 基本的に修飾BSDFであるMASK,BUMP, NORMはTWOSIDEDの後に来ることを想定するが
+    // まずBSDF TWOを含んでいるかいないかで場合分けする
+    std::unordered_map<Bsdf*, std::vector<BsdfPtr>> ref_onesided_bsdfs = {};// 最終的にSubSurfaceへ変換される
+    std::unordered_map<Bsdf*, std::vector<BsdfPtr>> ref_twosided_bsdfs = {};// 最終的にSurface   へ変換される, ただし長さが2以上の場合若干工夫が必要になる
+    auto analyzeBsdf = [&ref_onesided_bsdfs, &ref_twosided_bsdfs](const BsdfPtr& bsdf_, std::shared_ptr<BsdfTwoSided>& twosided){
+      if (!bsdf_) { return; }
+      auto iter_one = ref_onesided_bsdfs.find(bsdf_.get());
+      auto iter_two = ref_twosided_bsdfs.find(bsdf_.get());
+      // 既にBSDFのリストが割り当てられていればOK
+      if (iter_one != std::end(ref_onesided_bsdfs)) { return; }
+      if (iter_two != std::end(ref_twosided_bsdfs)) { return; }
+      // そうではない場合, トラバースを行う
+      bool is_twosided = false;
+      std::vector<BsdfPtr> bsdfs = {};
+      auto cur = bsdf_;
+      while (true) {
+        if (cur->getID() == BsdfNormalMap::ID()) {
+          auto norm = std::static_pointer_cast<BsdfNormalMap>(cur);
+          bsdfs.push_back(cur);
+          cur = norm->getBsdf();
+          continue;
+        }
+        if (cur->getID() == BsdfBumpMap::ID()) {
+          auto bump = std::static_pointer_cast<BsdfBumpMap>(cur);
+          bsdfs.push_back(cur);
+          cur = bump->getBsdf();
+          continue;
+        }
+        if (cur->getID() == BsdfMask::ID()) {
+          auto mask = std::static_pointer_cast<BsdfMask>(cur);
+          bsdfs.push_back(cur);
+          cur = mask->getBsdf();
+          continue;
+        }
+        if (cur->getID() == BsdfTwoSided::ID()) {
+          twosided = std::static_pointer_cast<BsdfTwoSided>(cur);
+          bsdfs.push_back(cur);
+          is_twosided = true;
+          break;
+        }
+        bsdfs.push_back(cur);
+        break;
+      }
+      if (is_twosided) {
+        ref_twosided_bsdfs.insert({ bsdf_.get(),bsdfs });
+      }
+      else {
+        ref_onesided_bsdfs.insert({ bsdf_.get(),bsdfs });
+      }
+      return;
+    };
+    for (auto& [key,bsdf] : bsdf_map) {
+      {
+        std::shared_ptr<BsdfTwoSided> two_sided;
+        analyzeBsdf(bsdf, two_sided);
+        if (!two_sided) {
+          // もし二面なければ終了
+          continue;
+        }
+        else {
+          std::shared_ptr<BsdfTwoSided>     t0_two_sided ;
+          std::shared_ptr<BsdfTwoSided>     t1_two_sided ;
+          analyzeBsdf(two_sided->getBsdfs()[0], t0_two_sided);
+          analyzeBsdf(two_sided->getBsdfs()[0], t1_two_sided);
+          if (t0_two_sided || t1_two_sided) { throw std::runtime_error("Failed To Nest TwoSided On TwoSided!"); }
+        }
+      }
+    }
+    // onesided_bsdfを分析する. もしMASKが含まれていたら, 処理を分ける.(Surfaceとして扱う)
+    std::unordered_map<Bsdf*, SurfacePtr>      tmp_onesided_surfaces    = {};
+    //std::unordered_map<Bsdf*, SubSurfacePtr> tmp_onesided_subsurfaces = {};
+    std::unordered_map<Bsdf*, SurfacePtr>      tmp_twosided_surfaces    = {};
+
+    for (auto& [bsdf, list]   : ref_onesided_bsdfs) {
+      auto mask_bsdf = BsdfPtr();
+      auto bump_bsdf = BsdfPtr();
+      auto norm_bsdf = BsdfPtr();
+      auto gene_bsdf = list.back();
+      for (auto& pl : list) {
+        if (pl->getID() == BsdfMask::ID()     ) { mask_bsdf = pl; }
+        if (pl->getID() == BsdfBumpMap::ID()  ) { bump_bsdf = pl; }
+        if (pl->getID() == BsdfNormalMap::ID()) { norm_bsdf = pl; }
+      }
+      auto surface    = Surface::create();
+      auto subsurface = SubSurface::create();
+      subsurface->setBsdf(gene_bsdf);
+      surface->setSubSurface(subsurface);
+
+      if (bump_bsdf) {
+        auto bump = bump_bsdf->convert<BsdfBumpMap>();
+        auto bump_map = bump->getTexture();
+        auto bump_scl = bump->getScale();
+        if (bump_map) { subsurface->setBumpMap(bump_map); }
+        subsurface->setBumpScale(bump_scl);
+      }
+      if (norm_bsdf) {
+        auto norm = norm_bsdf->convert<BsdfNormalMap>();
+        auto norm_map = norm->getTexture();
+        subsurface->setNormalMap(norm_map);
+      }
+      if (mask_bsdf) {
+        auto mask = mask_bsdf->convert<BsdfMask>();
+        surface->setOpacity(mask->getOpacity());
+        tmp_onesided_surfaces.insert({bsdf, surface});
+      }
+      tmp_onesided_surfaces.insert({ bsdf, surface });
+    }
+    for (auto& [bsdf, list]   : ref_twosided_bsdfs) {
+      auto two_bsdf = list.back()->convert<BsdfTwoSided>();
+      auto mask_bsdf = BsdfPtr();
+      auto bump_bsdf = BsdfPtr();
+      auto norm_bsdf = BsdfPtr();
+      for (auto& pl : list) {
+        if (pl->getID() == BsdfMask::ID()) { mask_bsdf = pl; }
+        if (pl->getID() == BsdfBumpMap::ID()) { bump_bsdf = pl; }
+        if (pl->getID() == BsdfNormalMap::ID()) { norm_bsdf = pl; }
+      }
+      // 次に一次マテリアルを分析する
+      auto bsdfs       = two_bsdf->getBsdfs();
+      auto surface0    = getValueFromMap(tmp_onesided_surfaces   , bsdfs[0].get(), SurfacePtr());
+      auto surface1    = getValueFromMap(tmp_onesided_surfaces   , bsdfs[1].get(), SurfacePtr());
+
+      auto subsurface0 = SubSurfacePtr();
+      auto subsurface1 = SubSurfacePtr();
+      auto opacity0    = SpectrumOrTexture();
+      auto opacity1    = SpectrumOrTexture();
+      if (surface0) { subsurface0 = surface0->getSubSurface(); opacity0 = surface0->getOpacity(); }
+      if (surface1) { subsurface1 = surface1->getSubSurface(); opacity1 = surface1->getOpacity(); }
+
+      // 両方ともSubSurfaceがある場合, エラー
+      if (subsurface0 && subsurface1) {
+        if (opacity0  || opacity1) { throw std::runtime_error("TwoSided Must Not Include Separate Opacity!"); }
+      }
+      // 既にあるOpacityを上書きする場合, エラー
+      else {
+        if ((opacity0 || opacity1) && mask_bsdf){ throw std::runtime_error("TwoSided Must Set Once!"); }
+      }
+      auto surface = Surface::create();
+      if (mask_bsdf) {
+        auto mask = mask_bsdf->convert<BsdfMask>();
+        surface->setOpacity(mask->getOpacity());// 透明度を設定する
+      }
+      // もしbump_bsdf/norm_bsdfを全体に設定する場合, SubSurfaceから作り直し
+      if (bump_bsdf || norm_bsdf) {
+        if (subsurface1){
+          // 2つのsubsurfaceを割り当てている
+          auto new_subsurface0 = SubSurface::create();
+          auto new_subsurface1 = SubSurface::create();
+          new_subsurface0->setBsdf(subsurface0->getBsdf());
+          new_subsurface1->setBsdf(subsurface1->getBsdf());
+          if (bump_bsdf) {
+            auto bump = bump_bsdf->convert<BsdfBumpMap>();
+            new_subsurface0->setBumpMap(bump->getTexture());
+            new_subsurface0->setBumpScale(bump->getScale());
+            new_subsurface1->setBumpMap(bump->getTexture());
+            new_subsurface1->setBumpScale(bump->getScale());
+          }
+          else {
+            new_subsurface0->setBumpMap(subsurface0->getBumpMap());
+            new_subsurface0->setBumpScale(subsurface0->getBumpScale());
+            new_subsurface1->setBumpMap(subsurface1->getBumpMap());
+            new_subsurface1->setBumpScale(subsurface1->getBumpScale());
+          }
+          if (norm_bsdf) {
+            auto norm = norm_bsdf->convert<BsdfNormalMap>();
+            new_subsurface0->setNormalMap(norm->getTexture());
+            new_subsurface1->setNormalMap(norm->getTexture());
+          }
+          else {
+            new_subsurface0->setNormalMap(subsurface0->getNormalMap());
+            new_subsurface1->setNormalMap(subsurface1->getNormalMap());
+          }
+          surface->setSubSurface(0, new_subsurface0);
+          surface->setSubSurface(1, new_subsurface1);
+        }
+        else {
+          if (!surface->getOpacity()) {
+            // 既存のOpacityがあれば割り当てる
+            surface->setOpacity(opacity0);
+          }
+          auto new_subsurface0 = SubSurface::create();
+          new_subsurface0->setBsdf(subsurface0->getBsdf());
+          if (bump_bsdf) {
+            auto bump = bump_bsdf->convert<BsdfBumpMap>();
+            new_subsurface0->setBumpMap(bump->getTexture());
+            new_subsurface0->setBumpScale(bump->getScale());
+          }
+          else {
+            new_subsurface0->setBumpMap(subsurface0->getBumpMap());
+            new_subsurface0->setBumpScale(subsurface0->getBumpScale());
+          }
+          if (norm_bsdf) {
+            auto norm = norm_bsdf->convert<BsdfNormalMap>();
+            new_subsurface0->setNormalMap(norm->getTexture());
+          }
+          else {
+            new_subsurface0->setNormalMap(subsurface0->getNormalMap());
+          }
+          surface->setSubSurface(0, new_subsurface0);
+          surface->setSubSurface(1, new_subsurface0);
+        }
+      }
+      else {
+        // そうでなければ再利用できるものを再利用する
+        if (subsurface1) {
+          // 2つのsubsurfaceを割り当てている
+          surface->setSubSurface(0,subsurface0);
+          surface->setSubSurface(1,subsurface1);
+        }
+        else {
+          if (!surface->getOpacity()) {
+            // 既存のOpacityがあれば割り当てる
+            surface->setOpacity(opacity0);
+          }
+          surface->setSubSurface(0,subsurface0);
+          surface->setSubSurface(1,subsurface0);
+        }
+      }
+      tmp_twosided_surfaces.insert({ bsdf,surface });
+    }
+
+    std::unordered_map<Bsdf*, SurfacePtr> surface_map = {};
+    for (auto& [key, bsdf]    : bsdf_map) {
+      auto onesided_surface = getValueFromMap(tmp_onesided_surfaces   , bsdf.get(), SurfacePtr());
+      auto twosided_surface = getValueFromMap(tmp_twosided_surfaces   , bsdf.get(), SurfacePtr());
+      if      (onesided_surface) {
+        surface_map.insert({ key,onesided_surface });
+      }
+      else if (twosided_surface) {
+        surface_map.insert({ key,twosided_surface });
+      }
+      else {
+        throw std::runtime_error("Failed To Find Matched Surface!");
+      }
+    }
+    for (auto& [shape, bsdf]  : tmp_shapes) {
+      auto surface = getValueFromMap(surface_map, bsdf.get(), SurfacePtr());
+      if (!surface) { std::runtime_error("Failed To Find Surface!"); }
+      auto material = shape->getMaterial();
+      if (!material){ std::runtime_error("Failed To Bind Surface!"); }
+      material->setSurface(surface);
+    }
+    ref_surfaces.clear();
+    for (auto& [string, bsdf] : ref_bsdfs) {
+      ref_surfaces.insert({ string,getValueFromMap(surface_map,bsdf.get(),SurfacePtr()) });
+    }
   }
 };
 
@@ -915,8 +1185,17 @@ auto hikari::MitsubaSceneImporter::loadScene(const String& filename) -> std::sha
         ++i;
       }
     }
+    // Materialを解決する.
+    {
+      m_impl->solveMaterials();
+    }
     return scene;
 }
 
 hikari::MitsubaSceneImporter::MitsubaSceneImporter():m_impl{new Impl()}
 {}
+
+auto hikari::MitsubaSceneImporter::getSurfaceMap() const -> const std::unordered_map<String, SurfacePtr>&
+{
+  return m_impl->ref_surfaces;
+}

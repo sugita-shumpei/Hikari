@@ -14,7 +14,6 @@ hikari::Node::Node(const String& name ,Bool isRootOnly)
     m_camera{},
     m_light{},
     m_shape{},
-    m_material{},
     m_local_transform{},
     m_parent_transform{}
 {
@@ -95,15 +94,7 @@ auto hikari::Node::getLight() -> std::shared_ptr<Light>
 {
   return m_light;
 }
-void hikari::Node::setMaterial(const std::shared_ptr<Material>& material)
-{
-  m_material = material;
 
-}
-auto hikari::Node::getMaterial() -> std::shared_ptr<Material>
-{
-  return m_material;
-}
 auto hikari::Node::getNodesInHierarchy() -> std::vector<std::shared_ptr<Node>>
 {
   auto nodes = std::vector<hikari::NodePtr>();

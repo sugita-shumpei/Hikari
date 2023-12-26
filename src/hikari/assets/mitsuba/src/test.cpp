@@ -354,21 +354,24 @@ int  test() {
 
 int  main()
 {
-  auto filepath   = std::filesystem::path(R"(D:\Users\shumpei\Document\CMake\Hikari\data\mitsuba\classroom\scene.xml)");
-  auto importer   = hikari::MitsubaSceneImporter::create();
-  auto scene      = importer->loadScene(filepath.string());
-  auto cameras    = scene->getCameras();// カメラ
-  auto lights     = scene->getLights() ;// 光源  
-  auto shapes     = scene->getShapes() ;// 形状
-  auto bsdfs      = std::unordered_map<hikari::Bsdf*, hikari::BsdfPtr>();
+  using namespace std::string_literals;
+  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\kitchen\scene.xml)");
+  auto importer = hikari::MitsubaSceneImporter::create();
+  auto scene    = importer->loadScene(filepath.string());
+  auto cameras  = scene->getCameras();// カメラ
+  auto lights   = scene->getLights() ;// 光源  
+  auto shapes   = scene->getShapes() ;// 形状
+  auto surfaces = importer->getSurfaceMap();// マテリアル
+  auto surface  = hikari::getValueFromMap(surfaces,"BlindsBSDF"s, hikari::SurfacePtr());
+  std::unordered_map<hikari::Surface*, hikari::SurfacePtr> shape_surfaces = {};
   for (auto& shape : shapes) {
-    auto node     = shape->getNode();
-    auto material = node->getMaterial();
-    auto emitter  = node->getLight();
-    if (!material){ continue; }
-    auto bsdf     = material->getBsdf();
-    if (bsdfs.find(bsdf.get()) == std::end(bsdfs)) { bsdfs.insert({ bsdf.get() ,bsdf }); }
+    auto material = shape->getMaterial();
+    if (material) {
+      auto surface = material->getSurface();
+      if (surface) { shape_surfaces.insert({ surface.get(),surface }); }
+    }
   }
+
   // TODO: 何のテクスチャを使用しているか、わからない
   // これがわからないとMaterialの設定がしにくいが...
   // TWOSIDED, BUMPMAP, NORMALMAP, MASKなどの依存関係を解決

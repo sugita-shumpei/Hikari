@@ -31,8 +31,6 @@ namespace hikari {
     auto getLight() -> std::shared_ptr<Light>;
     void setShape(const std::shared_ptr<Shape>& shape);
     auto getShape()  -> std::shared_ptr<Shape>;
-    void setMaterial(const std::shared_ptr<Material>& material);
-    auto getMaterial() -> std::shared_ptr<Material>;
 
     auto getNodesInHierarchy()->std::vector<std::shared_ptr<Node>>;
     auto getCameras()->std::vector<std::shared_ptr<Camera>> ;// 子ノードのカメラをすべて取得する
@@ -122,7 +120,6 @@ namespace hikari {
     std::shared_ptr<Camera>            m_camera;
     std::shared_ptr<Light>             m_light;
     std::shared_ptr<Shape>             m_shape;
-    std::shared_ptr<Material>          m_material;
     String                             m_name;
     Transform                          m_local_transform ;
     Transform                          m_parent_transform;
