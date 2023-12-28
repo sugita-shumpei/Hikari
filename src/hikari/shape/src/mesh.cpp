@@ -130,6 +130,7 @@ void hikari::ShapeMeshImpl::setVertexPositions(const std::vector<Vec3>& vertex_p
   if (m_vertex_count != vertex_positions.size()) {
     clear();
     m_vertex_count = vertex_positions.size();
+    m_vertex_positions.resize(m_vertex_count);
   }
   for (auto i = size_t(0); i < m_vertex_count; ++i) {
     m_vertex_positions[i] = vertex_positions[i];

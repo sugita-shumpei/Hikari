@@ -1,6 +1,9 @@
-find_package(ZLIB            REQUIRED)
-find_package(Stb             REQUIRED)
-find_package(tinyxml2 CONFIG REQUIRED)
+find_package(ZLIB                 REQUIRED)
+find_package(Stb                  REQUIRED)
+find_package(tinyxml2      CONFIG REQUIRED)
+find_package(glad          CONFIG REQUIRED)
+find_package(glfw3         CONFIG REQUIRED)
+find_package(tinyobjloader CONFIG REQUIRED)
 add_library(hikari-assets-mitsuba STATIC)
 target_compile_features(hikari-assets-mitsuba PRIVATE cxx_std_20)
 target_compile_options (hikari-assets-mitsuba PRIVATE /Zc:__cplusplus /utf-8)
@@ -28,6 +31,7 @@ hikari-texture
 hikari-shape   
 ZLIB::ZLIB
 tinyxml2::tinyxml2
+tinyobjloader::tinyobjloader
 )
 
 add_executable(hikari-assets-mitsuba-test src/test.cpp)
@@ -36,5 +40,14 @@ target_compile_options(hikari-assets-mitsuba-test  PRIVATE /Zc:__cplusplus /utf-
 target_include_directories(hikari-assets-mitsuba-test PRIVATE ${Stb_INCLUDE_DIR} src)
 target_link_libraries(hikari-assets-mitsuba-test   PRIVATE hikari-assets-mitsuba)
 
-set_target_properties(hikari-assets-mitsuba      PROPERTIES FOLDER "src/hikari/assets/mitsuba")
-set_target_properties(hikari-assets-mitsuba-test PROPERTIES FOLDER "src/hikari/assets/mitsuba/test")
+
+add_executable(hikari-assets-mitsuba-test2 src/test2.cpp)
+target_compile_features(hikari-assets-mitsuba-test2 PRIVATE cxx_std_20)
+target_compile_options(hikari-assets-mitsuba-test2  PRIVATE /Zc:__cplusplus /utf-8)
+target_include_directories(hikari-assets-mitsuba-test2 PRIVATE ${Stb_INCLUDE_DIR} src)
+target_link_libraries(hikari-assets-mitsuba-test2   PRIVATE hikari-assets-mitsuba glad::glad glfw)
+
+
+set_target_properties(hikari-assets-mitsuba       PROPERTIES FOLDER "src/hikari/assets/mitsuba")
+set_target_properties(hikari-assets-mitsuba-test  PROPERTIES FOLDER "src/hikari/assets/mitsuba/test")
+set_target_properties(hikari-assets-mitsuba-test2 PROPERTIES FOLDER "src/hikari/assets/mitsuba/test")

@@ -9,6 +9,7 @@
 #include <hikari/film/hdr.h>
 #include <hikari/film/spec.h>
 #include <hikari/core/material.h>
+#include <serialized_data.h>
 #include <stb_image_write.h>
 #include <tinyxml2.h>
 #include <filesystem>
@@ -121,7 +122,7 @@ hikari::Vec3 schlick           (const hikari::Vec3& f0, float cosine)
 
 int  test() {
   {
-    auto filename = R"(D:\Users\shumpei\Document\CMake\Hikari\data\data\tests\serialized\rectangle_normals_uv.serialized)";
+    auto filename = R"(D:/Users/shums/Documents/C++/Hikari/data/mitsuba/matpreview/matpreview.serialized)";
     auto serialized_data = hikari::MitsubaSerializedData();
     if (!serialized_data.load(filename, hikari::MitsubaSerializedLoadType::eFull))
     {
@@ -129,6 +130,13 @@ int  test() {
       return -1;
     }
     auto& mesh = serialized_data.getMeshes()[0];
+    auto serialized = hikari::ShapeMeshMitsubaSerialized::create(mesh);
+    auto pos = serialized->getVertexPositions();
+    auto nor = serialized->getVertexNormals();
+    auto tex = serialized->getVertexUVs();
+    auto idx = serialized->getFaces();
+
+
   }
   auto write_ref = [](std::string mat_name)
   {
@@ -354,6 +362,7 @@ int  test() {
 
 int  main()
 {
+  test();
   using namespace std::string_literals;
   auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\kitchen\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
@@ -365,7 +374,7 @@ int  main()
   auto surface  = hikari::getValueFromMap(surfaces,"BlindsBSDF"s, hikari::SurfacePtr());
   std::unordered_map<hikari::Surface*, hikari::SurfacePtr> shape_surfaces = {};
   for (auto& shape : shapes) {
-    auto material = shape->getMaterial();
+    auto material  = shape->getMaterial();
     if (material) {
       auto surface = material->getSurface();
       if (surface) { shape_surfaces.insert({ surface.get(),surface }); }

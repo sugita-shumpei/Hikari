@@ -108,19 +108,39 @@ int main() {
 	owlBuildPipeline(context);
 	owlBuildSBT(context, (OWLBuildSBTFlags)(OWLBuildSBTFlags::OWL_SBT_ALL2));
 
+
+        struct TracerData {
+          hikari::test::owl::testlib::PinholeCamera* p_camera;
+          OWLContext                                 context;
+          OWLRayGen                                  raygen;
+          OWLParams                                  params;
+          OWLBuffer                                  accum_buffer;
+          OWLBuffer                                  frame_buffer;
+          int                                        accum_sample;
+          bool                                       estimate_luminance;
+          bool                                       use_parallel_light;
+          int                                        light_type;
+          float                                      env_light_intensity;
+          float3                                     parallel_light_color;
+          float                                      parallel_light_intensity;
+          float                                      parallel_light_axis_phi;
+          float                                      parallel_light_axis_tht;
+          float                                      parallel_light_angle;
+        } tracer_data = {
+                 &camera,&tonemap,context, raygen,params,accum_buffer,frame_buffer, 0,true, false,LIGHT_TYPE_ENVMAP,1.0f,{0.0f,0.0f,0.0f},1.0f,0.0f,0.0f
+        };
+
+        auto resize_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, int old_w, int old_h, int new_w, int        new_h) {
+          TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+          owlBufferResize(p_tracer_data->accum_buffer, new_w * new_h);
+          owlBufferResize(p_tracer_data->frame_buffer, new_w * new_h);
+          owlParamsSet2i(p_tracer_data->params, "frame_size", new_w, new_h);
+          p_tracer_data->p_camera->width = new_w;
+          p_tracer_data->p_camera->height = new_h;
+          p_tracer_data->p_tonemap->resize(new_w, new_h);
+          return true;
+          };
 	{
-		glfwInit();
-		glfwWindowHint(GLFW_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_VERSION_MINOR, 3);
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-		GLFWwindow* window = glfwCreateWindow(width, height, "title", nullptr, nullptr);
-		glfwMakeContextCurrent(window);
-		if (!hikari::test::owl::testlib::loadGLLoader((hikari::test::owl::testlib::GLloadproc)glfwGetProcAddress)){
-			return -1;
-		}
 		auto viewer = std::make_unique<hikari::test::owl::testlib::GLViewer>(context, width, height);
 		glfwShowWindow(window);
 		while (!glfwWindowShouldClose(window)) {

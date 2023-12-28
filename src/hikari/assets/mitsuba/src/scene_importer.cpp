@@ -33,8 +33,41 @@
 #include <hikari/bsdf/two_sided.h>
 #include <filesystem>
 #include <unordered_set>
+#include <tiny_obj_loader.h>
 #include "xml_data.h"
 #include "serialized_data.h"
+
+namespace tinyobj {
+
+  bool operator==(const index_t& lhs, const index_t& rhs) {
+    return
+      lhs.vertex_index == rhs.vertex_index &&
+      lhs.normal_index == rhs.normal_index &&
+      lhs.texcoord_index == rhs.texcoord_index;
+  }
+
+}
+
+namespace std {
+
+  template<>
+  struct hash<::tinyobj::index_t> {
+    std::size_t operator()(const ::tinyobj::index_t& idx) const {
+      size_t result = 0;
+      hash_combine(result, idx.vertex_index);
+      hash_combine(result, idx.normal_index);
+      hash_combine(result, idx.texcoord_index);
+      return result;
+    }
+  private:
+    // From boost::hash_combine.
+    static void hash_combine(size_t& seed, size_t val) {
+      std::hash<size_t> h;
+      seed ^= (h(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+    }
+  };
+
+}
 
 struct hikari::MitsubaSceneImporter::Impl {
   std::filesystem::path  file_path = "";
@@ -44,8 +77,8 @@ struct hikari::MitsubaSceneImporter::Impl {
   std::vector<std::pair<ShapePtr, BsdfPtr>>                           tmp_shapes        = {};
   std::unordered_map<String, BsdfPtr>                                 ref_bsdfs         = {};//bsdf
   std::unordered_map<String, TexturePtr>                              ref_textures      = {};//texture
-  std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String, U32>>    meshes_serialized;
-  std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String>>         meshes_obj;
+  // std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String, U32>>    meshes_serialized;
+  std::unordered_map<String, std::shared_ptr<ShapeMesh>>              meshes_obj;
   std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String>>         meshes_ply;
   // Spectrum を読み取る
   auto loadSpectrum(const MitsubaXMLData& xml_data, const MitsubaXMLSpectrum& spe_data) -> std::shared_ptr<Spectrum> { return nullptr; }
@@ -489,7 +522,29 @@ struct hikari::MitsubaSceneImporter::Impl {
     }
   }
   // Transformを読み取る(OK)
-  auto loadTransform (const MitsubaXMLData& xml_data, const MitsubaXMLTransform& transform, const std::string& name) -> std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> {
+  auto loadTransform (const MitsubaXMLData& xml_data, const MitsubaXMLTransform& transform, const std::string& name, bool inverse = false) -> std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> {
+    // mitsubaはrow majorが前提として設計されているが, openglはcolumn majorな設計がなされている.
+    // そのため、変換が必要
+    // 各transformは変換命令として上から処理されていく
+    // 例)
+    // <transform name="trafo_property">
+    // <translate value = "-1, 3, 4" / >
+    // <rotate y = "1" angle = "45" / >
+    // </transform>
+    // の場合,
+    // 先ずT1=translateが作用される(v1 = T1 * v)
+    // 次にT2=rotate   が作用される(v2 = T2 * v1)
+    // 以上をまとめると
+    // v2 = T2 * T1 * v1
+    // となる
+    // 一方でnodeベース関係の場合
+    //
+    // I<-N0<-N1<-N2
+    // となっていて
+    // N0のローカル変換行列はI<-N0へ座標変換する際に作用
+    // つまりN0のローカル行列をT0とすると作用は
+    // v2=N0*N1*N2*vとなる
+    // これらの逆転性から実際にノード構造をつく際には逆順処理が必要になる.
     std::shared_ptr<Node> top_node = Node::create(name);
     constexpr size_t transform_idx_translate = 0;
     constexpr size_t transform_idx_rotate    = 1;
@@ -497,79 +552,161 @@ struct hikari::MitsubaSceneImporter::Impl {
     constexpr size_t transform_idx_matrix    = 3;
     constexpr size_t transform_idx_lookat    = 4;
     auto   cur_node = top_node;
-    for (auto& elem : transform.elements) {
-      auto tmp_node = Node::create();
-      switch (elem.data.index())
-      {
-      case transform_idx_translate:
-      {
-        hikari::TransformTRSData trs;
-        trs.position = std::get<transform_idx_translate>(elem.data).value;
-        tmp_node->setName("translate");
-        tmp_node->setLocalTransform(trs);
-        break;
-      }
-      case transform_idx_rotate:
-      {
-        hikari::TransformTRSData trs;
-        auto& axis   = std::get<transform_idx_rotate>(elem.data).value;
-        auto& angle  = std::get<transform_idx_rotate>(elem.data).angle;
-        trs.rotation = glm::rotate(glm::identity<glm::quat>(), glm::radians(angle), axis);
-        tmp_node->setName("rotate");
-        tmp_node->setLocalTransform(trs);
-        break;
-      }
-      case transform_idx_scale:
-      {
-        hikari::TransformTRSData trs;
-        trs.scale = std::get<transform_idx_scale>(elem.data).value;
-        tmp_node->setName("scale");
-        tmp_node->setLocalTransform(trs);
-        break;
-      }
-      case transform_idx_matrix:
-      {
-        hikari::TransformMatData mat;
-        auto& values = std::get<transform_idx_matrix>(elem.data).values;
-        if (values.size() == 9) {
-          mat = Mat4x4(Mat3x3(
-            Vec3(values[0], values[1], values[2]),
-            Vec3(values[3], values[4], values[5]),
-            Vec3(values[6], values[7], values[8])
-          ));
-          tmp_node->setName("mat3x3");
+    if (!inverse) {
+
+      for (auto i = 0; i < transform.elements.size(); ++i) {
+        auto& elem = transform.elements[transform.elements.size() - 1 - i];
+        auto tmp_node = Node::create();
+        switch (elem.data.index())
+        {
+        case transform_idx_translate:
+        {
+          hikari::TransformTRSData trs;
+          trs.position = std::get<transform_idx_translate>(elem.data).value;
+          tmp_node->setName("translate");
+          tmp_node->setLocalTransform(trs);
+          break;
+        }
+        case transform_idx_rotate:
+        {
+          hikari::TransformTRSData trs;
+          auto& axis = std::get<transform_idx_rotate>(elem.data).value;
+          auto& angle = std::get<transform_idx_rotate>(elem.data).angle;
+          trs.rotation = glm::rotate(glm::identity<glm::quat>(), glm::radians(angle), axis);
+          tmp_node->setName("rotate");
+          tmp_node->setLocalTransform(trs);
+          break;
+        }
+        case transform_idx_scale:
+        {
+          hikari::TransformTRSData trs;
+          trs.scale = std::get<transform_idx_scale>(elem.data).value;
+          tmp_node->setName("scale");
+          tmp_node->setLocalTransform(trs);
+          break;
+        }
+        case transform_idx_matrix:
+        {
+          hikari::TransformMatData mat;
+          auto& values = std::get<transform_idx_matrix>(elem.data).values;
+          if (values.size() == 9) {
+            mat = Mat4x4(Mat3x3(
+              Vec3(values[0], values[3], values[6]),
+              Vec3(values[1], values[4], values[7]),
+              Vec3(values[2], values[5], values[8])
+            ));
+            tmp_node->setName("mat3x3");
+            tmp_node->setLocalTransform(mat);
+            break;
+          }
+          if (values.size() == 16) {
+            mat = Mat4x4(
+              Vec4(values[0], values[4], values[8], values[12]),
+              Vec4(values[1], values[5], values[9], values[13]),
+              Vec4(values[2], values[6], values[10], values[14]),
+              Vec4(values[3], values[7], values[11], values[15])
+            );
+            tmp_node->setName("mat4x4");
+            tmp_node->setLocalTransform(mat);
+            break;
+          }
+          return { nullptr,nullptr };
+        }
+        case transform_idx_lookat:
+        {
+          auto& origin = std::get<transform_idx_lookat>(elem.data).origin;
+          auto& target = std::get<transform_idx_lookat>(elem.data).target;
+          auto& up = std::get<transform_idx_lookat>(elem.data).up;
+          hikari::TransformMatData mat = glm::lookAt(origin, target, up);
+          tmp_node->setName("lookat");
           tmp_node->setLocalTransform(mat);
           break;
         }
-        if (values.size() == 16) {
-          mat = Mat4x4(
-            Vec4(values[0], values[1], values[2], values[3]),
-            Vec4(values[4], values[5], values[6], values[7]),
-            Vec4(values[8], values[9], values[10], values[11]),
-            Vec4(values[12], values[13], values[14], values[15])
-          );
-          tmp_node->setName("mat4x4");
-          tmp_node->setLocalTransform(mat);
+        break;
+        default:
+          return { nullptr,nullptr };
+        }
+        tmp_node->setParent(cur_node);
+        cur_node = tmp_node;
+      }
+    }
+    else {
+
+      for (auto i = 0; i < transform.elements.size(); ++i) {
+        auto& elem = transform.elements[i];
+        auto tmp_node = Node::create();
+        switch (elem.data.index())
+        {
+        case transform_idx_translate:
+        {
+          hikari::TransformTRSData trs;
+          trs.position = std::get<transform_idx_translate>(elem.data).value;
+          tmp_node->setName("translate");
+          tmp_node->setLocalTransform(hikari::Transform(trs).inverse());
           break;
         }
-        return {nullptr,nullptr};
-      }
-      case transform_idx_lookat:
-      {
-        auto& origin = std::get<transform_idx_lookat>(elem.data).origin;
-        auto& target = std::get<transform_idx_lookat>(elem.data).target;
-        auto& up     = std::get<transform_idx_lookat>(elem.data).up;
-        hikari::TransformMatData mat = glm::lookAt(origin,target,up);
-        tmp_node->setName("lookat");
-        tmp_node->setLocalTransform(mat);
+        case transform_idx_rotate:
+        {
+          hikari::TransformTRSData trs;
+          auto& axis = std::get<transform_idx_rotate>(elem.data).value;
+          auto& angle = std::get<transform_idx_rotate>(elem.data).angle;
+          trs.rotation = glm::rotate(glm::identity<glm::quat>(), glm::radians(angle), axis);
+          tmp_node->setName("rotate");
+          tmp_node->setLocalTransform(hikari::Transform(trs).inverse());
+          break;
+        }
+        case transform_idx_scale:
+        {
+          hikari::TransformTRSData trs;
+          trs.scale = std::get<transform_idx_scale>(elem.data).value;
+          tmp_node->setName("scale");
+          tmp_node->setLocalTransform(hikari::Transform(trs).inverse());
+          break;
+        }
+        case transform_idx_matrix:
+        {
+          hikari::TransformMatData mat;
+          auto& values = std::get<transform_idx_matrix>(elem.data).values;
+          if (values.size() == 9) {
+            mat = Mat4x4(Mat3x3(
+              Vec3(values[0], values[3], values[6]),
+              Vec3(values[1], values[4], values[7]),
+              Vec3(values[2], values[5], values[8])
+            ));
+            tmp_node->setName("mat3x3");
+            tmp_node->setLocalTransform(hikari::Transform(mat).inverse());
+            break;
+          }
+          if (values.size() == 16) {
+            mat = Mat4x4(
+              Vec4(values[0], values[4], values[8], values[12]),
+              Vec4(values[1], values[5], values[9], values[13]),
+              Vec4(values[2], values[6], values[10], values[14]),
+              Vec4(values[3], values[7], values[11], values[15])
+            );
+            tmp_node->setName("mat4x4");
+            tmp_node->setLocalTransform(hikari::Transform(mat).inverse());
+            break;
+          }
+          return { nullptr,nullptr };
+        }
+        case transform_idx_lookat:
+        {
+          auto& origin = std::get<transform_idx_lookat>(elem.data).origin;
+          auto& target = std::get<transform_idx_lookat>(elem.data).target;
+          auto& up = std::get<transform_idx_lookat>(elem.data).up;
+          hikari::TransformMatData mat = glm::lookAt(origin, target, up);
+          tmp_node->setName("lookat");
+          tmp_node->setLocalTransform(hikari::Transform(mat).inverse());
+          break;
+        }
         break;
+        default:
+          return { nullptr,nullptr };
+        }
+        tmp_node->setParent(cur_node);
+        cur_node = tmp_node;
       }
-      break;
-      default:
-        return { nullptr,nullptr };
-      }
-      tmp_node->setParent(cur_node);
-      cur_node = tmp_node;
     }
     return { top_node,cur_node };
   }
@@ -642,7 +779,9 @@ struct hikari::MitsubaSceneImporter::Impl {
     auto tail = std::shared_ptr<Node>();
 
     if (sen_data.to_world) {
-      auto res = loadTransform(xml_data, sen_data.to_world.value(), name);
+      // 仕様書にはcamera-to-world変換と書かれているが、実際に行っているのはworld-to-camera変換
+      // そのため, 逆変換に直す必要有
+      auto res = loadTransform(xml_data, sen_data.to_world.value(), name,true);
       head = res.first;
       tail = res.second;
     }
@@ -779,9 +918,97 @@ struct hikari::MitsubaSceneImporter::Impl {
       auto flip_normals = getValueFromMap(shp_data.properties.booleans, "flip_normals"s, false);
       // OBJ
       if (shp_data.type == "obj") {
-        auto res = hikari::ShapeMesh::create();
+        auto res = std::shared_ptr<hikari::ShapeMesh>();
         auto filename = getValueFromMap(shp_data.properties.strings     , "filename"s, ""s);
-        meshes_obj.push_back({ res,(std::filesystem::path(xml_data.filepath).parent_path() / filename).string() });
+        auto filepath = (std::filesystem::path(xml_data.filepath).parent_path() / filename).string();
+        {
+          auto iter_mesh = meshes_obj.find(filepath);
+          if (iter_mesh != std::end(meshes_obj)) {
+            res = hikari::ShapeMesh::makeInstance(iter_mesh->second);
+          }
+          else {
+            auto obj_mesh = hikari::ShapeMesh::create();
+            tinyobj::ObjReader reader;
+            tinyobj::ObjReaderConfig config;
+            config.triangulate = true;
+            if (!reader.ParseFromFile(filepath, config)) {
+              return nullptr;
+            }
+
+            std::vector<hikari::Vec3> vertex_positions = {};
+            std::vector<hikari::Vec3> vertex_normals   = {};
+            std::vector<hikari::Vec2> vertex_uvs       = {};
+            std::vector<hikari::Vec3> vertex_colors    = {};
+            std::vector<U32>          indices          = {};
+
+            auto& shapes      = reader.GetShapes();
+            auto& vertices    = reader.GetAttrib().GetVertices();
+            auto& normals     = reader.GetAttrib().normals;
+            auto& uvs         = reader.GetAttrib().texcoords;
+            auto& colors      = reader.GetAttrib().colors;
+            // face数
+            auto face_count   = std::accumulate(std::begin(shapes), std::end(shapes), 0, [](int v, const tinyobj::shape_t& s) { return v+s.mesh.num_face_vertices.size(); });
+            // vertex数を求める
+            auto vertex_count = vertices.size();
+            // indices同士をsetでまとめる
+            std::unordered_map<tinyobj::index_t,U32> indices_map = {};
+            for (auto& shape : shapes) {
+              for (auto& idx : shape.mesh.indices) {
+                auto iter = indices_map.find(idx);
+                if (iter == std::end(indices_map)) {
+                  indices_map.insert({ idx,indices_map.size() });
+                }
+              }
+            }
+
+            vertex_positions.resize(indices_map.size());
+            if (normals.size() > 0) { vertex_normals.resize(indices_map.size()); }
+            if (uvs.size()     > 0) { vertex_uvs.resize(indices_map.size()); }
+            if (colors.size()  > 0) { vertex_colors.resize(indices_map.size()); }
+            indices.resize(3*face_count);
+
+            for (auto& shape: reader.GetShapes()) {
+              size_t idx_offset = 0;
+              for (auto& num_face_vertex: shape.mesh.num_face_vertices) {
+                for (auto i = 0; i < 3; ++i) {
+                  auto& index = shape.mesh.indices[idx_offset + i];
+                  auto vertex_idx = indices_map.at(index);
+                  if (index.vertex_index   >= 0) {
+                    vertex_positions[vertex_idx].x = vertices[3 * index.vertex_index + 0];
+                    vertex_positions[vertex_idx].y = vertices[3 * index.vertex_index + 1];
+                    vertex_positions[vertex_idx].z = vertices[3 * index.vertex_index + 2];
+
+                    if (colors.size() > 0) {
+                      vertex_colors[vertex_idx].x = colors[2 * index.vertex_index + 0];
+                      vertex_colors[vertex_idx].y = colors[2 * index.vertex_index + 1];
+                      vertex_colors[vertex_idx].z = colors[3 * index.vertex_index + 2];
+                    }
+                  }
+                  if (index.normal_index   >= 0) {
+                    vertex_normals[vertex_idx].x = normals[3 * index.normal_index + 0];
+                    vertex_normals[vertex_idx].y = normals[3 * index.normal_index + 1];
+                    vertex_normals[vertex_idx].z = normals[3 * index.normal_index + 2];
+                  }
+                  if (index.texcoord_index >= 0) {
+                    vertex_uvs[vertex_idx].x = uvs[2 * index.texcoord_index + 0];
+                    vertex_uvs[vertex_idx].y = uvs[2 * index.texcoord_index + 1];
+                  }
+                  indices[idx_offset + i] = vertex_idx;
+                }
+                idx_offset += 3;
+              }
+            }
+
+            obj_mesh->setVertexPositions(vertex_positions);
+            obj_mesh->setFaces(indices);
+            if (normals.size() > 0) { obj_mesh->setVertexNormals(vertex_normals); }
+            if (uvs.size()     > 0) { obj_mesh->setVertexUVs(vertex_uvs); }
+            if (colors.size()  > 0) { obj_mesh->setVertexColors(vertex_colors); }
+            
+            res = hikari::ShapeMesh::makeInstance(obj_mesh);
+            meshes_obj.insert({ filepath, res });
+          }
+        }
         res->setFaceNormals(getValueFromMap(shp_data.properties.booleans, "face_normals"s, false));
         res->setFlipUVs(getValueFromMap(shp_data.properties.booleans    , "flip_tex_coords"s, true));
         res->setFlipNormals(flip_normals);
@@ -801,7 +1028,7 @@ struct hikari::MitsubaSceneImporter::Impl {
       if (shp_data.type == "serialized") {
         auto filename   = getValueFromMap(shp_data.properties.strings , "filename"s   ,""s);
         auto shape_idx  = getValueFromMap(shp_data.properties.ingegers, "shape_index"s,  0);
-        if (shape_idx == 0) {
+        if (shape_idx  == 0) {
           shape_idx     = getValueFromMap(shp_data.properties.ingegers, "shapeIndex"s, 0);
         }
         auto  tmp_path        = (std::filesystem::path(xml_data.filepath).parent_path() / filename).string();

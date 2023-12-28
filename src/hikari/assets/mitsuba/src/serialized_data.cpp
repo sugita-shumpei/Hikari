@@ -27,12 +27,28 @@ hikari::Bool hikari::MitsubaSerializedData::load(const String& filename, Mitsuba
         file.read((Char*)&mesh_count, sizeof(mesh_count));
         m_offsets.resize(mesh_count);
         m_sizes.resize(mesh_count);
-        U64 read_offset = binary_size - (sizeof(U32) + sizeof(U64) * mesh_count);
-        file.seekg(read_offset, std::ios::beg);
-        for (size_t i = 0; i < mesh_count; ++i) {
+        U64 read_offset = 0;
+        if (m_version == 0x4) {
+          size_t mesh_offset_type_size = sizeof(U64);
+          read_offset = binary_size - (sizeof(U32) + mesh_offset_type_size * mesh_count);
+          file.seekg(read_offset, std::ios::beg);
+          for (size_t i = 0; i < mesh_count; ++i) {
             U64 offset = 0;
             file.read((Char*)&offset, sizeof(offset));
+            if (offset > binary_size) { throw std::runtime_error("Exceed Binary Size!"); }
             m_offsets[i] = offset;
+          }
+        }
+        else {
+          size_t mesh_offset_type_size = sizeof(U32);
+          read_offset = binary_size - (sizeof(U32) + mesh_offset_type_size * mesh_count);
+          file.seekg(read_offset, std::ios::beg);
+          for (size_t i = 0; i < mesh_count; ++i) {
+            U32 offset = 0;
+            file.read((Char*)&offset, sizeof(offset));
+            if (offset > binary_size) { throw std::runtime_error("Exceed Binary Size!"); }
+            m_offsets[i] = offset;
+          }
         }
 
         if (mesh_count > 1) {
@@ -78,8 +94,7 @@ bool hikari::MitsubaSerializedData::loadMesh(U32 idx) {
     if (!m_loaded    ) { return false; }
     if (idx < m_meshes.size()) {
       if (!m_has_binary) { return m_meshes[idx].isLoaded(); }
-      auto header_size = sizeof(U16) * 2;
-      m_meshes[idx].load(m_binary_data.get() + m_offsets[idx] + header_size, m_sizes[idx]- header_size);
+      m_meshes[idx].load(m_binary_data.get() + m_offsets[idx], m_sizes[idx]);
       return true;
     }
     return false;
@@ -102,6 +117,14 @@ void hikari::MitsubaSerializedData::releaseBinary() {
 void hikari::MitsubaSerializedMeshData::load(const Byte* data, U64 size) {
   if (m_loaded) { return; }
 
+  U16 headers[2];
+  std::memcpy(headers, data, sizeof(headers));
+  m_format  = headers[0];
+  m_version = headers[1];
+  if (m_version != 0x3 && m_version != 0x4) {
+    throw std::runtime_error("Failed To Support Version: " + std::to_string(m_version));
+  }
+
   z_stream zs;
   zs.zalloc = Z_NULL;
   zs.zfree = Z_NULL;
@@ -111,11 +134,11 @@ void hikari::MitsubaSerializedMeshData::load(const Byte* data, U64 size) {
     return;
   }
 
-  zs.next_in = (Bytef*)data;
+  zs.next_in = (Bytef*)data+sizeof(headers);
   zs.avail_in = size;
 
   //出力バッファは10KBを用意する
-  Char output_buffer[10240];
+  Char output_buffer[1024];
   int ret;
   U64         read_pos = 0;
   std::string outstring;
@@ -134,16 +157,21 @@ void hikari::MitsubaSerializedMeshData::load(const Byte* data, U64 size) {
   {
     std::stringstream ss(outstring);
     ss.read((Char*)&m_flags, sizeof(m_flags));
-    String name = "";
-    Char ch = '\0';
-    do {
-      ss.read(&ch, sizeof(ch));
-      name.push_back(ch);
-    } while (ch != '\0');
-    m_name = name;
-    // vertex, face情報を読み取る
+    if (m_version == 4) {
+      String name = "";
+      Char ch = '\0';
+      do {
+        ss.read(&ch, sizeof(ch));
+        name.push_back(ch);
+      } while (ch != '\0');
+      m_name = name;
+    }
+    else {
+      m_name = "";
+    }
+    
     ss.read((Char*)&m_vertex_count, sizeof(m_vertex_count));
-    ss.read((Char*)&m_face_count  , sizeof(m_face_count)  );
+    ss.read((Char*)&m_face_count, sizeof(m_face_count));
     // 精度情報を取得
     bool isSinglePrecision = (m_flags & MitsubaSerializedDataFlagsSinglePrecision);
     auto element_type_size = isSinglePrecision ? 4 : 8;
@@ -158,6 +186,7 @@ void hikari::MitsubaSerializedMeshData::load(const Byte* data, U64 size) {
     if (m_flags & MitsubaSerializedDataFlagsHasVertexColor) {
       whole_size += m_vertex_count * 3 * element_type_size;
     }
+
     m_data      = std::unique_ptr<Byte[]>(new Byte[whole_size]);
     m_data_size = whole_size;
 

@@ -37,10 +37,14 @@ namespace hikari {
     auto getFacePtr()           const -> const T*    { return reinterpret_cast<const T*>(m_data.get() + getFaceOffset()); }
 
     auto getTypeSizeInBytes()    const -> U64 { return (m_flags & MitsubaSerializedDataFlagsSinglePrecision) ? 4 : 8; }
-    auto getVertexNormalOffset() const -> U64 { return                           (hasVertexNormal() ? m_vertex_count * 3 * getTypeSizeInBytes() : 0); }
-    auto getVertexUVOffset()     const -> U64 { return getVertexNormalOffset() + (hasVertexUV()     ? m_vertex_count * 2 * getTypeSizeInBytes() : 0); }
-    auto getVertexColorOffset()  const -> U64 { return getVertexUVOffset()     + (hasVertexColor()  ? m_vertex_count * 3 * getTypeSizeInBytes() : 0); }
-    auto getFaceOffset()         const -> U64 { return getVertexColorOffset()  + m_face_count * 3 * getTypeSizeInBytes(); }
+    auto getVertexNormalSize() const -> U64 { return (hasVertexNormal() ? m_vertex_count * 3 * getTypeSizeInBytes() : 0); }
+    auto getVertexUVSize()     const -> U64 { return (hasVertexUV()     ? m_vertex_count * 2 * getTypeSizeInBytes() : 0); }
+    auto getVertexColorSize()  const -> U64 { return (hasVertexColor()  ? m_vertex_count * 3 * getTypeSizeInBytes() : 0); }
+    auto getFaceSize()         const -> U64 { return  m_face_count * 3 * getTypeSizeInBytes(); }
+    auto getVertexNormalOffset() const -> U64 { return m_vertex_count * 3 * getTypeSizeInBytes(); }
+    auto getVertexUVOffset()     const -> U64 { return getVertexNormalOffset() + getVertexNormalSize(); }
+    auto getVertexColorOffset()  const -> U64 { return getVertexUVOffset() + getVertexUVSize(); }
+    auto getFaceOffset()         const -> U64 { return  getVertexColorOffset() + getVertexColorSize(); }
 
     bool hasVertexNormal() const { return (m_flags & MitsubaSerializedDataFlagsHasVertexNormal); }
     bool hasVertexColor()  const { return (m_flags & MitsubaSerializedDataFlagsHasVertexColor ); }
@@ -54,6 +58,8 @@ namespace hikari {
     Bool isLoaded()       const                  { return m_loaded;       }
   private:
     std::shared_ptr<Byte[]> m_data           = nullptr;
+    U16                     m_format         = 0;
+    U16                     m_version        = 0;
     U32                     m_flags          = 0;
     U64                     m_vertex_count   = 0;
     U64                     m_face_count     = 0;
@@ -127,9 +133,9 @@ namespace hikari {
       if (!p_data) { return {}; }
       std::vector<Vec2> res(count);
       if (size == 4)
-      { for (size_t i = 0; i < size; ++i) { res[i] = {((const F32*)p_data)[2*i+0],((const F32*)p_data)[2 * i + 1] }; } }
+      { for (size_t i = 0; i < count; ++i) { res[i] = {((const F32*)p_data)[2*i+0],((const F32*)p_data)[2 * i + 1] }; } }
       else 
-      { for (size_t i = 0; i < size; ++i) { res[i] = {((const F64*)p_data)[2*i+0],((const F64*)p_data)[2 * i + 1] }; } }
+      { for (size_t i = 0; i < count; ++i) { res[i] = {((const F64*)p_data)[2*i+0],((const F64*)p_data)[2 * i + 1] }; } }
       return res;
     }
     static auto convertToArrayVec3(const void* p_data, U32 count, U32 size) -> std::vector<Vec3> {
@@ -137,11 +143,11 @@ namespace hikari {
       std::vector<Vec3> res(count);
       if (size == 4)
       {
-        for (size_t i = 0; i < size; ++i) { res[i] = { ((const F32*)p_data)[3 * i + 0],((const F32*)p_data)[3 * i + 1],((const F32*)p_data)[3 * i + 2] }; }
+        for (size_t i = 0; i < count; ++i) { res[i] = { ((const F32*)p_data)[3 * i + 0],((const F32*)p_data)[3 * i + 1],((const F32*)p_data)[3 * i + 2] }; }
       }
       else
       {
-        for (size_t i = 0; i < size; ++i) { res[i] = { ((const F64*)p_data)[3 * i + 0],((const F64*)p_data)[3 * i + 1],((const F64*)p_data)[3 * i + 2] }; }
+        for (size_t i = 0; i < count; ++i) { res[i] = { ((const F64*)p_data)[3 * i + 0],((const F64*)p_data)[3 * i + 1],((const F64*)p_data)[3 * i + 2] }; }
       }
       return res;
     }
@@ -150,11 +156,11 @@ namespace hikari {
       std::vector<U32> res(count);
       if (size == 4)
       {
-        for (size_t i = 0; i < size; ++i) { res[i] = ((const U32*)p_data)[i]; }
+        for (size_t i = 0; i < count; ++i) { res[i] = ((const U32*)p_data)[i]; }
       }
       else
       {
-        for (size_t i = 0; i < size; ++i) { res[i] = ((const U64*)p_data)[i]; }
+        for (size_t i = 0; i < count; ++i) { res[i] = ((const U64*)p_data)[i]; }
       }
       return res;
     }
