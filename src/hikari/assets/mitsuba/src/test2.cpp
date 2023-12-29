@@ -19,6 +19,7 @@ layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normal;
 layout(location = 2) in vec3 uv;
 out vec3 frag_normal;
+out vec3 frag_uvw;
 void main(){
   mat4 model_view = view * model;
   mat3 normal_mat = transpose(inverse(mat3(model_view)));
@@ -30,9 +31,10 @@ void main(){
 static inline constexpr char fsSource[] =
 R"(#version 330 core
 in vec3 frag_normal;
+in vec3 frag_uvw;
 layout(location = 0) out vec3 frag_color;
 void main(){
-  frag_color = (vec3(1.0)+frag_normal)*0.5;
+  frag_color = vec3(0.5 *frag_normal + 0.5);
 }
 )";
 
@@ -64,6 +66,7 @@ struct ShapeData {
     auto tex = mesh->getVertexUVs();
     auto idx = mesh->getFaces();
 
+
     idx_count = 3*mesh->getFaceCount();
 
     glGenVertexArrays(1, &vao);
@@ -87,7 +90,7 @@ struct ShapeData {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec3), 0);
     glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec2), 0);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec2), 0);
     glEnableVertexAttribArray(2);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBindVertexArray(0);
@@ -126,7 +129,14 @@ struct ShapeData {
       hikari::Vec2{+1.0f,+1.0f},
       hikari::Vec2{ 0.0f,+1.0f}
     };
-    std::array<hikari::U32, 6> indices = { 0, 1,2,2,3,0 };
+    //-1+1   +1+1 
+    //3_______2   
+    // |   ./|    
+    // | ./  |    
+    // |/____|    
+    //0       1   
+    //-1-1  +1-1  
+    std::array<hikari::U32, 6> indices = {0, 1,2, 2,3,0};
     //v1-v0 x v2-v1
     //
     idx_count = 6;
@@ -152,7 +162,7 @@ struct ShapeData {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec3), 0);
     glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec2), 0);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec2), 0);
     glEnableVertexAttribArray(2);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBindVertexArray(0);
@@ -191,7 +201,7 @@ struct ShapeData {
 
 int main() {
   using namespace std::string_literals;
-  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\car\scene.xml)");
+  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\kitchen\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
   auto scene    = importer->loadScene(filepath.string());
   auto cameras  = scene->getCameras();// カメラ
@@ -293,7 +303,22 @@ int main() {
   auto sensor_node = cameras[0]->getNode();
   auto perspective = cameras[0]->convert<hikari::CameraPerspective>();
   auto aspect      = ((float)cameras[0]->getFilm()->getWidth()) / ((float)cameras[0]->getFilm()->getHeight());
-  auto view_matrix = sensor_node->getGlobalTransform().inverse().getMat();
+  // よくわからないがsensorのmatrix4x4を読み込んでいる場合XZを反転して逆行列にすると上手く表示できる
+  // (なぜかはよくわからない）
+  // ちなみにLookat形式の場合、バグる
+  // 理由: 座標系の違い
+  // MitsubaはOpenGLと異なる軸の取り方をしている(X=左,Y=上,Z=奥), OpenGLの場合(X=右,Y=上,Z=前)
+  // なのでXZを反転させる必要有
+  // 加えて, matrix形式の場合, world変換として記述されている
+  // =実はcamera変換として書かれているのはlookatだけ?
+  // 一方でlookat形式の場合, 座標変換は不要(むしろすべきではない)
+  // というのもlookat形式は実空間への対応関係で定義されているため, 座標変換に対して不変である
+  // 逆にlookatの方を合わせるべきか
+  auto view_matrix = sensor_node->getGlobalTransform().getMat();
+  view_matrix[0]  *= -1.0f;
+  view_matrix[2]  *= -1.0f;
+  view_matrix      = glm::inverse(view_matrix);
+  
   auto proj_matrix = hikari::Mat4x4();
   {
     auto op_fov = perspective->getFov();
@@ -336,7 +361,7 @@ int main() {
     else {
       throw std::runtime_error("Unsupported Camera!");
     }
-    //proj_matrix = glm::perspective(fovy, aspect, perspective->getNearClip(), perspective->getFarClip());
+
     proj_matrix = glm::perspective(fovy, aspect, perspective->getNearClip(), perspective->getFarClip());
   }
 
@@ -351,12 +376,38 @@ int main() {
     glViewport(0, 0, cameras[0]->getFilm()->getWidth(), cameras[0]->getFilm()->getHeight());
     glClearColor(1.0f, 0.0f,0.0f, 0.0f);
 
+    if (glfwGetKey(window, GLFW_KEY_D)==GLFW_PRESS) {
+      view_matrix[3][0] += 0.01f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+      view_matrix[3][0] -= 0.01f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+      view_matrix[3][1] += 0.01f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+      view_matrix[3][1] -= 0.01f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+      view_matrix *= glm::rotate(0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+      view_matrix *= glm::rotate(-0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+      view_matrix[3][2] += 0.01f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+      view_matrix[3][2] -= 0.01f;
+    }
+    printf("%f %f %f\n", view_matrix[3].x, view_matrix[3].y, view_matrix[3].z);
+
     glUseProgram(prog);
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, (const GLfloat*)&view_matrix);
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, (const GLfloat*)&proj_matrix);
     for (auto& shape_data : shape_datas) {
-       glUniformMatrix4fv(model_loc, 1, GL_FALSE, (const GLfloat*)&shape_data.model);
-      //auto tmp = proj_matrix* view_matrix* shape_data.model;
+      glUniformMatrix4fv(model_loc, 1, GL_FALSE, (const GLfloat*)&shape_data.model);
+      auto tmp = view_matrix* shape_data.model;
       shape_data.draw();
     }
 

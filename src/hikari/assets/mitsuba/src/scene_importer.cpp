@@ -552,8 +552,7 @@ struct hikari::MitsubaSceneImporter::Impl {
     constexpr size_t transform_idx_matrix    = 3;
     constexpr size_t transform_idx_lookat    = 4;
     auto   cur_node = top_node;
-    if (!inverse) {
-
+    {
       for (auto i = 0; i < transform.elements.size(); ++i) {
         auto& elem = transform.elements[transform.elements.size() - 1 - i];
         auto tmp_node = Node::create();
@@ -617,87 +616,11 @@ struct hikari::MitsubaSceneImporter::Impl {
           auto& origin = std::get<transform_idx_lookat>(elem.data).origin;
           auto& target = std::get<transform_idx_lookat>(elem.data).target;
           auto& up = std::get<transform_idx_lookat>(elem.data).up;
-          hikari::TransformMatData mat = glm::lookAt(origin, target, up);
+          hikari::TransformMatData mat = glm::inverse(glm::lookAt(origin, target, up));
+          mat[0] *= -1.0f;
+          mat[2] *= -1.0f;
           tmp_node->setName("lookat");
           tmp_node->setLocalTransform(mat);
-          break;
-        }
-        break;
-        default:
-          return { nullptr,nullptr };
-        }
-        tmp_node->setParent(cur_node);
-        cur_node = tmp_node;
-      }
-    }
-    else {
-
-      for (auto i = 0; i < transform.elements.size(); ++i) {
-        auto& elem = transform.elements[i];
-        auto tmp_node = Node::create();
-        switch (elem.data.index())
-        {
-        case transform_idx_translate:
-        {
-          hikari::TransformTRSData trs;
-          trs.position = std::get<transform_idx_translate>(elem.data).value;
-          tmp_node->setName("translate");
-          tmp_node->setLocalTransform(hikari::Transform(trs).inverse());
-          break;
-        }
-        case transform_idx_rotate:
-        {
-          hikari::TransformTRSData trs;
-          auto& axis = std::get<transform_idx_rotate>(elem.data).value;
-          auto& angle = std::get<transform_idx_rotate>(elem.data).angle;
-          trs.rotation = glm::rotate(glm::identity<glm::quat>(), glm::radians(angle), axis);
-          tmp_node->setName("rotate");
-          tmp_node->setLocalTransform(hikari::Transform(trs).inverse());
-          break;
-        }
-        case transform_idx_scale:
-        {
-          hikari::TransformTRSData trs;
-          trs.scale = std::get<transform_idx_scale>(elem.data).value;
-          tmp_node->setName("scale");
-          tmp_node->setLocalTransform(hikari::Transform(trs).inverse());
-          break;
-        }
-        case transform_idx_matrix:
-        {
-          hikari::TransformMatData mat;
-          auto& values = std::get<transform_idx_matrix>(elem.data).values;
-          if (values.size() == 9) {
-            mat = Mat4x4(Mat3x3(
-              Vec3(values[0], values[3], values[6]),
-              Vec3(values[1], values[4], values[7]),
-              Vec3(values[2], values[5], values[8])
-            ));
-            tmp_node->setName("mat3x3");
-            tmp_node->setLocalTransform(hikari::Transform(mat).inverse());
-            break;
-          }
-          if (values.size() == 16) {
-            mat = Mat4x4(
-              Vec4(values[0], values[4], values[8], values[12]),
-              Vec4(values[1], values[5], values[9], values[13]),
-              Vec4(values[2], values[6], values[10], values[14]),
-              Vec4(values[3], values[7], values[11], values[15])
-            );
-            tmp_node->setName("mat4x4");
-            tmp_node->setLocalTransform(hikari::Transform(mat).inverse());
-            break;
-          }
-          return { nullptr,nullptr };
-        }
-        case transform_idx_lookat:
-        {
-          auto& origin = std::get<transform_idx_lookat>(elem.data).origin;
-          auto& target = std::get<transform_idx_lookat>(elem.data).target;
-          auto& up = std::get<transform_idx_lookat>(elem.data).up;
-          hikari::TransformMatData mat = glm::lookAt(origin, target, up);
-          tmp_node->setName("lookat");
-          tmp_node->setLocalTransform(hikari::Transform(mat).inverse());
           break;
         }
         break;

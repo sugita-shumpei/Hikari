@@ -4,6 +4,7 @@ find_package(tinyxml2      CONFIG REQUIRED)
 find_package(glad          CONFIG REQUIRED)
 find_package(glfw3         CONFIG REQUIRED)
 find_package(tinyobjloader CONFIG REQUIRED)
+find_package(tinyply       CONFIG REQUIRED)
 add_library(hikari-assets-mitsuba STATIC)
 target_compile_features(hikari-assets-mitsuba PRIVATE cxx_std_20)
 target_compile_options (hikari-assets-mitsuba PRIVATE /Zc:__cplusplus /utf-8)
@@ -32,6 +33,7 @@ hikari-shape
 ZLIB::ZLIB
 tinyxml2::tinyxml2
 tinyobjloader::tinyobjloader
+tinyply
 )
 
 add_executable(hikari-assets-mitsuba-test src/test.cpp)

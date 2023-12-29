@@ -5,6 +5,7 @@
     "tinyobjloader",
     "mikktspace",
     "tinyxml2",
+    "tinyply",
     "stduuid",
     "stb",
     "imath",
