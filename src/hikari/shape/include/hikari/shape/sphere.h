@@ -11,6 +11,8 @@ namespace hikari {
     void setRadius(F32         radius);
     auto getCenter() const-> Vec3;
     auto getRadius() const-> F32;
+
+    auto createMesh() -> std::shared_ptr<Shape>;
   private:
     ShapeSphere(const Vec3& center, F32 radius);
   private:

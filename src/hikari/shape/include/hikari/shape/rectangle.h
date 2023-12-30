@@ -6,6 +6,8 @@ namespace hikari {
     static auto create() -> std::shared_ptr<ShapeRectangle>;
     virtual ~ShapeRectangle() noexcept;
     Uuid getID() const override;
+
+    auto createMesh() -> std::shared_ptr<Shape>;
   protected:
     ShapeRectangle();
   };

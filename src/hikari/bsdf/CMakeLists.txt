@@ -10,6 +10,7 @@ target_sources(hikari-bsdf PRIVATE
     include/hikari/bsdf/dielectric.h
     include/hikari/bsdf/diffuse.h
     include/hikari/bsdf/mask.h
+    include/hikari/bsdf/null.h
     include/hikari/bsdf/normal_map.h
     include/hikari/bsdf/phong.h
     include/hikari/bsdf/plastic.h
@@ -23,6 +24,7 @@ target_sources(hikari-bsdf PRIVATE
     src/dielectric.cpp
     src/diffuse.cpp
     src/mask.cpp
+    src/null.cpp
     src/normal_map.cpp
     src/phong.cpp
     src/plastic.cpp

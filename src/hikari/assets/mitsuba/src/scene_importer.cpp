@@ -28,12 +28,14 @@
 #include <hikari/bsdf/rough_plastic.h>
 #include <hikari/bsdf/phong.h>
 #include <hikari/bsdf/mask.h>
+#include <hikari/bsdf/null.h>
 #include <hikari/bsdf/bump_map.h>
 #include <hikari/bsdf/normal_map.h>
 #include <hikari/bsdf/two_sided.h>
 #include <filesystem>
 #include <unordered_set>
 #include <tiny_obj_loader.h>
+#include <tinyply.h>
 #include "xml_data.h"
 #include "serialized_data.h"
 
@@ -79,7 +81,7 @@ struct hikari::MitsubaSceneImporter::Impl {
   std::unordered_map<String, TexturePtr>                              ref_textures      = {};//texture
   // std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String, U32>>    meshes_serialized;
   std::unordered_map<String, std::shared_ptr<ShapeMesh>>              meshes_obj;
-  std::vector<std::tuple<std::shared_ptr<ShapeMesh>, String>>         meshes_ply;
+  std::unordered_map<String, std::shared_ptr<ShapeMesh>>              meshes_ply;
   // Spectrum を読み取る
   auto loadSpectrum(const MitsubaXMLData& xml_data, const MitsubaXMLSpectrum& spe_data) -> std::shared_ptr<Spectrum> { return nullptr; }
   auto loadPropSpectrum(const MitsubaXMLData& xml_data, const String& name, const MitsubaXMLProperties& properties) -> SpectrumPtr {
@@ -343,6 +345,9 @@ struct hikari::MitsubaSceneImporter::Impl {
       }
       return mat_obj;
     }
+    if (bsdf_data->type == "null") {
+      return mat_obj;
+    }
     if (bsdf_data->type == "diffuse"  ) {
       auto reflectance = loadPropSpectrumOrTexture(xml_data, "reflectance"s, bsdf_data->properties);
       auto res = mat_obj->convert<BsdfDiffuse>();
@@ -478,6 +483,9 @@ struct hikari::MitsubaSceneImporter::Impl {
     for (auto& [ref, bsdf_data] : xml_data.ref_bsdfs) {
       if (bsdf_data->type == "diffuse") {
         ref_bsdfs.insert({ ref,BsdfDiffuse::create() }); continue;
+      }
+      if (bsdf_data->type == "null") {
+        ref_bsdfs.insert({ ref,BsdfNull::create() }); continue;
       }
       if (bsdf_data->type == "plastic") {
         ref_bsdfs.insert({ ref,BsdfPlastic::create() }); continue;
@@ -616,7 +624,10 @@ struct hikari::MitsubaSceneImporter::Impl {
           auto& origin = std::get<transform_idx_lookat>(elem.data).origin;
           auto& target = std::get<transform_idx_lookat>(elem.data).target;
           auto& up = std::get<transform_idx_lookat>(elem.data).up;
+          // lookAtはあくまでworld_to_local変換なので, local_to_world変換に直す
           hikari::TransformMatData mat = glm::inverse(glm::lookAt(origin, target, up));
+          // OPENGL の座標系は+X:右, +Y:上, +Z:前の座標系
+          // MITSUBAの座標系は+X:左, +Y:上, +Z:奥の座標系なのでXZ反転が必要
           mat[0] *= -1.0f;
           mat[2] *= -1.0f;
           tmp_node->setName("lookat");
@@ -839,7 +850,8 @@ struct hikari::MitsubaSceneImporter::Impl {
     std::string node_name = name;
     auto shape = [&xml_data, &shp_data, this,&node_name]()->ShapePtr {
       auto flip_normals = getValueFromMap(shp_data.properties.booleans, "flip_normals"s, false);
-      // OBJ
+      // OBJ,
+      // TODO: 法線生成
       if (shp_data.type == "obj") {
         auto res = std::shared_ptr<hikari::ShapeMesh>();
         auto filename = getValueFromMap(shp_data.properties.strings     , "filename"s, ""s);
@@ -938,10 +950,171 @@ struct hikari::MitsubaSceneImporter::Impl {
         return res;
       }
       // PLY
+      // TODO: ロード
       if (shp_data.type == "ply") {
-        auto res = hikari::ShapeMesh::create();
+        auto res = std::shared_ptr<hikari::ShapeMesh>();
         auto filename = getValueFromMap(shp_data.properties.strings, "filename"s, ""s);
-        meshes_ply.push_back({ res,(std::filesystem::path(xml_data.filepath).parent_path() / filename).string() });
+        auto filepath = (std::filesystem::path(xml_data.filepath).parent_path() / filename).string();
+        {
+          auto iter_mesh = meshes_ply.find(filepath);
+          if (iter_mesh != std::end(meshes_ply)) {
+            res = hikari::ShapeMesh::makeInstance(iter_mesh->second);
+          }
+          else {
+            std::ifstream file_stream(filepath, std::ios::binary);
+            if (file_stream.fail()) { return nullptr; }
+
+            tinyply::PlyFile file;
+            if (!file.parse_header(file_stream)){
+              file_stream.close(); return nullptr;
+            }
+            auto& comments = file.get_comments();
+            auto  elements = file.get_elements();
+            auto  info     = file.get_info();
+
+            std::shared_ptr<tinyply::PlyData> ply_vertices;
+            std::shared_ptr<tinyply::PlyData> ply_normals;
+            std::shared_ptr<tinyply::PlyData> ply_colors;
+            std::shared_ptr<tinyply::PlyData> ply_uvs;
+            std::shared_ptr<tinyply::PlyData> ply_faces;
+            try{ ply_vertices = file.request_properties_from_element("vertex", { "x","y","z" });
+            }catch(const std::exception& e){ std::cerr << "tinyply exception: "<< e.what() << std::endl; }
+            try{ ply_normals = file.request_properties_from_element("vertex", { "nx","ny","nz" });
+            }catch(const std::exception& e){ std::cerr << "tinyply exception: "<< e.what() << std::endl; }
+            try{ ply_colors = file.request_properties_from_element("vertex", { "red","green","blue" });
+            }catch(const std::exception& e){ std::cerr << "tinyply exception: "<< e.what() << std::endl; }
+            try{ ply_colors = file.request_properties_from_element("vertex", { "r","g","b" });
+            }catch(const std::exception& e){ std::cerr << "tinyply exception: "<< e.what() << std::endl; }
+            try{ ply_uvs = file.request_properties_from_element("vertex", { "u","v" });
+            }catch(const std::exception& e){ std::cerr << "tinyply exception: "<< e.what() << std::endl; }
+            try{ ply_faces = file.request_properties_from_element("face", { "vertex_indices" }, 3);
+            }catch(const std::exception& e){ std::cerr << "tinyply exception: "<< e.what() << std::endl; }
+
+            file.read(file_stream);
+            if (!ply_vertices) {
+              throw std::runtime_error("Failed To Find Verex Position In Ply File!");
+            }
+            auto mesh_ply = ShapeMesh::create();
+            {
+              if (ply_vertices->t == tinyply::Type::FLOAT32) {
+                std::vector<Vec3> vertices(ply_vertices->count);
+                std::memcpy(vertices.data(), ply_vertices->buffer.get(), vertices.size() * sizeof(vertices[0]));
+                mesh_ply->setVertexPositions(vertices);
+
+              }
+              else if (ply_vertices->t == tinyply::Type::FLOAT64) {
+                std::vector<glm::dvec3> tmp_vertices(ply_vertices->count);
+                std::memcpy(tmp_vertices.data(), ply_vertices->buffer.get(), tmp_vertices.size() * sizeof(tmp_vertices[0]));
+                std::vector<Vec3> vertices(std::begin(tmp_vertices), std::end(tmp_vertices));
+                mesh_ply->setVertexPositions(vertices);
+              }
+              else {
+                throw std::runtime_error("Failed To Find Verex Position In Ply File!");
+              }
+            }
+            if (ply_normals){
+              if (ply_normals->t == tinyply::Type::FLOAT32) {
+                std::vector<Vec3> normals(ply_normals->count);
+                std::memcpy(normals.data(), ply_normals->buffer.get(), normals.size() * sizeof(normals[0]));
+                mesh_ply->setVertexNormals(normals);
+
+              }
+              else if (ply_normals->t == tinyply::Type::FLOAT64) {
+                std::vector<glm::dvec3> tmp_normals(ply_normals->count);
+                std::memcpy(tmp_normals.data(), ply_normals->buffer.get(), tmp_normals.size() * sizeof(tmp_normals[0]));
+                std::vector<Vec3> normals(std::begin(tmp_normals), std::end(tmp_normals));
+                mesh_ply->setVertexNormals(normals);
+              }
+            }
+            if (ply_colors) {
+              if (ply_colors->t == tinyply::Type::FLOAT32) {
+                std::vector<Vec3> colors(ply_colors->count);
+                std::memcpy(colors.data(), ply_colors->buffer.get(), colors.size() * sizeof(colors[0]));
+                mesh_ply->setVertexColors(colors);
+
+              }
+              else if (ply_colors->t == tinyply::Type::FLOAT64) {
+                std::vector<glm::dvec3> tmp_colors(ply_colors->count);
+                std::memcpy(tmp_colors.data(), ply_colors->buffer.get(), tmp_colors.size() * sizeof(tmp_colors[0]));
+                std::vector<Vec3> colors(std::begin(tmp_colors), std::end(tmp_colors));
+                mesh_ply->setVertexColors(colors);
+              }
+            }
+            if (ply_uvs) {
+              if (ply_uvs->t == tinyply::Type::FLOAT32) {
+                std::vector<Vec2> uvs(ply_uvs->count);
+                std::memcpy(uvs.data(), ply_uvs->buffer.get(), uvs.size() * sizeof(uvs[0]));
+                mesh_ply->setVertexUVs(uvs);
+
+              }
+              else if (ply_uvs->t == tinyply::Type::FLOAT64) {
+                std::vector<glm::dvec2> tmp_uvs(ply_uvs->count);
+                std::memcpy(tmp_uvs.data(), ply_uvs->buffer.get(), tmp_uvs.size() * sizeof(tmp_uvs[0]));
+                std::vector<Vec2> uvs(std::begin(tmp_uvs), std::end(tmp_uvs));
+                mesh_ply->setVertexUVs(uvs);
+              }
+            }
+            if (ply_faces) {
+              if (ply_faces->t == tinyply::Type::INT32) {
+                std::vector<I32> tmp_faces(ply_faces->count * 3);
+                std::memcpy(tmp_faces.data(), ply_faces->buffer.get(), tmp_faces.size() * sizeof(tmp_faces[0]));
+                std::vector<U32> faces(ply_faces->count * 3);
+                for (size_t i = 0; i < tmp_faces.size(); ++i) {
+                  auto idx = tmp_faces[i];
+                  if (idx < 0) { faces[i] = idx + ply_vertices->count; }
+                  else { faces[i] = idx; }
+                }
+                mesh_ply->setFaces(faces);
+              }
+              else if (ply_faces->t == tinyply::Type::INT16) {
+                  std::vector<I16> tmp_faces(ply_faces->count * 3);
+                  std::memcpy(tmp_faces.data(), ply_faces->buffer.get(), tmp_faces.size() * sizeof(tmp_faces[0]));
+                  std::vector<U32> faces(ply_faces->count * 3);
+                  for (size_t i = 0; i < tmp_faces.size(); ++i) {
+                    auto idx = tmp_faces[i];
+                    if (idx < 0) { faces[i] = idx + ply_vertices->count; }
+                    else { faces[i] = idx; }
+                  }
+                  mesh_ply->setFaces(faces);
+              }
+              else if (ply_faces->t == tinyply::Type::INT8) {
+                std::vector<I8> tmp_faces(ply_faces->count * 3);
+                std::memcpy(tmp_faces.data(), ply_faces->buffer.get(), tmp_faces.size() * sizeof(tmp_faces[0]));
+                std::vector<U32> faces(ply_faces->count * 3);
+                for (size_t i = 0; i < tmp_faces.size(); ++i) {
+                  auto idx = tmp_faces[i];
+                  if (idx < 0) { faces[i] = idx + ply_vertices->count; }
+                  else { faces[i] = idx; }
+                }
+                mesh_ply->setFaces(faces);
+              }
+              else if (ply_faces->t == tinyply::Type::UINT32) {
+                std::vector<U32> faces(ply_faces->count*3);
+                std::memcpy(faces.data(), ply_faces->buffer.get(), faces.size() * sizeof(faces[0]));
+                mesh_ply->setFaces(faces);
+
+              }
+              else if (ply_faces->t == tinyply::Type::UINT16) {
+                std::vector<U16> tmp_faces(ply_faces->count * 3);
+                std::memcpy(tmp_faces.data(), ply_faces->buffer.get(), tmp_faces.size() * sizeof(tmp_faces[0]));
+                std::vector<U32> faces(std::begin(tmp_faces),std::end(tmp_faces));
+                mesh_ply->setFaces(faces);
+              }
+              else if (ply_faces->t == tinyply::Type::UINT8) {
+                std::vector<U8> tmp_faces(ply_faces->count * 3);
+                std::memcpy(tmp_faces.data(), ply_faces->buffer.get(), tmp_faces.size() * sizeof(tmp_faces[0]));
+                std::vector<U32> faces(std::begin(tmp_faces), std::end(tmp_faces));
+                mesh_ply->setFaces(faces);
+              }
+              else {
+                throw std::runtime_error("Failed To Find Faces In Ply File!");
+              }
+            }
+            meshes_ply.insert({ filepath,mesh_ply });
+            res = ShapeMesh::makeInstance(mesh_ply);
+            file_stream.close();
+          }
+        }
         res->setFaceNormals(getValueFromMap(shp_data.properties.booleans, "face_normals"s, false));
         res->setFlipUVs(getValueFromMap(shp_data.properties.booleans, "flip_tex_coords"s, false));
         res->setFlipNormals(flip_normals);
@@ -1271,9 +1444,9 @@ struct hikari::MitsubaSceneImporter::Impl {
     }
     for (auto& [shape, bsdf]  : tmp_shapes) {
       auto surface = getValueFromMap(surface_map, bsdf.get(), SurfacePtr());
-      if (!surface) { std::runtime_error("Failed To Find Surface!"); }
+      if (!surface) { throw std::runtime_error("Failed To Find Surface!"); }
       auto material = shape->getMaterial();
-      if (!material){ std::runtime_error("Failed To Bind Surface!"); }
+      if (!material){ throw std::runtime_error("Failed To Bind Surface!"); }
       material->setSurface(surface);
     }
     ref_surfaces.clear();

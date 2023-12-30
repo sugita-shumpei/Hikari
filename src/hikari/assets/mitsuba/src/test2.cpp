@@ -3,6 +3,8 @@
 #include <hikari/core/film.h>
 #include <hikari/core/node.h>
 #include <hikari/shape/mesh.h>
+#include <hikari/shape/cube.h>
+#include <hikari/shape/sphere.h>
 #include <hikari/shape/rectangle.h>
 #include <hikari/camera/perspective.h>
 #include <glm/gtx/string_cast.hpp>
@@ -51,8 +53,14 @@ struct ShapeData {
     }else if (shape->getID() == hikari::ShapeRectangle::ID()) {
       initRect(std::static_pointer_cast<hikari::ShapeRectangle>(shape));
     }
+    else if (shape->getID() == hikari::ShapeCube::ID()) {
+      initCube(std::static_pointer_cast<hikari::ShapeCube>(shape));
+    }
+    else if (shape->getID() == hikari::ShapeSphere::ID()) {
+      initSphere(std::static_pointer_cast<hikari::ShapeSphere>(shape));
+    }
   }
-  void initMesh(const std::shared_ptr<hikari::ShapeMesh>& mesh)
+  void initMesh(const std::shared_ptr<hikari::ShapeMesh>     & mesh)
   {
     GLuint bffs[4];
     glGenBuffers(4, bffs);
@@ -104,43 +112,101 @@ struct ShapeData {
     vbo_normal = bffs[1];
     vbo_uv = bffs[2];
     ibo = bffs[3];
-    //(NP) (PP)
-    // _____
-    // |  /|
-    // | / |
-    // |/__|
-    //(NN) (PN)
-    // CCWなので法線方向が0->2->1の順番でアクセスするとして法線が(0,0,1)になるようにする
-    std::array<hikari::Vec3, 4> vertices = {
-      hikari::Vec3{-1.0f,-1.0f,0.0f},
-      hikari::Vec3{+1.0f,-1.0f,0.0f},
-      hikari::Vec3{+1.0f,+1.0f,0.0f},
-      hikari::Vec3{-1.0f,+1.0f,0.0f}
-    };
-    std::array<hikari::Vec3, 4> normals = {
-      hikari::Vec3{0.0f,0.0f,1.0f},
-      hikari::Vec3{0.0f,0.0f,1.0f},
-      hikari::Vec3{0.0f,0.0f,1.0f},
-      hikari::Vec3{0.0f,0.0f,1.0f}
-    };
-    std::array<hikari::Vec2, 4> uvs = {
-      hikari::Vec2{ 0.0f, 0.0f},
-      hikari::Vec2{+1.0f, 0.0f},
-      hikari::Vec2{+1.0f,+1.0f},
-      hikari::Vec2{ 0.0f,+1.0f}
-    };
-    //-1+1   +1+1 
-    //3_______2   
-    // |   ./|    
-    // | ./  |    
-    // |/____|    
-    //0       1   
-    //-1-1  +1-1  
-    std::array<hikari::U32, 6> indices = {0, 1,2, 2,3,0};
-    //v1-v0 x v2-v1
-    //
-    idx_count = 6;
 
+    auto mesh = rect->createMesh()->convert<hikari::ShapeMesh>();
+    auto vertices = mesh->getVertexPositions();
+    auto normals = mesh->getVertexNormals();
+    auto uvs = mesh->getVertexUVs();
+    auto indices = mesh->getFaces();
+
+    idx_count = indices.size();
+
+    glGenVertexArrays(1, &vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_position);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_normal);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(normals[0]) * normals.size(), normals.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(uvs[0]) * uvs.size(), uvs.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_position);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec3), 0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_normal);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec3), 0);
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec2), 0);
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBindVertexArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
+  void initCube(const std::shared_ptr<hikari::ShapeCube>     & cube) {
+    auto mesh = cube->createMesh()->convert<hikari::ShapeMesh>();
+    auto vertices = mesh->getVertexPositions();
+    auto normals  = mesh->getVertexNormals();
+    auto uvs      = mesh->getVertexUVs();
+    auto indices  = mesh->getFaces();
+
+    GLuint bffs[4];
+    glGenBuffers(4, bffs);
+    vbo_position = bffs[0];
+    vbo_normal = bffs[1];
+    vbo_uv = bffs[2];
+    ibo = bffs[3];
+
+    idx_count = indices.size();
+    glGenVertexArrays(1, &vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_position);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_normal);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(normals[0]) * normals.size(), normals.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(uvs[0]) * uvs.size(), uvs.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_position);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec3), 0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_normal);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec3), 0);
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_uv);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(hikari::Vec2), 0);
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBindVertexArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
+  void initSphere(const std::shared_ptr<hikari::ShapeSphere>& sphere) {
+    auto mesh = sphere->createMesh()->convert<hikari::ShapeMesh>();
+    auto vertices = mesh->getVertexPositions();
+    auto normals = mesh->getVertexNormals();
+    auto uvs = mesh->getVertexUVs();
+    auto indices = mesh->getFaces();
+
+    GLuint bffs[4];
+    glGenBuffers(4, bffs);
+    vbo_position = bffs[0];
+    vbo_normal = bffs[1];
+    vbo_uv = bffs[2];
+    ibo = bffs[3];
+
+    idx_count = indices.size();
     glGenVertexArrays(1, &vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_position);
@@ -201,7 +267,7 @@ struct ShapeData {
 
 int main() {
   using namespace std::string_literals;
-  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\kitchen\scene.xml)");
+  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\veach-mis\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
   auto scene    = importer->loadScene(filepath.string());
   auto cameras  = scene->getCameras();// カメラ
@@ -303,17 +369,7 @@ int main() {
   auto sensor_node = cameras[0]->getNode();
   auto perspective = cameras[0]->convert<hikari::CameraPerspective>();
   auto aspect      = ((float)cameras[0]->getFilm()->getWidth()) / ((float)cameras[0]->getFilm()->getHeight());
-  // よくわからないがsensorのmatrix4x4を読み込んでいる場合XZを反転して逆行列にすると上手く表示できる
-  // (なぜかはよくわからない）
-  // ちなみにLookat形式の場合、バグる
-  // 理由: 座標系の違い
-  // MitsubaはOpenGLと異なる軸の取り方をしている(X=左,Y=上,Z=奥), OpenGLの場合(X=右,Y=上,Z=前)
-  // なのでXZを反転させる必要有
-  // 加えて, matrix形式の場合, world変換として記述されている
-  // =実はcamera変換として書かれているのはlookatだけ?
-  // 一方でlookat形式の場合, 座標変換は不要(むしろすべきではない)
-  // というのもlookat形式は実空間への対応関係で定義されているため, 座標変換に対して不変である
-  // 逆にlookatの方を合わせるべきか
+  // MITSUBAのカメラ座標系からOPENGLのカメラ座標系へ変換
   auto view_matrix = sensor_node->getGlobalTransform().getMat();
   view_matrix[0]  *= -1.0f;
   view_matrix[2]  *= -1.0f;
