@@ -1,4 +1,5 @@
 #include <hikari/assets/mitsuba/scene_importer.h>
+#include <hikari/assets/image/importer.h>
 #include <hikari/core/material.h>
 #include <hikari/core/surface.h>
 #include <hikari/core/subsurface.h>
@@ -7,6 +8,7 @@
 #include <hikari/light/constant.h>
 #include <hikari/light/envmap.h>
 #include <hikari/light/area.h>
+#include <hikari/light/directional.h>
 #include <hikari/film/hdr.h>
 #include <hikari/film/spec.h>
 #include <hikari/shape/rectangle.h>
@@ -106,7 +108,13 @@ struct hikari::MitsubaSceneImporter::Impl {
       auto  texture_mipmap = tex_obj->convert<TextureMipmap>();
 
       auto filename = getValueFromMap(tex_data.properties.strings, "filename"s, ""s);
-      if (filename!=""){ texture_mipmap->setFilename(filename); }
+      if (filename!=""){
+        auto filepath = (std::filesystem::path(xml_data.filepath).parent_path() / filename).string();
+        auto& image_importer = hikari::ImageImporter::getInstance();
+        auto  mipmap         = image_importer.load(filepath);
+        if (!mipmap) { return nullptr; }
+        texture_mipmap->setMipmap(mipmap);
+      }
 
       auto filter_type_str = getValueFromMap(tex_data.properties.strings, "filter_type"s, ""s);
       if (filter_type_str == "bilinear") { texture_mipmap->setFilterType(TextureFilterType::eBilinear); }
@@ -686,7 +694,14 @@ struct hikari::MitsubaSceneImporter::Impl {
         {
           auto iter = emi_data.properties.strings.find("filename");
           if (iter == emi_data.properties.strings.end()) { return nullptr; }
+          auto filename = iter->second;
+          auto filepath = (std::filesystem::path(xml_data.filepath).parent_path() / filename).string();
           // TODO: テクスチャを読み取る
+          auto& instance = ImageImporter::getInstance();
+          auto mipmap = instance.load(filepath);
+          if (!mipmap) { return nullptr; }
+          auto image = mipmap->getImage(0);
+          res->setBitmap(image);
         }
         {
           auto iter = emi_data.properties.floats.find("scale");
@@ -697,6 +712,32 @@ struct hikari::MitsubaSceneImporter::Impl {
             res->setScale(iter->second);
           }
         }
+        return res;
+      }
+      if (emi_data.type == "directional") {
+        auto res = LightDirectional::create();
+        {
+          auto iter = emi_data.properties.vectors.find("direction");
+          if (iter != emi_data.properties.vectors.end()) {
+            res->setDirection(iter->second);
+          }
+        }
+        {
+          auto iter = emi_data.properties.spectrums.find("irradiance");
+          if (iter != emi_data.properties.spectrums.end()) {
+            auto spectrum = loadSpectrum(xml_data, iter->second);
+            if (!spectrum) { return nullptr; }
+            res->setIrradiance(spectrum);
+          }
+          else {
+            res->setIrradiance(SpectrumUniform::create(1.0f));
+          }
+        }
+        return res;
+      }
+      if (emi_data.type == "sunsky") {
+        // TODO: 未実装
+        auto res = LightDirectional::create();
         return res;
       }
       return nullptr;
@@ -1461,7 +1502,7 @@ auto hikari::MitsubaSceneImporter::create() -> std::shared_ptr<MitsubaSceneImpor
     return std::shared_ptr<MitsubaSceneImporter>(new MitsubaSceneImporter());
 }
 
-auto hikari::MitsubaSceneImporter::loadScene(const String& filename) -> std::shared_ptr<Scene>
+auto hikari::MitsubaSceneImporter::load(const String& filename) -> std::shared_ptr<Scene>
 {
     if (m_impl->file_path == filename){ return m_impl->scene; }
     tinyxml2::XMLDocument document;

@@ -24,8 +24,8 @@ int main() {
 	//model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\CornellBox\CornellBox-Sphere.obj)");
         //model.setFilename(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Models\Sponza\sponza.obj)");
 	model.setFilename(R"(D:\Users\shums\Documents\CMake\RTLib\Data\Models\Bistro\Exterior\exterior.obj)");
-	//auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
-        auto envlit_filename = std::string("");
+	auto envlit_filename = std::string(R"(D:\Users\shumpei\Document\Github\RTLib\Data\Textures\evening_road_01_puresky_8k.hdr)");
+        //auto envlit_filename = std::string("");
 	auto center          = model.getBBox().getCenter();
 	auto range           = model.getBBox().getRange ();
 	hikari::test::owl::testlib::PinholeCamera camera;

@@ -7,6 +7,7 @@
 #include <hikari/shape/sphere.h>
 #include <hikari/shape/rectangle.h>
 #include <hikari/camera/perspective.h>
+#include <hikari/light/envmap.h>
 #include <glm/gtx/string_cast.hpp>
 #include <filesystem>
 #include <glad/glad.h>
@@ -15,8 +16,8 @@
 static inline constexpr char vsSource[] =
 R"(#version 330 core
 uniform mat4 model = mat4(1.0);
-uniform mat4 view = mat4(1.0);
-uniform mat4 proj = mat4(1.0);
+uniform mat4 view  = mat4(1.0);
+uniform mat4 proj  = mat4(1.0);
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normal;
 layout(location = 2) in vec3 uv;
@@ -267,13 +268,22 @@ struct ShapeData {
 
 int main() {
   using namespace std::string_literals;
-  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\veach-mis\scene.xml)");
+  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\car\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
-  auto scene    = importer->loadScene(filepath.string());
+  auto scene    = importer->load(filepath.string());
   auto cameras  = scene->getCameras();// カメラ
   auto lights   = scene->getLights();// 光源  
   auto shapes   = scene->getShapes();// 形状
   auto surfaces = importer->getSurfaceMap();// マテリアル
+  auto envmap   = hikari::BitmapPtr();
+  {
+    for (auto& light : lights) {
+      auto light_envmap = light->convert<hikari::LightEnvmap>();
+      if (light_envmap) {
+        envmap = light_envmap->getBitmap();
+      }
+    }
+  }
 
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
@@ -426,6 +436,7 @@ int main() {
   std::cout << glm::to_string(proj_matrix) << std::endl;
   // proj * view * model
   glEnable(GL_DEPTH_TEST);
+  // glEnable(GL_CULL_FACE);
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

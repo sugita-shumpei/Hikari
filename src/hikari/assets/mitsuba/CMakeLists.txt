@@ -29,7 +29,8 @@ hikari-camera
 hikari-light   
 hikari-spectrum
 hikari-texture 
-hikari-shape   
+hikari-shape
+hikari-assets-image
 ZLIB::ZLIB
 tinyxml2::tinyxml2
 tinyobjloader::tinyobjloader

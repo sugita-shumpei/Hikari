@@ -8,9 +8,11 @@ target_sources(hikari-light PRIVATE
     include/hikari/light/area.h
     include/hikari/light/constant.h
     include/hikari/light/envmap.h
+    include/hikari/light/directional.h
     src/area.cpp
     src/constant.cpp
     src/envmap.cpp
+    src/directional.cpp
 )
 target_link_libraries(hikari-light PUBLIC hikari-core)
 

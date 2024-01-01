@@ -1,6 +1,9 @@
 #include "serialized_data.h"
 #include <hikari/shape/mesh.h>
 
+#define HK_MITSUBA_FILEFORMAT    0x041C
+#define HK_MITSUBA_FILEVERSION_3 0x0003
+#define HK_MITSUBA_FILEVERSION_4 0x0004
 
 hikari::Bool hikari::MitsubaSerializedData::load(const String& filename, MitsubaSerializedLoadType load_type) {
     std::ifstream file(filename, std::ios::binary);
@@ -16,7 +19,7 @@ hikari::Bool hikari::MitsubaSerializedData::load(const String& filename, Mitsuba
         // format
         file.seekg(read_offset, std::ios::beg);
         file.read((Char*)&m_format, sizeof(m_format));
-        if (m_format != 0x041C) { return false; }
+        if (m_format != HK_MITSUBA_FILEFORMAT) { return false; }
         // version
         file.read((Char*)&m_version, sizeof(m_version));
     }
@@ -28,7 +31,7 @@ hikari::Bool hikari::MitsubaSerializedData::load(const String& filename, Mitsuba
         m_offsets.resize(mesh_count);
         m_sizes.resize(mesh_count);
         U64 read_offset = 0;
-        if (m_version == 0x4) {
+        if (m_version == HK_MITSUBA_FILEVERSION_4) {
           size_t mesh_offset_type_size = sizeof(U64);
           read_offset = binary_size - (sizeof(U32) + mesh_offset_type_size * mesh_count);
           file.seekg(read_offset, std::ios::beg);
@@ -121,7 +124,7 @@ void hikari::MitsubaSerializedMeshData::load(const Byte* data, U64 size) {
   std::memcpy(headers, data, sizeof(headers));
   m_format  = headers[0];
   m_version = headers[1];
-  if (m_version != 0x3 && m_version != 0x4) {
+  if (m_version != HK_MITSUBA_FILEVERSION_3 && m_version != HK_MITSUBA_FILEVERSION_4) {
     throw std::runtime_error("Failed To Support Version: " + std::to_string(m_version));
   }
 
@@ -138,7 +141,7 @@ void hikari::MitsubaSerializedMeshData::load(const Byte* data, U64 size) {
   zs.avail_in = size;
 
   //出力バッファは10KBを用意する
-  Char output_buffer[1024];
+  Char output_buffer[10240];
   int ret;
   U64         read_pos = 0;
   std::string outstring;
@@ -157,7 +160,7 @@ void hikari::MitsubaSerializedMeshData::load(const Byte* data, U64 size) {
   {
     std::stringstream ss(outstring);
     ss.read((Char*)&m_flags, sizeof(m_flags));
-    if (m_version == 4) {
+    if (m_version == HK_MITSUBA_FILEVERSION_4) {
       String name = "";
       Char ch = '\0';
       do {

@@ -37,4 +37,5 @@ namespace hikari {
     if (iter == map.end()) { return std::nullopt; }
     else { return iter->second; }
   }
+
 }

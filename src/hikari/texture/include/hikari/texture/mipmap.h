@@ -9,14 +9,12 @@ namespace hikari {
     static constexpr Uuid ID() { return Uuid::from_string("7B1250EA-8695-47E8-832D-7F6094D4D367").value(); }
     static auto create() -> std::shared_ptr<TextureMipmap>;
     virtual ~TextureMipmap();
-    void setFilename(const String& filename);
     void setFilterType(TextureFilterType filter_type);
     void setWrapMode(TextureWrapMode wrapMode);
     void setRaw(Bool raw);
     void setUVTransform(const Mat3x3& uv_transform);
     void setMipmap(const MipmapPtr& mipmap);
 
-    auto getFilename()   const->String;
     auto getFilterType() const->TextureFilterType;
     auto getWrapMode() const->TextureWrapMode;
     Bool getRaw() const;
@@ -28,7 +26,6 @@ namespace hikari {
     TextureMipmap();
   private:
     MipmapPtr         m_mipmap;
-    String            m_filename;
     TextureFilterType m_filter_type;
     TextureWrapMode   m_wrap_mode;
     Bool              m_raw;

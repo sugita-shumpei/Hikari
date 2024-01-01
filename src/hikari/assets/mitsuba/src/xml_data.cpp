@@ -367,22 +367,44 @@ bool hikari::MitsubaXMLParser::parseRotate(const tinyxml2::XMLElement* element_r
 bool hikari::MitsubaXMLParser::parseScale(const tinyxml2::XMLElement* element_scl, MitsubaXMLScale& scale) {
   if (!element_scl) { return false; }
   auto attr_value = element_scl->FindAttribute("value");
-  if (!attr_value) {
-    return false;
-  }
-  auto value_strs = splitString(normalizeString(attr_value->Value()), ',');
-  if (value_strs.size() != 1 && value_strs.size() != 3) { return false; }
-  auto values = std::vector<F32>();
-  values.reserve(value_strs.size());
-  try {
-    for (size_t i = 0; i < value_strs.size(); ++i) {
-      values.push_back(std::stof(value_strs[i]));
+  if (attr_value) {
+    auto value_strs = splitString(normalizeString(attr_value->Value()), ',');
+
+    if (value_strs.size() != 1 && value_strs.size() != 3) { return false; }
+    auto values = std::vector<F32>();
+    values.reserve(value_strs.size());
+    try {
+      for (size_t i = 0; i < value_strs.size(); ++i) {
+        values.push_back(std::stof(value_strs[i]));
+      }
     }
+    catch (std::invalid_argument& err) { return false; }
+    catch (std::out_of_range& err) { return false; }
+    if (values.size() == 1) { scale.value = Vec3(values[0]); }
+    if (values.size() == 3) { scale.value = Vec3(values[0], values[1], values[2]); }
   }
-  catch (std::invalid_argument& err) { return false; }
-  catch (std::out_of_range& err) { return false; }
-  if (values.size() == 1) { scale.value = Vec3(values[0]); }
-  if (values.size() == 3) { scale.value = Vec3(values[0], values[1], values[2]); }
+  else {
+    scale.value = { 1.0f,1.0f,1.0f };
+    auto attr_x = element_scl->FindAttribute("x");
+    auto attr_y = element_scl->FindAttribute("y");
+    auto attr_z = element_scl->FindAttribute("z");
+    try {
+      if (attr_x) {
+        auto value_x = std::stof(normalizeString(attr_x->Value()));
+        scale.value.x = value_x;
+      }
+      if (attr_y) {
+        auto value_y = std::stof(normalizeString(attr_y->Value()));
+        scale.value.y = value_y;
+      }
+      if (attr_z) {
+        auto value_z = std::stof(normalizeString(attr_z->Value()));
+        scale.value.z = value_z;
+      }
+    }
+    catch (std::invalid_argument& err) { return false; }
+    catch (std::out_of_range& err) { return false; }
+  }
   return true;
 }
 

@@ -1,21 +1,20 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <hikari/core/utils.h>
-#include <serialized_data.h>
-#include <spectrum_data.h>
-#include <xml_data.h>
-#include <hikari/assets/mitsuba/scene_importer.h>
-#include <hikari/camera/orthographic.h>
-#include <hikari/camera/perspective.h>
-#include <hikari/film/hdr.h>
-#include <hikari/film/spec.h>
-#include <hikari/core/material.h>
-#include <serialized_data.h>
 #include <stb_image_write.h>
 #include <tinyxml2.h>
 #include <filesystem>
 #include <complex>
 #include <unordered_set>
-
+#include <hikari/core/utils.h>
+#include <hikari/core/material.h>
+#include <hikari/core/mipmap.h>
+#include <hikari/camera/orthographic.h>
+#include <hikari/camera/perspective.h>
+#include <hikari/film/hdr.h>
+#include <hikari/film/spec.h>
+#include <hikari/assets/mitsuba/scene_importer.h>
+#include <serialized_data.h>
+#include <spectrum_data.h>
+#include <xml_data.h>
 static hikari::MitsubaSpectrumData cie1931_x_val = hikari::MitsubaSpectrumData::cie1931_x();
 static hikari::MitsubaSpectrumData cie1931_y_val = hikari::MitsubaSpectrumData::cie1931_y();
 static hikari::MitsubaSpectrumData cie1931_z_val = hikari::MitsubaSpectrumData::cie1931_z();
@@ -360,21 +359,19 @@ int  test() {
 // Rfilter   : ["box","tent","gaussian"]
 // Sampler   : ["independent"]
 
-int  main()
-{
-  test();
+int test2() {
   using namespace std::string_literals;
   auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\kitchen\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
-  auto scene    = importer->loadScene(filepath.string());
-  auto cameras  = scene->getCameras();// カメラ
-  auto lights   = scene->getLights() ;// 光源  
-  auto shapes   = scene->getShapes() ;// 形状
+  auto scene = importer->loadScene(filepath.string());
+  auto cameras = scene->getCameras();// カメラ
+  auto lights = scene->getLights();// 光源  
+  auto shapes = scene->getShapes();// 形状
   auto surfaces = importer->getSurfaceMap();// マテリアル
-  auto surface  = hikari::getValueFromMap(surfaces,"BlindsBSDF"s, hikari::SurfacePtr());
+  auto surface = hikari::getValueFromMap(surfaces, "BlindsBSDF"s, hikari::SurfacePtr());
   std::unordered_map<hikari::Surface*, hikari::SurfacePtr> shape_surfaces = {};
   for (auto& shape : shapes) {
-    auto material  = shape->getMaterial();
+    auto material = shape->getMaterial();
     if (material) {
       auto surface = material->getSurface();
       if (surface) { shape_surfaces.insert({ surface.get(),surface }); }
@@ -384,5 +381,96 @@ int  main()
   // TODO: 何のテクスチャを使用しているか、わからない
   // これがわからないとMaterialの設定がしにくいが...
   // TWOSIDED, BUMPMAP, NORMALMAP, MASKなどの依存関係を解決
+  return 0;
+}
+
+int load_pfm() {
+  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\car\textures\envmap.pfm)");
+  auto pfm_file = std::ifstream(filepath, std::ios::binary);
+  if (pfm_file.fail()) { return -1; }
+  pfm_file.seekg(0L, std::ios::end);
+  auto pfm_file_size = (size_t)pfm_file.tellg();
+  pfm_file.seekg(0L, std::ios::beg);
+
+
+  int data_count = 0;
+  {
+    std::string sentence;
+    std::getline(pfm_file, sentence);
+    if (sentence[0] == 'P' && sentence[1] == 'F') {
+      data_count = 3;
+    }
+    else if (sentence[0] == 'P' && sentence[1] == 'f') {
+      data_count = 1;
+    }
+    else {
+      return -1;
+    }
+  }
+
+  int width = 0; int height = 0;
+  {
+    std::string sentence;
+    std::getline(pfm_file, sentence);
+    auto strs = hikari::splitString(sentence, ' ');
+    try {
+      width = std::stoi(strs[0]);
+      height = std::stoi(strs[1]);
+    }
+    catch (std::invalid_argument&) { return -1; }
+    catch (std::out_of_range&) { return -1; }
+  }
+  bool is_little_endian = false;
+  {
+    std::string sentence;
+    std::getline(pfm_file, sentence);
+    float value = 0.0f;
+    try {
+      value = std::stof(sentence);
+    }
+    catch (std::invalid_argument&) { return -1; }
+    catch (std::out_of_range&) { return -1; }
+    if (value > 0.0f) { is_little_endian = false; }
+    else { is_little_endian = true; }
+  }
+  // BIG ENDIANの場合, 変換が必要
+  std::vector<float>  flt_data(width * height * data_count);
+  if (!is_little_endian) {
+    std::vector<char> big_endian_data;
+    std::vector<char> lit_endian_data;
+    big_endian_data.resize(width * height * sizeof(float) * data_count);
+    lit_endian_data.resize(width * height * sizeof(float) * data_count);
+    pfm_file.read(big_endian_data.data(), big_endian_data.size());
+    for (size_t i = 0; i < big_endian_data.size() / 4; ++i) {
+      lit_endian_data[4 * i + 0] = big_endian_data[4 * i + 3];// 4 BYTE ENDIAN変換
+      lit_endian_data[4 * i + 1] = big_endian_data[4 * i + 2];
+      lit_endian_data[4 * i + 2] = big_endian_data[4 * i + 1];
+      lit_endian_data[4 * i + 3] = big_endian_data[4 * i + 0];
+    }
+    std::vector<float>  flt_data2(width * height * data_count);
+    std::memcpy(flt_data2.data(), lit_endian_data.data(), lit_endian_data.size());
+    for (size_t i = 0; i < height; ++i) {
+      std::memcpy(flt_data.data() + i * width * data_count, flt_data2.data() + (height - 1 - i) * width * data_count, width * data_count * sizeof(float));
+    }
+  }
+  else {
+    std::vector<char> lit_endian_data;
+    lit_endian_data.resize(width * height * sizeof(float) * data_count);
+    pfm_file.read(lit_endian_data.data(), lit_endian_data.size());
+    std::vector<float>  flt_data2(width * height * data_count);
+    std::memcpy(flt_data2.data(), lit_endian_data.data(), lit_endian_data.size());
+    for (size_t i = 0; i < height; ++i) {
+      std::memcpy(flt_data.data() + i * width * data_count, flt_data2.data() + (height - 1 - i) * width * data_count, width * data_count * sizeof(float));
+    }
+  }
+  stbi_write_hdr("tekitou.hdr", width, height, data_count, flt_data.data());
+  pfm_file.close();
+  return 0;
+}
+
+int  main()
+{
+  auto mipmap = hikari::Mipmap::create2D(hikari::MipmapDataType::eF32, 3, 1, 1000, 500, {}, true);
+
   return 0;
 }
