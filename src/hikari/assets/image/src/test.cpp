@@ -1,14 +1,13 @@
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <hikari/assets/image/importer.h>
-#include <stb_image_write.h>
-
+#include <hikari/assets/image/exporter.h>
 int main() {
   auto& image_importer = hikari::ImageImporter::getInstance();
-  if (image_importer.load(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\classroom\textures\spaichingen_hill_2k.exr)")) {
-      auto image = image_importer.get("spaichingen_hill_2k.exr");
+  if (image_importer.load(R"(D:\Users\shums\Documents\CMake\RTLib\Data\Textures\evening_road_01_4k.hdr)")) {
+      auto image = image_importer.get("evening_road_01_4k.hdr");
       auto bitmap = image->getImage(0);
-      stbi_write_hdr("spaichingen_hill_2k.hdr", image->getWidth(), image->getHeight(), image->getChannel(), (const float*)bitmap->getData());
-      image_importer.free(R"(spaichingen_hill_2k.exr)");
+      hikari::ImageExporter::save("evening_road_01_4k.hdr", image);
+      hikari::ImageExporter::save("evening_road_01_4k.exr", image);
+      image_importer.free(R"(evening_road_01_4k.hdr)");
       return 0;
   }
   return -1;
