@@ -11,31 +11,39 @@ extern "C" {
     auto sbt_rg_data= reinterpret_cast<const SBTRaygenData*>(optixGetSbtDataPointer());
     auto launch_idx = optixGetLaunchIndex();
 
-    auto uv = make_float2(
-      (float)launch_idx.x / (float)sbt_rg_data->width ,
-      (float)launch_idx.y / (float)sbt_rg_data->height
-    );
+    owl::LCG<24> random = {};
+    random.init(launch_idx.x * launch_idx.y + launch_idx.x, sbt_rg_data->sample);
 
-    uv.x = 2.0f * uv.x - 1.0f;
-    uv.y = 2.0f * uv.y - 1.0f;
-
-    auto org   = sbt_rg_data->camera.eye;
-    auto dir   =(-sbt_rg_data->camera.dir_w + uv.x * sbt_rg_data->camera.dir_u+ uv.y * sbt_rg_data->camera.dir_v);
-
-    dir        = owl::normalize(dir);
-    auto tmin  = sbt_rg_data->camera.near_clip;
-    auto tmax  = sbt_rg_data->camera.far_clip;
-
-    owl::RayT<0,1> ray(org, dir, tmin, tmax);
-
-    Payload payload;
-    payload.color = make_float3(0.0f, 0.0f, 0.0f);
-    owl::traceRay(optixLaunchParams.tlas, ray, payload, OPTIX_RAY_FLAG_NONE);
+    owl::vec3f res = owl::vec3f(0.0f, 0.0f, 0.0f);
 
     auto frame_index = launch_idx.y * sbt_rg_data->width + launch_idx.x;
+    for (int i = 0; i < 100; ++i) {
+      auto uv = make_float2(
+        ((float)launch_idx.x+ (float)random()-0.5f) / (float)sbt_rg_data->width,
+        ((float)launch_idx.y+ (float)random()-0.5f) / (float)sbt_rg_data->height
+      );
 
-    sbt_rg_data->frame_buffer[frame_index] = payload.color;
-    sbt_rg_data->accum_buffer[frame_index] = payload.color;
+      uv.x = 2.0f * uv.x - 1.0f;
+      uv.y = 2.0f * uv.y - 1.0f;
+
+      auto pos1 = owl::vec3f(sbt_rg_data->camera.transform(make_float3(uv.x, uv.y, -1.0f)));
+      auto pos2 = owl::vec3f(sbt_rg_data->camera.transform(make_float3(uv.x, uv.y, +1.0f)));
+
+      auto dir = owl::normalize(pos2 - pos1);
+      auto len = owl::length(pos2    - pos1);
+      owl::RayT<0, 1> ray(pos1, dir, 0.0f, len);
+
+      Payload payload;
+      payload.color = make_float3(0.0f, 0.0f, 0.0f);
+      owl::traceRay(optixLaunchParams.tlas, ray, payload, OPTIX_RAY_FLAG_NONE);
+
+      res += owl::vec3f(payload.color);
+    }
+    res *= static_cast<float>(1.0f / 100.0f);
+    auto old_color = owl::vec3f(sbt_rg_data->accum_buffer[frame_index]);
+    old_color     += res;
+    sbt_rg_data->frame_buffer[frame_index] = old_color/static_cast<float>(sbt_rg_data->sample+1.0f);
+    sbt_rg_data->accum_buffer[frame_index] = old_color;
   }
   __global__ void __miss__default()   {
     auto& payload = owl::getPRD<Payload>();
@@ -56,6 +64,7 @@ extern "C" {
     auto normal0 = owl::vec3f(normal_buffer[tri_index.x]);
     auto normal1 = owl::vec3f(normal_buffer[tri_index.y]);
     auto normal2 = owl::vec3f(normal_buffer[tri_index.z]);
+
     auto texcrd0 = owl::vec2f(texcrd_buffer[tri_index.x]);
     auto texcrd1 = owl::vec2f(texcrd_buffer[tri_index.y]);
     auto texcrd2 = owl::vec2f(texcrd_buffer[tri_index.z]);

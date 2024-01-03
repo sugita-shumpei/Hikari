@@ -25,7 +25,7 @@ out vec3 frag_normal;
 out vec3 frag_uvw;
 void main(){
   mat4 model_view = view * model;
-  mat3 normal_mat = transpose(inverse(mat3(model_view)));
+  mat3 normal_mat = transpose(inverse(mat3(model)));
   gl_Position     = proj * view * model * vec4(position,1.0);
   frag_normal     = normalize(normal_mat * normal);
 }
@@ -268,7 +268,7 @@ struct ShapeData {
 
 int main() {
   using namespace std::string_literals;
-  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\matpreview\scene.xml)");
+  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\pool\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
   auto scene    = importer->load(filepath.string());
   auto cameras  = scene->getCameras();// カメラ
