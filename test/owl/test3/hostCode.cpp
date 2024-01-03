@@ -56,13 +56,13 @@ int main() {
     view_matrix[2]      *= -1.0f;
     // SCREEN->CAMERA
     auto proj_matrix     = camera->convert<hikari::CameraPerspective>()->getProjMatrix();
-    auto ax      = 1.0f/proj_matrix[0][0];// aspect * tanHalfFovy
-    auto ay      = 1.0f/proj_matrix[1][1];//          tanHalffovy
-    auto az      = 1.0f;
+    auto ax              = 1.0f/proj_matrix[0][0];// aspect * tanHalfFovy
+    auto ay              = 1.0f/proj_matrix[1][1];//          tanHalffovy
+    auto az              = 1.0f;
 
-    view_matrix[0] *= ax;
-    view_matrix[1] *= ay;
-    view_matrix[2] *= az;
+    view_matrix[0]      *= ax;
+    view_matrix[1]      *= ay;
+    view_matrix[2]      *= az;
 
     auto film    = camera->getFilm();
     accum_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, film->getWidth() * film->getHeight(), nullptr);
