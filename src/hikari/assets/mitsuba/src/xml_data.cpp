@@ -566,7 +566,7 @@ bool hikari::MitsubaXMLParser::parseProperties(const tinyxml2::XMLElement* eleme
     if (name != "") {
       // 注意 Mitsuba 0.5.0系ではBSDFの参照に"bsdf"と名前を付けているケースがあるため,
       // 特殊化する
-      if (m_data.version.major == 0 && m_data.version.minor == 5 && m_data.version.patch == 0 && name == "bsdf")
+      if (name == "bsdf")
       {
         properties.nested_refs.push_back(value);
       }
@@ -729,6 +729,17 @@ bool hikari::MitsubaXMLParser::parseTexture(const tinyxml2::XMLElement* element_
   if (!element_texture || !texture) { return false; }
   std::string id;
   if (!parseObject(element_texture, texture->type, name, id, texture->properties)) { return false; }
+  {
+    auto element_tran = element_texture->FirstChildElement("transform");
+    if (element_tran) {
+      std::string name;
+      MitsubaXMLTransform transform;
+      if (parseTransform(element_tran, name, transform)) {
+        texture->to_uv = transform;
+      }
+    }
+  }
+
   if (id != "") {
     texture->id = id;
     m_data.ref_textures.insert({ id,texture });

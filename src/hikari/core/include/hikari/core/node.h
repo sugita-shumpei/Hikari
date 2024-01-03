@@ -36,7 +36,7 @@ namespace hikari {
     auto getCameras()->std::vector<std::shared_ptr<Camera>> ;// 子ノードのカメラをすべて取得する
     auto getLights() ->std::vector<std::shared_ptr<Light>>  ;// 子ノードのライトをすべて取得する
     auto getShapes() ->std::vector<std::shared_ptr<Shape>>  ;// 子ノードの形状  をすべて取得する
-    // Transformの設定
+
     void setLocalTransform(const Transform&  transform);
     Bool setLocalPosition(const Vec3& position) {
       auto trs = TransformTRSData();

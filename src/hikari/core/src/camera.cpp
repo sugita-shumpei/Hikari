@@ -9,7 +9,7 @@ hikari::Camera::~Camera() noexcept
 
 auto hikari::Camera::getNode() -> std::shared_ptr<Node> { return m_node.lock(); }
 
-auto hikari::Camera::getFilm() -> std::shared_ptr<Film>
+auto hikari::Camera::getFilm()const -> std::shared_ptr<Film>
 {
     return m_film;
 }

@@ -14,8 +14,8 @@ namespace hikari {
   struct Medium;
   struct Camera : public std::enable_shared_from_this<Camera> {
     virtual ~Camera() noexcept;
-    auto getNode()   -> std::shared_ptr<Node>;
-    auto getFilm() -> std::shared_ptr<Film>;
+    auto getNode() -> std::shared_ptr<Node>;
+    auto getFilm()const -> std::shared_ptr<Film>;
     void setFilm(const std::shared_ptr<Film>& film);
     auto getMedium() -> std::shared_ptr<Medium>;
     void setMedium(const std::shared_ptr<Medium>& medium);

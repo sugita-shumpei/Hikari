@@ -114,9 +114,10 @@ namespace hikari {
     std::vector<MitsubaXMLTexturePtr>                          nested_texs = {};
   };
   struct MitsubaXMLTexture {
-    String               type;
-    String               id;
-    MitsubaXMLProperties properties;
+    String                             type;
+    String                             id;
+    MitsubaXMLProperties               properties;
+    std::optional<MitsubaXMLTransform> to_uv;
   };
   struct MitsubaXMLIntegrator   {
     MitsubaXMLString     type;

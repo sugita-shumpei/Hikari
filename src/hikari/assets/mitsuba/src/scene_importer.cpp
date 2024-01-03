@@ -129,6 +129,12 @@ struct hikari::MitsubaSceneImporter::Impl {
       else if (wrap_mode_str == "") {}
       else { throw std::runtime_error("Failed To Parse wrap_mode!"); }
 
+      if (tex_data.to_uv) {
+        auto [tmp_head, tmp_tail] = loadTransform(xml_data, tex_data.to_uv.value(), "");
+        auto uvTransform = hikari::Mat3x3(tmp_tail->getGlobalTransform().getMat());
+        texture_mipmap->setUVTransform(uvTransform);
+      }
+
       texture_mipmap->setRaw(getValueFromMap(tex_data.properties.booleans, "raw"s, false));
     }
     if (tex_data.type == "checkerboard") {
@@ -173,6 +179,11 @@ struct hikari::MitsubaSceneImporter::Impl {
         texture_checkerboard->setColor1(SpectrumSrgb::create({ color1_rgb->color.x,color1_rgb->color.y,color1_rgb->color.z }));
       }
 
+      if (tex_data.to_uv) {
+        auto [tmp_head, tmp_tail] = loadTransform(xml_data, tex_data.to_uv.value(), "");
+        auto uvTransform = hikari::Mat3x3(tmp_tail->getGlobalTransform().getMat());
+        texture_checkerboard->setUVTransform(uvTransform);
+      }
       // TODO: spectrumのロードを行う
       // if (color0_spec)
       // if (color1_spec)
@@ -955,8 +966,8 @@ struct hikari::MitsubaSceneImporter::Impl {
                     vertex_positions[vertex_idx].z = vertices[3 * index.vertex_index + 2];
 
                     if (colors.size() > 0) {
-                      vertex_colors[vertex_idx].x = colors[2 * index.vertex_index + 0];
-                      vertex_colors[vertex_idx].y = colors[2 * index.vertex_index + 1];
+                      vertex_colors[vertex_idx].x = colors[3 * index.vertex_index + 0];
+                      vertex_colors[vertex_idx].y = colors[3 * index.vertex_index + 1];
                       vertex_colors[vertex_idx].z = colors[3 * index.vertex_index + 2];
                     }
                   }

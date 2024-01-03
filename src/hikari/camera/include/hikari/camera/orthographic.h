@@ -10,6 +10,7 @@ namespace hikari {
     F32  getFarClip() const;
     void setNearClip(F32 near_clip);
     void setFarClip(F32 far_clip);
+    auto getProjMatrix() const->Mat4x4;
   private:
     CameraOrthographic();
   private:

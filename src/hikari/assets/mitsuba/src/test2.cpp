@@ -268,7 +268,7 @@ struct ShapeData {
 
 int main() {
   using namespace std::string_literals;
-  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\car\scene.xml)");
+  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\matpreview\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
   auto scene    = importer->load(filepath.string());
   auto cameras  = scene->getCameras();// カメラ
@@ -385,51 +385,7 @@ int main() {
   view_matrix[2]  *= -1.0f;
   view_matrix      = glm::inverse(view_matrix);
   
-  auto proj_matrix = hikari::Mat4x4();
-  {
-    auto op_fov = perspective->getFov();
-    auto fovy   = static_cast<float>(0.0f);
-    if (op_fov) {
-      auto axis = perspective->getFovAxis();
-      if (axis == hikari::CameraFovAxis::eSmaller) {
-        if (aspect > 1.0f) {// W/H > 1.0f
-          axis = hikari::CameraFovAxis::eY;
-        }
-        else {
-          axis = hikari::CameraFovAxis::eX;
-        }
-      }
-      if (axis == hikari::CameraFovAxis::eLarger) {
-        if (aspect > 1.0f) {// W/H > 1.0f
-          axis = hikari::CameraFovAxis::eX;
-        }
-        else {
-          axis = hikari::CameraFovAxis::eY;
-        }
-      }
-
-      if (axis == hikari::CameraFovAxis::eX) {
-        ///Y |         |X
-        ///H |         |
-        ///  |_______  |_______Z
-        ///     W    X
-        auto ax = tanf(0.5f * glm::radians(*op_fov));
-        auto ay = ax / aspect;
-        fovy = 2.0f * atanf(ay);
-      }
-      else if (axis == hikari::CameraFovAxis::eY) {
-        fovy = glm::radians(*op_fov);
-      }
-      else {
-        throw std::runtime_error("Unsupported Axis Type!");
-      }
-    }
-    else {
-      throw std::runtime_error("Unsupported Camera!");
-    }
-
-    proj_matrix = glm::perspective(fovy, aspect, perspective->getNearClip(), perspective->getFarClip());
-  }
+  auto proj_matrix = perspective->getProjMatrix();
 
 
   std::cout << glm::to_string(view_matrix) << std::endl;

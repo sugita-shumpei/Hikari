@@ -1,4 +1,6 @@
 #include <hikari/camera/perspective.h>
+#include <hikari/core/film.h>
+#include <glm/gtx/transform.hpp>
 
 auto hikari::CameraPerspective::create() -> std::shared_ptr<CameraPerspective>
 {
@@ -67,6 +69,62 @@ void hikari::CameraPerspective::setFovAxis(CameraFovAxis fov_axis)
 auto hikari::CameraPerspective::getFovAxis() const -> CameraFovAxis
 {
   return m_fov_axis;
+}
+
+auto hikari::CameraPerspective::getProjMatrix() const -> Mat4x4
+{
+  auto op_fov = this->getFov();
+  auto fovy = static_cast<float>(0.0f);
+
+  auto film = getFilm();
+  if (!film) {
+    throw std::runtime_error("Film Must Be Attached!");
+  }
+
+  auto w = film->getWidth();
+  auto h = film->getHeight();
+
+  auto aspect = static_cast<float>(w) / static_cast<float>(h);
+  if (op_fov) {
+    auto axis = this->getFovAxis();
+    if (axis == hikari::CameraFovAxis::eSmaller) {
+      if (aspect > 1.0f) {// W/H > 1.0f
+        axis = hikari::CameraFovAxis::eY;
+      }
+      else {
+        axis = hikari::CameraFovAxis::eX;
+      }
+    }
+    if (axis == hikari::CameraFovAxis::eLarger) {
+      if (aspect > 1.0f) {// W/H > 1.0f
+        axis = hikari::CameraFovAxis::eX;
+      }
+      else {
+        axis = hikari::CameraFovAxis::eY;
+      }
+    }
+
+    if (axis == hikari::CameraFovAxis::eX) {
+      ///Y |         |X
+      ///H |         |
+      ///  |_______  |_______Z
+      ///     W    X
+      auto ax = tanf(0.5f * glm::radians(*op_fov));
+      auto ay = ax / aspect;
+      fovy = 2.0f * atanf(ay);
+    }
+    else if (axis == hikari::CameraFovAxis::eY) {
+      fovy = glm::radians(*op_fov);
+    }
+    else {
+      throw std::runtime_error("Unsupported Axis Type!");
+    }
+  }
+  else {
+    throw std::runtime_error("Unsupported Camera!");
+  }
+
+  return glm::perspective(fovy, aspect, m_near_clip, m_far_clip);
 }
 
 hikari::CameraPerspective::CameraPerspective()
