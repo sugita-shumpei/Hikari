@@ -48,6 +48,18 @@ auto hikari::CameraOrthographic::getProjMatrix() const -> Mat4x4
   return glm::orthoNO(-0.5f * w, 0.5f * w, -0.5f * h, 0.5f * h, m_near_clip, m_far_clip);
 }
 
+auto hikari::CameraOrthographic::getProjMatrix_Infinite() const -> Mat4x4
+{
+  auto film = this->getFilm();
+  if (!film) {
+    throw std::runtime_error("Film Must Be Attached!");
+  }
+
+  auto w = film->getWidth();
+  auto h = film->getHeight();
+  return glm::ortho(-0.5f * w, 0.5f * w, -0.5f * h, 0.5f * h);
+}
+
 hikari::CameraOrthographic::CameraOrthographic()
   :m_near_clip{1e-2f},m_far_clip{1e4f}
 {

@@ -1,6 +1,7 @@
 #include <hikari/assets/mitsuba/scene_importer.h>
 #include <hikari/camera/perspective.h>
 #include <hikari/shape/mesh.h>
+#include <hikari/light/envmap.h>
 #include <hikari/core/node.h>
 #include <hikari/core/film.h>
 #include <gl_viewer.h>
@@ -27,22 +28,19 @@ int main() {
   auto module   = owlModuleCreate(context, (const char*)deviceCode_ptx);
   auto viewer   = std::make_unique<hikari::test::owl::testlib::GLViewer>(owlContextGetStream(context, 0), 1024, 1024);
   auto importer = hikari::MitsubaSceneImporter::create();
-  auto scene    = importer->load(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\pool\scene.xml)");
+  auto scene    = importer->load(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\matpreview\scene.xml)");
   auto camera   = scene->getCameras()[0];
   auto sensor_node = camera->getNode();
+  auto lights  = scene->getLights();
   auto shapes  = scene->getShapes();
   // raygen
   OWLVarDecl vardecls_raygen[] = {
-    //{"camera.dir_u"    ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,dir_u)},
-    //{"camera.dir_v"    ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,dir_v)},
-    //{"camera.dir_w"    ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,dir_w)},
-    //{"camera.eye"      ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,eye)},
-    //{"camera.near_clip",OWLDataType::OWL_FLOAT      , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,near_clip)},
-    //{"camera.far_clip" ,OWLDataType::OWL_FLOAT      , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,far_clip)},
-    {"camera.matrix[0]",OWLDataType::OWL_FLOAT4 , offsetof(SBTRaygenData,camera) + offsetof(CameraData,matrix) + sizeof(float4) * 0},
-    {"camera.matrix[1]",OWLDataType::OWL_FLOAT4 , offsetof(SBTRaygenData,camera) + offsetof(CameraData,matrix) + sizeof(float4) * 1},
-    {"camera.matrix[2]",OWLDataType::OWL_FLOAT4 , offsetof(SBTRaygenData,camera) + offsetof(CameraData,matrix) + sizeof(float4) * 2},
-    {"camera.matrix[3]",OWLDataType::OWL_FLOAT4 , offsetof(SBTRaygenData,camera) + offsetof(CameraData,matrix) + sizeof(float4) * 3},
+    {"camera.dir_u"    ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,dir_u)},
+    {"camera.dir_v"    ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,dir_v)},
+    {"camera.dir_w"    ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,dir_w)},
+    {"camera.eye"      ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,eye)},
+    {"camera.near_clip",OWLDataType::OWL_FLOAT      , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,near_clip)},
+    {"camera.far_clip" ,OWLDataType::OWL_FLOAT      , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,far_clip)},
     {"frame_buffer",OWLDataType::OWL_BUFPTR     , offsetof(SBTRaygenData,frame_buffer) },
     {"accum_buffer",OWLDataType::OWL_BUFPTR     , offsetof(SBTRaygenData,accum_buffer) },
     {"width"       ,OWLDataType::OWL_INT        , offsetof(SBTRaygenData,width)        },
@@ -59,40 +57,31 @@ int main() {
     view_matrix[0]      *= -1.0f;
     view_matrix[2]      *= -1.0f;
     // SCREEN->CAMERA
-    auto proj_matrix     = camera->convert<hikari::CameraPerspective>()->getProjMatrix();
-    auto ax              = 1.0f/proj_matrix[0][0];// aspect * tanHalfFovy
-    auto ay              = 1.0f/proj_matrix[1][1];//          tanHalffovy
-    auto az              = 1.0f;
+    auto proj_matrix     = camera->convert<hikari::CameraPerspective>()->getProjMatrix_Infinite();
+    auto inv_proj_matrix = glm::inverse(hikari::Mat3x3(proj_matrix));
+    auto view_matrix3    = hikari::Mat3x3(view_matrix);
 
-    view_matrix[0]      *= ax;
-    view_matrix[1]      *= ay;
-    view_matrix[2]      *= az;
+    auto camera_eye      = hikari::Vec3(view_matrix[3]);
+    view_matrix3         = view_matrix3 * inv_proj_matrix;
+    //view_matrix[0]      *= ax;
+    //view_matrix[1]      *= ay;
+    //view_matrix[2]      *= az;
 
-    auto view_proj       = sensor_node->getGlobalTransform().getMat();
-    view_proj[0]        *= -1.0f;
-    view_proj[2]        *= -1.0f;
-    view_proj            = view_proj * glm::inverse(proj_matrix);
-
-    auto film = camera->getFilm();
+    auto film    = camera->getFilm();
     accum_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, film->getWidth() * film->getHeight(), nullptr);
     frame_buffer = owlDeviceBufferCreate(context, OWLDataType::OWL_FLOAT3, film->getWidth() * film->getHeight(), nullptr);
 
-    view_proj = glm::transpose(view_proj);
-    owlRayGenSet4fv(raygen, "camera.matrix[0]", (const float*)&view_proj[0]);
-    owlRayGenSet4fv(raygen, "camera.matrix[1]", (const float*)&view_proj[1]);
-    owlRayGenSet4fv(raygen, "camera.matrix[2]", (const float*)&view_proj[2]);
-    owlRayGenSet4fv(raygen, "camera.matrix[3]", (const float*)&view_proj[3]);
     owlRayGenSetBuffer(raygen, "frame_buffer", frame_buffer);
     owlRayGenSetBuffer(raygen, "accum_buffer", accum_buffer);
     owlRayGenSet1i(raygen , "width"     , film->getWidth() );
     owlRayGenSet1i(raygen , "height"    , film->getHeight());
     owlRayGenSet1i(raygen , "sample"    , 0);
-    //owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&view_matrix[0]);
-    //owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&view_matrix[1]);
-    //owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&view_matrix[2]);
-    //owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&view_matrix[3]);
-    //owlRayGenSet1f(raygen , "camera.near_clip", camera->convert<hikari::CameraPerspective>()->getNearClip());
-    //owlRayGenSet1f(raygen , "camera.far_clip" , camera->convert<hikari::CameraPerspective>()->getFarClip());
+    owlRayGenSet3fv(raygen, "camera.dir_u", (const float*)&view_matrix3[0]);
+    owlRayGenSet3fv(raygen, "camera.dir_v", (const float*)&view_matrix3[1]);
+    owlRayGenSet3fv(raygen, "camera.dir_w", (const float*)&view_matrix3[2]);
+    owlRayGenSet3fv(raygen, "camera.eye"  , (const float*)&camera_eye);
+    owlRayGenSet1f(raygen , "camera.near_clip", camera->convert<hikari::CameraPerspective>()->getNearClip());
+    owlRayGenSet1f(raygen , "camera.far_clip" , camera->convert<hikari::CameraPerspective>()->getFarClip());
 
   }
   // miss
@@ -100,6 +89,8 @@ int main() {
     {nullptr}
   };
   auto miss      = owlMissProgCreate(context, module, "default", sizeof(SBTMissData),vardecls_miss, -1);
+  {
+  }
   // hitgroup
   OWLVarDecl vardecls_hitgroup[] = {
     {"vertex_buffer",OWLDataType::OWL_BUFPTR, offsetof(SBTHitgroupData,vertex_buffer) },
@@ -155,11 +146,52 @@ int main() {
   }
   OWLVarDecl vardecls_params[] = {
     {"tlas", OWLDataType::OWL_GROUP, offsetof(LaunchParams,tlas)},
+    {"light.envmap.to_local[0]",OWLDataType::OWL_FLOAT4, offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,to_local) + sizeof(owl::vec4f) * 0},
+    {"light.envmap.to_local[1]",OWLDataType::OWL_FLOAT4, offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,to_local) + sizeof(owl::vec4f) * 1},
+    {"light.envmap.to_local[2]",OWLDataType::OWL_FLOAT4, offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,to_local) + sizeof(owl::vec4f) * 2},
+    {"light.envmap.to_local[3]",OWLDataType::OWL_FLOAT4, offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,to_local) + sizeof(owl::vec4f) * 3},
+    {"light.envmap.texture"    ,OWLDataType::OWL_TEXTURE,offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,texture) },
+    {"light.envmap.scale"      ,OWLDataType::OWL_FLOAT  ,offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,scale)   },
     {nullptr}
   };
   auto params    = owlParamsCreate(context, sizeof(LaunchParams), vardecls_params, -1);
   {
     owlParamsSetGroup(params,"tlas",group);
+
+    {
+      auto node = lights[0]->getNode();
+      auto transform = glm::transpose(glm::inverse(node->getGlobalTransform().getMat()));
+      auto envmap = lights[0]->convert<hikari::LightEnvmap>();
+      auto bitmap = envmap->getBitmap();
+      auto channel = bitmap->getChannel();
+
+      owlParamsSet4fv(params, "light.envmap.to_local[0]", (const float*)&transform[0]);
+      owlParamsSet4fv(params, "light.envmap.to_local[1]", (const float*)&transform[1]);
+      owlParamsSet4fv(params, "light.envmap.to_local[2]", (const float*)&transform[2]);
+      owlParamsSet4fv(params, "light.envmap.to_local[3]", (const float*)&transform[3]);
+      owlParamsSet1f(params, "light.envmap.scale", envmap->getScale());
+
+      if (channel > 1) {
+        auto texdata = std::vector<std::array<hikari::F32, 4>>(bitmap->getWidth() * bitmap->getHeight());
+        {
+          for (size_t i = 0; i < texdata.size(); ++i) {
+            texdata[i] = { 0.0f,0.0f,0.0f,1.0f };
+            if (bitmap->getDataType() == hikari::BitmapDataType::eF16) {
+              for (size_t j = 0; j < channel; ++j) {
+                texdata[i][j] = ((const hikari::F16*)bitmap->getData())[channel * i + j];
+              }
+            }
+            else if (bitmap->getDataType() == hikari::BitmapDataType::eF32) {
+              for (size_t j = 0; j < channel; ++j) {
+                texdata[i][j] = ((const hikari::F32*)bitmap->getData())[channel * i + j];
+              }
+            }
+          }
+        }
+        auto texture = owlTexture2DCreate(context, OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F, bitmap->getWidth(), bitmap->getHeight(), texdata.data());
+        owlParamsSetTexture(params, "light.envmap.texture", texture);
+      }
+    }
   }
 
   owlBuildPrograms(context);

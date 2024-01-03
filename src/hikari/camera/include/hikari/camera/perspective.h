@@ -18,6 +18,7 @@ namespace hikari {
     void setFovAxis(CameraFovAxis fov_axis);
     auto getFovAxis()const->CameraFovAxis;
     auto getProjMatrix() const -> Mat4x4;
+    auto getProjMatrix_Infinite() const->Mat4x4;
   private:
     CameraPerspective();
   private:
