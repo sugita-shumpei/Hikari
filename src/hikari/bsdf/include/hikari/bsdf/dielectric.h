@@ -13,6 +13,7 @@ namespace hikari {
 
     F32  getIntIOR() const;
     F32  getExtIOR() const;
+    F32  getEta() const;
 
     auto getSpecularReflectance() const->SpectrumOrTexture;
     auto getSpecularTransmittance() const->SpectrumOrTexture;

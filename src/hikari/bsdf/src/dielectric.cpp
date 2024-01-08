@@ -58,3 +58,8 @@ hikari::F32 hikari::BsdfDielectric::getExtIOR() const
 {
     return m_ext_ior;
 }
+
+hikari::F32 hikari::BsdfDielectric::getEta() const
+{
+    return m_int_ior/m_ext_ior;
+}

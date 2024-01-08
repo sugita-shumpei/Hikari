@@ -3,11 +3,11 @@
 #include <memory>
 namespace hikari {
   enum class CameraFovAxis {
-    eX,       // X軸
-    eY,       // Y軸
-    eDiagonal,// 対角線(未実装)
-    eSmaller, // フィルム幅が小さいほうの軸
-    eLarger   // フィルム幅が大きいほうの軸
+    eX,
+    eY,
+    eDiagonal,
+    eSmaller,
+    eLarger
   };
   struct Node;
   struct Film;
