@@ -25,6 +25,9 @@ namespace hikari {
     explicit operator Bool() const {  return m_value.index()==2; }
     Bool operator!() const { return m_value.index() != 0; }
 
+    Bool isSpectrum()const { return m_value.index() == 0; }
+    Bool isTexture ()const { return m_value.index() == 1; }
+
     void setSpectrum(const SpectrumPtr& spec) { if (!spec) { m_value = {}; return; } m_value = spec; }
     void setTexture (const TexturePtr & text ){ if (!text) { m_value = {}; return; } m_value = text; }
 
@@ -47,6 +50,9 @@ namespace hikari {
     FloatOrTexture(const TexturePtr& text) :m_value{ text } {}
     template<typename DeriveType, std::enable_if_t<std::is_base_of_v<Texture, DeriveType>, nullptr_t> = nullptr>
     FloatOrTexture(const  std::shared_ptr<DeriveType>& text) : SpectrumOrTexture(std::static_pointer_cast<Texture>(text)) {}
+
+    Bool isFloat  ()const { return m_value.index() == 0; }
+    Bool isTexture()const { return m_value.index() == 1; }
 
     void setFloat  (F32             value) { m_value = value; }
     void setTexture(const TexturePtr& text) { m_value = text; }

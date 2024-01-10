@@ -181,8 +181,8 @@ struct hikari::MitsubaSceneImporter::Impl {
 
       if (tex_data.to_uv) {
         auto [tmp_head, tmp_tail] = loadTransform(xml_data, tex_data.to_uv.value(), "");
-        auto uvTransform = hikari::Mat3x3(tmp_tail->getGlobalTransform().getMat());
-        texture_checkerboard->setUVTransform(uvTransform);
+        auto uvTransform = tmp_tail->getGlobalTransform();
+        texture_checkerboard->setUVTransform(uvTransform.getMat());
       }
       // TODO: spectrumのロードを行う
       // if (color0_spec)
@@ -454,10 +454,11 @@ struct hikari::MitsubaSceneImporter::Impl {
       auto specular_reflectance = loadPropSpectrumOrTexture(xml_data, "specular_reflectance"s, bsdf_data->properties);
       auto nonlinear = getValueFromMap(bsdf_data->properties.booleans, "nonlinear"s, false);
       auto res = mat_obj->convert<BsdfPlastic>();
-      if (int_ior) { res->setIntIOR(*int_ior); } else { res->setIntIOR(1.000277f); }
-      if (ext_ior) { res->setExtIOR(*ext_ior); } else { res->setExtIOR(1.49f); }
+      if (int_ior) { res->setIntIOR(*int_ior); } else { res->setIntIOR(1.49f); }
+      if (ext_ior) { res->setExtIOR(*ext_ior); } else { res->setExtIOR(1.000277f); }
       if (diffuse_reflectance) { res->setDiffuseReflectance(*diffuse_reflectance); }
       if (specular_reflectance) { res->setSpecularReflectance(*specular_reflectance); }
+      if (nonlinear) { res->setNonLinear(nonlinear); }
       return mat_obj;
     }
     if (bsdf_data->type == "roughplastic") {

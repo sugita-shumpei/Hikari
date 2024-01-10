@@ -12,23 +12,15 @@ hikari::BsdfPlastic::~BsdfPlastic()
 void hikari::BsdfPlastic::setIntIOR(F32 int_ior)
 {
   m_int_ior = int_ior;
-  if (m_nonlinear) {
-    m_ave_reflection_cosine = calculateAverageReflectionCosine(getEta());
-  }
-  else {
-    m_ave_reflection_cosine = 0.0f;
-  }
+  m_int_fresnel_diffuse_reflectance = CalculateFresnelDiffuseReflectance(1.0f/getEta());
+  m_ext_fresnel_diffuse_reflectance = CalculateFresnelDiffuseReflectance(getEta());
 }
 
 void hikari::BsdfPlastic::setExtIOR(F32 ext_ior)
 {
   m_ext_ior = ext_ior;
-  if (m_nonlinear) {
-    m_ave_reflection_cosine = calculateAverageReflectionCosine(getEta());
-  }
-  else {
-    m_ave_reflection_cosine = 0.0f;
-  }
+  m_int_fresnel_diffuse_reflectance = CalculateFresnelDiffuseReflectance(1.0f / getEta());
+  m_ext_fresnel_diffuse_reflectance = CalculateFresnelDiffuseReflectance(getEta());
 }
 
 hikari::F32 hikari::BsdfPlastic::getIntIOR() const
@@ -45,9 +37,14 @@ hikari::F32 hikari::BsdfPlastic::getEta() const
   return m_int_ior/m_ext_ior;
 }
 
-hikari::F32 hikari::BsdfPlastic::getAverageReclectionCosine() const
+hikari::F32 hikari::BsdfPlastic::getIntFresnelDiffuseReflectance() const
 {
-  return m_ave_reflection_cosine;
+  return m_int_fresnel_diffuse_reflectance;
+}
+
+hikari::F32 hikari::BsdfPlastic::getExtFresnelDiffuseReflectance() const
+{
+  return m_ext_fresnel_diffuse_reflectance;
 }
 
 auto hikari::BsdfPlastic::getDiffuseReflectance() const -> SpectrumOrTexture
@@ -78,35 +75,29 @@ hikari::Bool hikari::BsdfPlastic::getNonLinear() const
 void hikari::BsdfPlastic::setNonLinear(Bool non_linear)
 {
   m_nonlinear = non_linear;
-  if (m_nonlinear) {
-    m_ave_reflection_cosine = calculateAverageReflectionCosine(getEta());
-  }
-  else {
-    m_ave_reflection_cosine = 0.0f;
-  }
 }
 
 hikari::BsdfPlastic::BsdfPlastic():Bsdf(),
   m_diffuse_reflectance{ SpectrumUniform::create(0.5f)},
-  m_specular_reflectance{ SpectrumUniform::create(0.5f) },
-  m_ext_ior{ 1.0f }, m_int_ior{ 1.0f },
+  m_specular_reflectance{ SpectrumUniform::create(1.0f) },
+  m_ext_ior{ 1.0f }, m_int_ior{ 1.0f },m_int_fresnel_diffuse_reflectance{0.0f}, m_ext_fresnel_diffuse_reflectance{ 0.0f },
   m_nonlinear{ false } {
 }
 
-auto hikari::BsdfPlastic::calculateAverageReflectionCosine(F32 eta) -> F32
+auto hikari::BsdfPlastic::CalculateFresnelDiffuseReflectance(F32 eta) -> F32
 {
   constexpr size_t N = 10000;
-  float d_t = (M_PI * 0.5f / (float)N);
+  float d_t = (1.0f/ (float)N);
   float res = 0.0f;
   for (size_t i = 0; i < N; ++i) {
     float ti_0 = i * d_t;
     float ti_1 = (i + 1) * d_t;
-    float si_0 = std::sinf(ti_0);
-    float ci_0 = std::cosf(ti_0);
-    float si_1 = std::sinf(ti_1);
-    float ci_1 = std::cosf(ti_1);
-    float fi_0 = calculateReflection(si_0, ci_0, eta) * ci_0 * si_0;
-    float fi_1 = calculateReflection(si_1, ci_1, eta) * ci_1 * si_1;
+    float si_0 = std::sqrtf(1.0f- ti_0);
+    float ci_0 = std::sqrtf(ti_0);
+    float si_1 = std::sinf(1.0f - ti_1);
+    float ci_1 = std::sinf(ti_1);
+    float fi_0 = calculateReflection(si_0, ci_0, eta);
+    float fi_1 = calculateReflection(si_1, ci_1, eta);
     res += (fi_0 + fi_1) * d_t * 0.5f;
   }
   return res;

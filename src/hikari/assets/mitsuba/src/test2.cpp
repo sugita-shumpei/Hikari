@@ -268,7 +268,7 @@ struct ShapeData {
 
 int main() {
   using namespace std::string_literals;
-  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\pool\scene.xml)");
+  auto filepath = std::filesystem::path(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\matpreview\scene.xml)");
   auto importer = hikari::MitsubaSceneImporter::create();
   auto scene    = importer->load(filepath.string());
   auto cameras  = scene->getCameras();// カメラ

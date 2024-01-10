@@ -11,7 +11,12 @@ namespace hikari   {
     Quat rotation = Quat(1.0f,0.0f,0.0f,0.0f);
     Vec3 scale    = Vec3(1.0f);
 
-    auto getMat() const -> Mat4x4 { return  glm::translate(position) * glm::toMat4(rotation) * glm::scale(scale); }
+    auto getMat() const -> Mat4x4 {
+      auto tran = glm::translate(position);
+      auto rota = glm::toMat4(rotation);
+      auto scal = glm::scale(scale);
+      return tran * rota * scal;
+    }
   };
   using  TransformMatData = Mat4x4;
   struct Transform {

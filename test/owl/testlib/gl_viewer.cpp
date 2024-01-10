@@ -1,4 +1,4 @@
-﻿#include <gl_viewer.h>
+#include <gl_viewer.h>
 #include <cstdio>
 #include <stdexcept>
 #include <cstdint>

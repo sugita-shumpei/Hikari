@@ -17,6 +17,7 @@ target_link_libraries(  hikari-test-owl-test3 PRIVATE
     hikari-test-owl-testlib 
     hikari-test-owl-test3-ptx 
     hikari-assets-mitsuba
+    hikari-assets-image
     owl::owl 
     glm::glm
     imgui::imgui

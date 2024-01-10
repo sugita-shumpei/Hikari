@@ -4,6 +4,17 @@
 #include <hikari/light/envmap.h>
 #include <hikari/core/node.h>
 #include <hikari/core/film.h>
+#include <hikari/core/material.h>
+#include <hikari/core/surface.h>
+#include <hikari/core/subsurface.h>
+#include <hikari/core/bsdf.h>
+#include <hikari/bsdf/diffuse.h>
+#include <hikari/bsdf/plastic.h>
+#include <hikari/texture/mipmap.h>
+#include <hikari/texture/checkerboard.h>
+#include <hikari/assets/image/exporter.h>
+#include <hikari/spectrum/srgb.h>
+#include <hikari/spectrum/uniform.h>
 #include <gl_viewer.h>
 #include <tonemap.h>
 #include <imgui.h>
@@ -20,11 +31,143 @@
 #include <random>
 #include <filesystem>
 #include "deviceCode.h"
+auto loadSpectrum(const hikari::SpectrumPtr& spectrum) -> owl::vec3f {
+  owl::vec3f res = {};
+  if (spectrum->getID() == hikari::SpectrumSrgb::ID()) {
+    auto color = spectrum->convert<hikari::SpectrumSrgb>()->getColor();
+    res.x = color.r;
+    res.y = color.g;
+    res.z = color.b;
+  }
+  if (spectrum->getID() == hikari::SpectrumUniform::ID()) {
+    auto value = spectrum->convert<hikari::SpectrumUniform>()->getValue();
+    res = owl::vec3f(value);
+  }
+  return res;
+}
+auto loadTexture(OWLContext context, const hikari::TexturePtr& texture, std::vector<OWLTexture>& objects) -> TextureData {
+  TextureData data = {};
+  if     (texture->getID() == hikari::TextureMipmap::ID()) {
+    auto texture_mipmap = texture->convert<hikari::TextureMipmap>();
+    auto mipmap         = texture_mipmap->getMipmap();
+    auto bitmap         = mipmap->getImage(0);
+    auto texel_format   = OWLTexelFormat{};
+    auto width          = mipmap->getWidth ();
+    auto height         = mipmap->getHeight();
+    auto object         = OWLTexture(nullptr);
+    if      (mipmap->getDataType() == hikari::MipmapDataType::eF16) {
+      auto channel = mipmap->getChannel();
+      auto image   = std::vector<hikari::F32>();
+      if      (channel == 1) {
+        texel_format = OWLTexelFormat::OWL_TEXEL_FORMAT_R32F;
+        image = std::vector<hikari::F32>(width * height * 1);
+        for (size_t i = 0; i < width * height; ++i) {
+          image[1 * i + 0] = static_cast<const hikari::F16*>(bitmap->getData())[1 * i + 0];
+        }
+      }
+      else if (channel == 2) {
+        texel_format = OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F;
+        image = std::vector<hikari::F32>(width * height * 4);
+        for (size_t i = 0; i < width * height; ++i) {
+          image[4 * i + 0] = static_cast<const hikari::F16*>(bitmap->getData())[2 * i + 0];
+          image[4 * i + 1] = static_cast<const hikari::F16*>(bitmap->getData())[2 * i + 1];
+          image[4 * i + 2] = 0.0f;
+          image[4 * i + 3] = 1.0f;
+        }
+      }
+      else if (channel == 3) {
+        texel_format = OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F;
+        image = std::vector<hikari::F32>(width * height * 1);
+        for (size_t i = 0; i < width * height; ++i) {
+          image[4 * i + 0] = static_cast<const hikari::F16*>(bitmap->getData())[3 * i + 0];
+          image[4 * i + 1] = static_cast<const hikari::F16*>(bitmap->getData())[3 * i + 1];
+          image[4 * i + 2] = static_cast<const hikari::F16*>(bitmap->getData())[3 * i + 2];
+          image[4 * i + 3] = 1.0f;
+        }
+      }
+      else if (channel == 4) {
+        texel_format = OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F;
+        image = std::vector<hikari::F32>(width * height * 4);
+        for (size_t i = 0; i < width * height; ++i) {
+          image[4 * i + 0] = static_cast<const hikari::F16*>(bitmap->getData())[4 * i + 0];
+          image[4 * i + 1] = static_cast<const hikari::F16*>(bitmap->getData())[4 * i + 1];
+          image[4 * i + 2] = static_cast<const hikari::F16*>(bitmap->getData())[4 * i + 2];
+          image[4 * i + 3] = static_cast<const hikari::F16*>(bitmap->getData())[4 * i + 3];
+        }
+      }
+      object = owlTexture2DCreate(context, texel_format, width, height, image.data());
+    }
+    else if (mipmap->getDataType() == hikari::MipmapDataType::eF32) {
+      auto channel = mipmap->getChannel();
+      auto image = std::vector<hikari::F32>();
+      if      (channel == 1) {
+        texel_format = OWLTexelFormat::OWL_TEXEL_FORMAT_R32F;
+        image = std::vector<hikari::F32>(width * height * 1);
+        for (size_t i = 0; i < width * height; ++i) {
+          image[1 * i + 0] = static_cast<const hikari::F32*>(bitmap->getData())[1 * i + 0];
+        }
+      }
+      else if (channel == 2) {
+        texel_format = OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F;
+        image = std::vector<hikari::F32>(width * height * 4);
+        for (size_t i = 0; i < width * height; ++i) {
+          image[4 * i + 0] = static_cast<const hikari::F32*>(bitmap->getData())[2 * i + 0];
+          image[4 * i + 1] = static_cast<const hikari::F32*>(bitmap->getData())[2 * i + 1];
+          image[4 * i + 2] = 0.0f;
+          image[4 * i + 3] = 1.0f;
+        }
+      }
+      else if (channel == 3) {
+        texel_format = OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F;
+        image = std::vector<hikari::F32>(width * height * 4);
+        for (size_t i = 0; i < width * height; ++i) {
+          image[4 * i + 0] = static_cast<const hikari::F32*>(bitmap->getData())[3 * i + 0];
+          image[4 * i + 1] = static_cast<const hikari::F32*>(bitmap->getData())[3 * i + 1];
+          image[4 * i + 2] = static_cast<const hikari::F32*>(bitmap->getData())[3 * i + 2];
+          image[4 * i + 3] = 1.0f;
+        }
+      }
+      else if (channel == 4) {
+        texel_format = OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F;
+        image = std::vector<hikari::F32>(width * height * 4);
+        for (size_t i = 0; i < width * height; ++i) {
+          image[4 * i + 0] = static_cast<const hikari::F32*>(bitmap->getData())[4 * i + 0];
+          image[4 * i + 1] = static_cast<const hikari::F32*>(bitmap->getData())[4 * i + 1];
+          image[4 * i + 2] = static_cast<const hikari::F32*>(bitmap->getData())[4 * i + 2];
+          image[4 * i + 3] = static_cast<const hikari::F32*>(bitmap->getData())[4 * i + 3];
+        }
+      }
+      object = owlTexture2DCreate(context, texel_format, width, height, image.data());
+    }
+
+    auto uv_transform = glm::transpose(texture_mipmap->getUVTransform());
+    objects.push_back(object);
+    data.initObject(owlTextureGetObject(object, 0), reinterpret_cast<const owl::vec3f*>(&uv_transform[0]));
+  }
+  else if (texture->getID() == hikari::TextureCheckerboard::ID()) {
+    auto texture_checkerboard = texture->convert<hikari::TextureCheckerboard>();
+    auto color0 = texture_checkerboard->getColor0();
+    auto color1 = texture_checkerboard->getColor1();
+    auto color0_data = owl::vec3f();
+    auto color1_data = owl::vec3f();
+    auto uv_transform = glm::transpose(texture_checkerboard->getUVTransform());
+    if      (color0.isSpectrum()) { color0_data = loadSpectrum(color0.getSpectrum());  }
+    else if (color0.isTexture ()) {
+
+    }
+    if      (color1.isSpectrum()) { color1_data = loadSpectrum(color1.getSpectrum()); }
+    else if (color1.isTexture ()) {
+
+    }
+    data.initChecker(color0_data, color1_data, reinterpret_cast<const owl::vec3f*>(&uv_transform[0]));
+  }
+  return data;
+}
 
 extern "C" char* deviceCode_ptx[];
 int main() {
   auto context  = owlContextCreate();
-  owlContextSetRayTypeCount(context, 1);
+  owlContextSetRayTypeCount(context, RAY_TYPE_COUNT);
   auto module   = owlModuleCreate(context, (const char*)deviceCode_ptx);
   auto viewer   = std::make_unique<hikari::test::owl::testlib::GLViewer>(owlContextGetStream(context, 0), 1024, 1024);
   auto importer = hikari::MitsubaSceneImporter::create();
@@ -33,6 +176,72 @@ int main() {
   auto sensor_node = camera->getNode();
   auto lights  = scene->getLights();
   auto shapes  = scene->getShapes();
+  auto texture_objects = std::vector<OWLTexture>();
+  auto textures = std::vector<TextureData>();
+  auto surfaces = std::vector<SurfaceData>();
+  for (auto& shape : shapes) {
+    auto surface_data = SurfaceData();
+    auto material   = shape->getMaterial();
+    auto surface    = material->getSurface();
+    auto subsurface = surface->getSubSurface();
+    auto bsdf       = subsurface->getBsdf();
+    if (bsdf->getID() == hikari::BsdfDiffuse::ID()) {
+      auto diffuse = bsdf->convert<hikari::BsdfDiffuse>();
+      auto reflectance = diffuse->getReflectance();
+      if      (reflectance.isSpectrum()) {
+        auto refl_col = loadSpectrum(reflectance.getSpectrum());
+        surface_data.initDiffuse(refl_col);
+      }
+      else if (reflectance.isTexture ()) {
+        auto refl_tex = loadTexture(context, reflectance.getTexture(), texture_objects);
+        surface_data.initDiffuse(textures.size());
+        textures.push_back(refl_tex);
+      }
+      else    {}
+    }
+    if (bsdf->getID() == hikari::BsdfPlastic::ID()) {
+      auto plastic          = bsdf->convert<hikari::BsdfPlastic>();
+
+      auto diff_reflectance = plastic->getDiffuseReflectance();
+      auto spec_reflectance = plastic->getSpecularReflectance();
+
+      bool is_diff_reflectance_tex = diff_reflectance.isTexture();
+      bool is_spec_reflectance_tex = spec_reflectance.isTexture();
+
+      auto eta                             = plastic->getEta();
+      auto int_fresnel_diffuse_reflectance = plastic->getIntFresnelDiffuseReflectance();
+      if (!plastic->getNonLinear()) { int_fresnel_diffuse_reflectance *= -1.0f; }
+      if (is_diff_reflectance_tex && is_spec_reflectance_tex) {
+        auto diff_refl_tex = loadTexture(context, diff_reflectance.getTexture(), texture_objects);
+        auto spec_refl_tex = loadTexture(context, spec_reflectance.getTexture(), texture_objects);
+        surface_data.initPlastic(textures.size() + 0u, textures.size() + 1u, eta, int_fresnel_diffuse_reflectance);
+        textures.push_back(diff_refl_tex);
+        textures.push_back(spec_refl_tex);
+      }
+      else if (is_diff_reflectance_tex) {
+        auto diff_refl_tex = loadTexture(context, diff_reflectance.getTexture(), texture_objects);
+        auto spec_refl_col = loadSpectrum(spec_reflectance.getSpectrum());
+        surface_data.initPlastic(textures.size() + 0u, spec_refl_col, eta, int_fresnel_diffuse_reflectance);
+        textures.push_back(diff_refl_tex);
+      }
+      else if (is_spec_reflectance_tex) {
+        auto spec_refl_tex = loadTexture(context, spec_reflectance.getTexture(), texture_objects);
+        auto diff_refl_col = loadSpectrum(diff_reflectance.getSpectrum());
+        surface_data.initPlastic(diff_refl_col, textures.size() + 0u, eta, int_fresnel_diffuse_reflectance);
+        textures.push_back(spec_refl_tex);
+      }
+      else {
+        auto diff_refl_col = loadSpectrum(diff_reflectance.getSpectrum());
+        auto spec_refl_col = loadSpectrum(spec_reflectance.getSpectrum());
+        surface_data.initPlastic(diff_refl_col, spec_refl_col, eta, int_fresnel_diffuse_reflectance);
+      }
+
+    }
+    surfaces.push_back(surface_data);
+  }
+
+  auto texture_buffer = owlDeviceBufferCreate(context, (OWLDataType)(OWLDataType::OWL_USER_TYPE_BEGIN + sizeof(TextureData)), textures.size(), textures.data());
+  auto surface_buffer = owlDeviceBufferCreate(context, (OWLDataType)(OWLDataType::OWL_USER_TYPE_BEGIN + sizeof(SurfaceData)), surfaces.size(), surfaces.data());
   // raygen
   OWLVarDecl vardecls_raygen[] = {
     {"camera.dir_u"    ,OWLDataType::OWL_FLOAT3     , offsetof(SBTRaygenData,camera)+ offsetof(CameraData,dir_u)},
@@ -89,6 +298,7 @@ int main() {
     {nullptr}
   };
   auto miss      = owlMissProgCreate(context, module, "default", sizeof(SBTMissData),vardecls_miss, -1);
+  auto miss2     = owlMissProgCreate(context, module, "occlude", sizeof(SBTMissData), vardecls_miss, -1);
   {
   }
   // hitgroup
@@ -97,14 +307,17 @@ int main() {
     {"normal_buffer",OWLDataType::OWL_BUFPTR, offsetof(SBTHitgroupData,normal_buffer) },
     {"texcrd_buffer",OWLDataType::OWL_BUFPTR, offsetof(SBTHitgroupData,texcrd_buffer) },
     { "index_buffer",OWLDataType::OWL_BUFPTR, offsetof(SBTHitgroupData, index_buffer) },
+    { "surfaces",OWLDataType::OWL_USHORT, offsetof(SBTHitgroupData, surfaces) },
     {nullptr}
   };
   // geomtype
   auto geom_type = owlGeomTypeCreate(context, OWLGeomKind::OWL_GEOMETRY_TRIANGLES, sizeof(SBTHitgroupData), vardecls_hitgroup, -1);
-  owlGeomTypeSetClosestHit(geom_type, 0, module, "default_triangle");
+  owlGeomTypeSetClosestHit(geom_type, RAY_TYPE_RADIANCE, module, "default_triangle");
+  owlGeomTypeSetClosestHit(geom_type, RAY_TYPE_OCCLUDED, module, "occlude_triangle");
   // group
   auto group     = static_cast<OWLGroup>(nullptr);
   {
+    size_t i = 0;
     std::vector<OWLGeom> geoms = {};
     for (auto& shape : shapes) {
       auto node      = shape->getNode();
@@ -136,16 +349,23 @@ int main() {
       owlGeomSetBuffer(geom, "normal_buffer", normal_buffer);
       owlGeomSetBuffer(geom, "texcrd_buffer", texcrd_buffer);
       owlGeomSetBuffer(geom,  "index_buffer",  index_buffer);
+      owlGeomSet1us(geom, "surfaces", i);
       geoms.push_back(geom);
+      ++i;
     }
-    auto geom_group = owlTrianglesGeomGroupCreate(context, geoms.size(), geoms.data(), OPTIX_BUILD_FLAG_ALLOW_COMPACTION);
-    owlGroupBuildAccel(geom_group);
 
-    group = owlInstanceGroupCreate(context, 1, &geom_group);
-    owlGroupBuildAccel(group);
+    if (geoms.size() >= 1) {
+      auto geom_group = owlTrianglesGeomGroupCreate(context, geoms.size(), geoms.data(), OPTIX_BUILD_FLAG_ALLOW_COMPACTION);
+      owlGroupBuildAccel(geom_group);
+
+      group = owlInstanceGroupCreate(context, 1, &geom_group);
+      owlGroupBuildAccel(group);
+    }
   }
   OWLVarDecl vardecls_params[] = {
-    {"tlas", OWLDataType::OWL_GROUP, offsetof(LaunchParams,tlas)},
+    {"tlas"                    ,OWLDataType::OWL_GROUP , offsetof(LaunchParams,tlas)},
+    {"surfaces"                ,OWLDataType::OWL_BUFPTR, offsetof(LaunchParams,surfaces)},
+    {"textures"                ,OWLDataType::OWL_BUFPTR, offsetof(LaunchParams,textures)},
     {"light.envmap.to_local[0]",OWLDataType::OWL_FLOAT4, offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,to_local) + sizeof(owl::vec4f) * 0},
     {"light.envmap.to_local[1]",OWLDataType::OWL_FLOAT4, offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,to_local) + sizeof(owl::vec4f) * 1},
     {"light.envmap.to_local[2]",OWLDataType::OWL_FLOAT4, offsetof(LaunchParams,light) + offsetof(LightData,envmap) + offsetof(LightEnvmapData,to_local) + sizeof(owl::vec4f) * 2},
@@ -165,6 +385,8 @@ int main() {
       auto bitmap = envmap->getBitmap();
       auto channel = bitmap->getChannel();
 
+      owlParamsSetBuffer(params, "surfaces", surface_buffer);
+      owlParamsSetBuffer(params, "textures", texture_buffer);
       owlParamsSet4fv(params, "light.envmap.to_local[0]", (const float*)&transform[0]);
       owlParamsSet4fv(params, "light.envmap.to_local[1]", (const float*)&transform[1]);
       owlParamsSet4fv(params, "light.envmap.to_local[2]", (const float*)&transform[2]);
@@ -188,7 +410,7 @@ int main() {
             }
           }
         }
-        auto texture = owlTexture2DCreate(context, OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F, bitmap->getWidth(), bitmap->getHeight(), texdata.data());
+        auto texture = owlTexture2DCreate(context, OWLTexelFormat::OWL_TEXEL_FORMAT_RGBA32F, bitmap->getWidth(), bitmap->getHeight(), texdata.data(),OWLTextureFilterMode::OWL_TEXTURE_LINEAR);
         owlParamsSetTexture(params, "light.envmap.texture", texture);
       }
     }
@@ -279,8 +501,23 @@ int main() {
         !p_tracer_data->estimate_luminance
       );
       if (p_tracer_data->screen_shot) {
-        std::vector<unsigned int> pixel_data(film->getWidth()* film->getHeight());
-        cuMemcpyDtoHAsync(pixel_data.data(), (CUdeviceptr)p_fb_data, sizeof(unsigned int) * pixel_data.size(), owlContextGetStream(p_tracer_data->context, 0));
+        std::vector<float> pixel_data(film->getWidth()* film->getHeight() * 3);
+        CUdeviceptr ptr = (CUdeviceptr)owlBufferGetPointer(p_tracer_data->frame_buffer, 0);
+        cuMemcpyDtoHAsync(pixel_data.data(), (CUdeviceptr)ptr, sizeof(float)* pixel_data.size(), owlContextGetStream(p_tracer_data->context, 0));
+
+        std::vector<float> pixel_data_rev(film->getWidth()* film->getHeight() * 3);
+        for (size_t i = 0; i < film->getHeight(); ++i) {
+          std::memcpy(pixel_data_rev.data() + i * 3 * film->getWidth(), pixel_data.data() + (film->getHeight() - 1 - i) * 3 * film->getWidth(), 3 * film->getWidth() * sizeof(float));
+        }
+
+        auto desc = hikari::BitmapImageDesc();
+        desc.depth_or_layers = 1;
+        desc.width_in_bytes = film->getWidth() * sizeof(float) * 3;
+        desc.height = film->getHeight();
+        desc.x = 0; desc.y = 0; desc.z = 0;
+        desc.p_data = pixel_data_rev.data();
+        auto mipmap = hikari::Mipmap::create2D(hikari::BitmapDataType::eF32, 3, 1, film->getWidth(), film->getHeight(), { desc });
+        hikari::ImageExporter::save(p_tracer_data->screen_filename, mipmap);
         p_tracer_data->screen_shot = false;
       }
       p_tracer_data->accum_sample++;

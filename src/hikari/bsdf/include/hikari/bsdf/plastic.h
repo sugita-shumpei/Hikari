@@ -17,7 +17,8 @@ namespace hikari {
     F32  getExtIOR() const;
 
     F32  getEta() const;
-    F32  getAverageReclectionCosine() const;
+    F32  getIntFresnelDiffuseReflectance() const;
+    F32  getExtFresnelDiffuseReflectance() const;
 
     auto getDiffuseReflectance() const->SpectrumOrTexture;
     void setDiffuseReflectance(const SpectrumOrTexture& ref);
@@ -29,15 +30,15 @@ namespace hikari {
     void setNonLinear(Bool non_linear);
   private:
     BsdfPlastic();
-    static auto calculateAverageReflectionCosine(F32 eta) -> F32;
+    static auto CalculateFresnelDiffuseReflectance(F32 eta) -> F32;
     static auto calculateReflection(F32 sin_in, F32 cos_in, F32 eta)  -> F32;
-
   private:
     SpectrumOrTexture m_diffuse_reflectance;
     SpectrumOrTexture m_specular_reflectance;
     F32               m_int_ior;
     F32               m_ext_ior;
-    F32               m_ave_reflection_cosine;
+    F32               m_int_fresnel_diffuse_reflectance;
+    F32               m_ext_fresnel_diffuse_reflectance;
     Bool              m_nonlinear;
   };
 }
