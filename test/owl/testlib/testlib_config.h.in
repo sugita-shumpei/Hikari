@@ -1,0 +1,3 @@
+#pragma once
+
+#cmakedefine HK_TESTLIB_ASSETS_ROOT "@HK_TESTLIB_ASSETS_ROOT@"

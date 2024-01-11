@@ -15,6 +15,7 @@
 #include <hikari/assets/image/exporter.h>
 #include <hikari/spectrum/srgb.h>
 #include <hikari/spectrum/uniform.h>
+#include <testlib_config.h>
 #include <gl_viewer.h>
 #include <tonemap.h>
 #include <imgui.h>
@@ -171,7 +172,7 @@ int main() {
   auto module   = owlModuleCreate(context, (const char*)deviceCode_ptx);
   auto viewer   = std::make_unique<hikari::test::owl::testlib::GLViewer>(owlContextGetStream(context, 0), 1024, 1024);
   auto importer = hikari::MitsubaSceneImporter::create();
-  auto scene    = importer->load(R"(D:\Users\shums\Documents\C++\Hikari\data\mitsuba\matpreview\scene.xml)");
+  auto scene    = importer->load(HK_TESTLIB_ASSETS_ROOT R"(\mitsuba-scene\matpreview\scene.xml)");
   auto camera   = scene->getCameras()[0];
   auto sensor_node = camera->getNode();
   auto lights  = scene->getLights();

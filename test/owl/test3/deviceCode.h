@@ -227,15 +227,17 @@ struct Onb {
 #endif
     Onb(const owl::vec3f& w_) noexcept : w{ w_ } {
     if (fabsf(w.x) < 0.5f) {
-      u = owl::cross(w, owl::vec3f(1.0f, 0.0f, 0.0f));
+      u = owl::normalize(owl::cross(w, owl::vec3f(1.0f, 0.0f, 0.0f)));
     }
     else if (fabsf(w.y) < 0.5f) {
-      u = owl::cross(w, owl::vec3f(0.0f, 1.0f, 0.0f));
+      u = owl::normalize(owl::cross(w, owl::vec3f(0.0f, 1.0f, 0.0f)));
     }
     else {
-      u = owl::cross(w, owl::vec3f(0.0f, 0.0f, 1.0f));
+      u = owl::normalize(owl::cross(w, owl::vec3f(0.0f, 0.0f, 1.0f)));
     }
-    v = owl::cross(w, u);
+    {
+      v = owl::normalize(owl::cross(w, u));
+    }
   }
 
 #if defined(__CUDACC__)
