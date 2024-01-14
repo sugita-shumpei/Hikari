@@ -99,7 +99,7 @@ __forceinline__ __device__ bool       shade_material(
       float g_cosine_out = owl::dot(g_normal, refl_dir);
       if   (g_cosine_out < 0.0f) { return true; }
 
-      auto diffuse = surface.loadDiffuse(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
+      auto diffuse       = surface.loadDiffuse(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
       ray_org           += 0.01f * s_normal;
       ray_dir            = refl_dir;
       throughput        *= diffuse.reflectance;
@@ -126,6 +126,7 @@ __forceinline__ __device__ bool       shade_material(
       return false;
     }
     if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_DIELECTRIC) { // PLASTICはおおむね一致。
+      //if (s_cosine_in* g_cosine_in < 0.0f) { return true; }
       auto  dielectric  = surface.loadDielectric(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
       float eta         = s_cosine_in > 0.0f ? dielectric.eta : 1.0f / dielectric.eta;
       auto  r_normal    = s_cosine_in > 0.0f ? s_normal : -s_normal;
@@ -139,13 +140,13 @@ __forceinline__ __device__ bool       shade_material(
 
       if (random() < r0) {
         auto refl_dir   = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
-        ray_org        += 0.01f * r_normal;
+        ray_org        += 0.001f * r_normal;
         ray_dir         = refl_dir;
         throughput     *= dielectric.specular_reflectance;
       }
       else {
-        auto tran_dir  = owl::normalize((ray_dir + s_cosine_in * s_normal) / eta - sqrtf(1.0f - sin_1_out_sq) * r_normal);
-        ray_org       -= 0.01f * r_normal;
+        auto tran_dir  = owl::normalize((ray_dir + s_cosine_in * s_normal) / eta - sqrtf(cos_1_out_sq) * r_normal);
+        ray_org       -= 0.0001f * r_normal;
         ray_dir        = tran_dir;
         throughput    *= dielectric.specular_transmittance/(eta*eta);
       }
@@ -187,7 +188,7 @@ __forceinline__ __device__ bool       shade_material(
       auto diff_g_cos_out = owl::dot(diff_refl_dir, g_normal);
 
       auto total_spec_reflectance =  r0 * static_cast<float>(spec_g_cos_out > 0.0f) * plastic.specular_reflectance;
-      auto total_diff_reflectance = (t0 * t1 / plastic.eta * plastic.eta) * static_cast<float>(diff_g_cos_out > 0.0f) * (plastic.diffuse_reflectance / diff_crr);
+      auto total_diff_reflectance = (t0 * t1 / (plastic.eta * plastic.eta)) * static_cast<float>(diff_g_cos_out > 0.0f) * (plastic.diffuse_reflectance / diff_crr);
 
       auto ave_total_spec_reflectance = owl::dot(total_spec_reflectance, owl::vec3f(1.0f)) / 3.0f;
       auto ave_total_diff_reflectance = owl::dot(total_diff_reflectance, owl::vec3f(1.0f)) / 3.0f;
@@ -228,7 +229,7 @@ OPTIX_RAYGEN_PROGRAM(default)() {
   auto frame_index = dim.x * idx.y + idx.x;
 
   constexpr auto frame_samples = 1;
-  constexpr auto trace_depth   = 3;
+  constexpr auto trace_depth   = 100;
 
   auto payload = PayloadData();
   owl::LCG<24> random = {};
@@ -248,7 +249,7 @@ OPTIX_RAYGEN_PROGRAM(default)() {
     auto throughput = owl::vec3f(1.0f, 1.0f, 1.0f);
     bool done       = false;
     for (int j = 0; (j < trace_depth) && !done; ++j) {
-      float tmin = (j == 0) ? sbt_rg_data.camera.near_clip : 0.01f;
+      float tmin = (j == 0) ? sbt_rg_data.camera.near_clip : 0.0f;
       float tmax = (j == 0) ? sbt_rg_data.camera.far_clip  : 1e11f;
       owl::RayT<0, 1> ray(ray_org, ray_dir, tmin, tmax);
       traceRadiance(ray, payload);
