@@ -146,13 +146,13 @@ extern "C" {
       auto t0                   = 1.0f - r0;
 
       auto diffuse_reflection   = random_in_pdf_cosine(payload.random);
-      auto cos2_out             = diffuse_reflection.z    ;
-      auto sin2_out_2           = 1.0f - cos2_out * cos2_out;
-      auto sin2_in_2            = sin2_out_2 / (plastic.eta * plastic.eta);
+      auto cos2_in              = diffuse_reflection.z    ;
+      auto sin2_in_2            = 1.0f - cos2_in * cos2_in;
+      auto sin2_out_2           = sin2_in_2 / (plastic.eta * plastic.eta);
 
       Onb onb(s_normal);
       diffuse_reflection        = onb.local(diffuse_reflection);
-      auto r1                   = fresnel(1.0f/plastic.eta, 1.0f - sin2_in_2, cos2_out * cos2_out);
+      auto r1                   = fresnel(plastic.eta, cos2_in*cos2_in, 1.0f- sin2_out_2);
       auto t1                   = 1.0f - r1;
 
       if (payload.random() < 0.5f)

@@ -94,8 +94,8 @@ auto hikari::BsdfPlastic::CalculateFresnelDiffuseReflectance(F32 eta) -> F32
     float ti_1 = (i + 1) * d_t;
     float si_0 = std::sqrtf(1.0f- ti_0);
     float ci_0 = std::sqrtf(ti_0);
-    float si_1 = std::sinf(1.0f - ti_1);
-    float ci_1 = std::sinf(ti_1);
+    float si_1 = std::sqrtf(1.0f - ti_1);
+    float ci_1 = std::sqrtf(ti_1);
     float fi_0 = calculateReflection(si_0, ci_0, eta);
     float fi_1 = calculateReflection(si_1, ci_1, eta);
     res += (fi_0 + fi_1) * d_t * 0.5f;
@@ -105,10 +105,10 @@ auto hikari::BsdfPlastic::CalculateFresnelDiffuseReflectance(F32 eta) -> F32
 
 auto hikari::BsdfPlastic::calculateReflection(F32 sin_in, F32 cos_in, F32 eta) -> F32
 {
-  if (eta == 0.0f) { return 1.0f; }
-  float sin_out = sin_in * eta;
+  float sin_out = sin_in / eta;
   if (sin_out > 1.0f) { return 1.0f; }
   float cos_out = sqrt(fmaxf(1.0f - sin_out * sin_out, 0.0f));
+  
   float rs = (cos_in - cos_out * eta) / (cos_in + cos_out * eta);
   float rp = (eta * cos_in - cos_out) / (eta * cos_in + cos_out);
   return (rp * rp + rs * rs) * 0.5f;
