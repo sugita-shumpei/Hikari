@@ -4,6 +4,9 @@
 #include <owl/owl.h>
 #include <owl/common/math/vec.h>
 #include <owl/common/math/random.h>
+#if !defined(__CUDACC__)
+#include <variant>
+#endif
 
 #define RAY_TYPE_RADIANCE 0
 #define RAY_TYPE_OCCLUDED 1
@@ -72,57 +75,141 @@ struct TextureData {
 };
 
 struct SurfaceDiffuseData {
-  owl::vec3f           reflectance;
+  owl::vec3f reflectance;
+};
+struct SurfaceConductorData {
+  owl::vec3f eta;
+  owl::vec3f k;
+  owl::vec3f specular_reflectance;
+};
+struct SurfaceDielectricData {
+  float      eta;
+  owl::vec3f specular_reflectance;
+  owl::vec3f specular_transmittance;
 };
 struct SurfacePlasticData {
-  owl::vec3f   diffuse_reflectance;
-  float                        eta;
-  owl::vec3f  specular_reflectance;
-  float int_fresnel_diffuse_reflectance;
+  owl::vec3f diffuse_reflectance;
+  float      eta;
+  owl::vec3f specular_reflectance;
+  float      int_fresnel_diffuse_reflectance;
 };
 
-#define SURFACE_TYPE_DIFFUSE 0x1000u
-#define SURFACE_TYPE_PLASTIC 0x2000u
-#define SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_COL 0x0000u
-#define SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_TEX 0x0001u
-#define SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL 0x0000u
-#define SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_TEX 0x0001u
-#define SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_COL 0x0000u
-#define SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_TEX 0x0002u
+#define SURFACE_TYPE_DIFFUSE    0x0100u
+#define SURFACE_TYPE_CONDUCTOR  0x0200u
+#define SURFACE_TYPE_DIELECTRIC 0x0300u
+#define SURFACE_TYPE_PLASTIC    0x0400u
+#define SURFACE_TYPE_MASK       0xFF00u
+
+#define SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_COL               0x0000u
+#define SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_TEX               0x0001u
+
+#define SURFACE_TYPE_CONDUCTOR_OPTION_ETA_COL                     0x0000u
+#define SURFACE_TYPE_CONDUCTOR_OPTION_ETA_TEX                     0x0001u
+#define SURFACE_TYPE_CONDUCTOR_OPTION_K_COL                       0x0000u
+#define SURFACE_TYPE_CONDUCTOR_OPTION_K_TEX                       0x0002u
+#define SURFACE_TYPE_CONDUCTOR_OPTION_SPECULAR_REFLECTANCE_COL    0x0000u
+#define SURFACE_TYPE_CONDUCTOR_OPTION_SPECULAR_REFLECTANCE_TEX    0x0004u
+
+#define SURFACE_TYPE_DIELECTRIC_OPTION_ETA_VAL                    0x0000u
+#define SURFACE_TYPE_DIELECTRIC_OPTION_ETA_TEX                    0x0001u
+#define SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_REFLECTANCE_COL   0x0000u
+#define SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_REFLECTANCE_TEX   0x0002u
+#define SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_TRANSMITTANCE_COL 0x0000u
+#define SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_TRANSMITTANCE_TEX 0x0004u
+
+#define SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL       0x0000u
+#define SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_TEX       0x0001u
+#define SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_COL      0x0000u
+#define SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_TEX      0x0002u
+
+
 struct SurfaceData {
 #if !defined(__CUDACC__)
-  void initDiffuse(const owl::vec3f& reflectance_col)
+  void initDiffuse(const std::variant<owl::vec3f,unsigned short>& reflectance)
   {
-    type = SURFACE_TYPE_DIFFUSE | SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_COL;
-    values[0] = reflectance_col.x; values[1] = reflectance_col.y; values[2] = reflectance_col.z;
+    type = SURFACE_TYPE_DIFFUSE ;
+    if (reflectance.index() == 0) {
+      type |= SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_COL;
+      values[0]   = std::get<0>(reflectance).x; values[1] = std::get<0>(reflectance).y; values[2] = std::get<0>(reflectance).z;
+    }
+    else {
+      type |= SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_TEX;
+      textures[0] = std::get<1>(reflectance);
+    }
   }
-  void initDiffuse(unsigned short    reflectance_tex)
+  void initConductor(const std::variant<owl::vec3f, unsigned short>& eta, const std::variant<owl::vec3f, unsigned short>& k, const std::variant<owl::vec3f, unsigned short>& specular_reflectance)
   {
-    type = SURFACE_TYPE_DIFFUSE | SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_TEX;
-    textures[0] = reflectance_tex;
+    type = SURFACE_TYPE_CONDUCTOR;
+    if (eta.index() == 0) {
+      type |= SURFACE_TYPE_CONDUCTOR_OPTION_ETA_COL;
+      values[0] = std::get<0>(eta).x; values[1] = std::get<0>(eta).y; values[2] = std::get<0>(eta).z;
+    }
+    else {
+      type |= SURFACE_TYPE_CONDUCTOR_OPTION_ETA_TEX;
+      textures[0] = std::get<1>(eta);
+    }
+    if (k.index() == 0) {
+      type |= SURFACE_TYPE_CONDUCTOR_OPTION_K_COL;
+      values[3] = std::get<0>(k).x; values[4] = std::get<0>(k).y; values[5] = std::get<0>(k).z;
+    }
+    else {
+      type |= SURFACE_TYPE_CONDUCTOR_OPTION_K_TEX;
+      textures[1] = std::get<1>(k);
+    }
+    if (specular_reflectance.index() == 0) {
+      type |= SURFACE_TYPE_CONDUCTOR_OPTION_SPECULAR_REFLECTANCE_COL;
+      values[6] = std::get<0>(specular_reflectance).x; values[7] = std::get<0>(specular_reflectance).y; values[8] = std::get<0>(specular_reflectance).z;
+    }
+    else {
+      type |= SURFACE_TYPE_CONDUCTOR_OPTION_SPECULAR_REFLECTANCE_TEX;
+      textures[2] = std::get<1>(specular_reflectance);
+    }
   }
-  void initPlastic(const owl::vec3f& diffuse_reflectance_col, const owl::vec3f& specular_reflectance_col, float eta, float int_fresnel_diffuse_reflectance)
-  {
-    type = SURFACE_TYPE_PLASTIC | SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL | SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_COL;
-    values[0] = diffuse_reflectance_col.x ; values[1] = diffuse_reflectance_col.y ; values[2] = diffuse_reflectance_col.z;
-    values[4] = specular_reflectance_col.x; values[5] = specular_reflectance_col.y; values[6] = specular_reflectance_col.z;
-    values[3] = eta; values[7] = int_fresnel_diffuse_reflectance;
+  void initDielectric(const std::variant<float, unsigned short>& eta, const std::variant<owl::vec3f, unsigned short>& specular_reflectance, const std::variant<owl::vec3f, unsigned short>& specular_transmittance) {
+    type = SURFACE_TYPE_DIELECTRIC;
+    if (eta.index() == 0) {
+      type |= SURFACE_TYPE_DIELECTRIC_OPTION_ETA_VAL;
+      values[0] = std::get<0>(eta);
+    }
+    else {
+      type |= SURFACE_TYPE_DIELECTRIC_OPTION_ETA_TEX;
+      textures[0] = std::get<1>(eta);
+    }
+    if (specular_reflectance.index() == 0) {
+      type |= SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_REFLECTANCE_COL;
+      values[1] = std::get<0>(specular_reflectance).x; values[2] = std::get<0>(specular_reflectance).y; values[3] = std::get<0>(specular_reflectance).z;
+    }
+    else {
+      type |= SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_REFLECTANCE_TEX;
+      textures[1] = std::get<1>(specular_reflectance);
+    }
+    if (specular_transmittance.index() == 0) {
+      type     |= SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_TRANSMITTANCE_COL;
+      values[4] = std::get<0>(specular_transmittance).x; values[5] = std::get<0>(specular_transmittance).y; values[6] = std::get<0>(specular_transmittance).z;
+    }
+    else {
+      type       |= SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_TRANSMITTANCE_TEX;
+      textures[2] = std::get<1>(specular_transmittance);
+    }
   }
-  void initPlastic(unsigned short    diffuse_reflectance_tex, const owl::vec3f& specular_reflectance_col, float eta, float int_fresnel_diffuse_reflectance) {
-    type = SURFACE_TYPE_PLASTIC | SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_TEX | SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_COL;
-    textures[0] =  diffuse_reflectance_tex;
-    values[4] = specular_reflectance_col.x; values[5] = specular_reflectance_col.y; values[6] = specular_reflectance_col.z;
-    values[3] = eta; values[7] = int_fresnel_diffuse_reflectance;
-  }
-  void initPlastic(const owl::vec3f& diffuse_reflectance_col, unsigned short    specular_reflectance_tex, float eta, float int_fresnel_diffuse_reflectance) {
-    type = SURFACE_TYPE_PLASTIC | SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL | SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_TEX;
-    textures[1] = specular_reflectance_tex;
-    values[0] = diffuse_reflectance_col.x; values[1] = diffuse_reflectance_col.y; values[2] = diffuse_reflectance_col.z;
-    values[3] = eta; values[7] = int_fresnel_diffuse_reflectance;
-  }
-  void initPlastic(unsigned short    diffuse_reflectance_tex, unsigned short    specular_reflectance_tex, float eta, float int_fresnel_diffuse_reflectance) {
-    type = SURFACE_TYPE_PLASTIC | SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_TEX | SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_TEX;
-    textures[0] = diffuse_reflectance_tex; textures[1] = specular_reflectance_tex;
+  void initPlastic(const std::variant<owl::vec3f, unsigned short>& diffuse_reflectance, const std::variant<owl::vec3f, unsigned short>& specular_reflectance, float eta, float int_fresnel_diffuse_reflectance) {
+    type = SURFACE_TYPE_PLASTIC;
+    if (diffuse_reflectance.index() == 0) {
+      type |= SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL;
+      values[0] = std::get<0>(diffuse_reflectance).x; values[1] = std::get<0>(diffuse_reflectance).y; values[2] = std::get<0>(diffuse_reflectance).z;
+    }
+    else {
+      type |= SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_TEX;
+      textures[0] = std::get<1>(diffuse_reflectance);
+    }
+    if (specular_reflectance.index() == 0) {
+      type |= SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_COL;
+      values[4] = std::get<0>(specular_reflectance).x; values[5] = std::get<0>(specular_reflectance).y; values[6] = std::get<0>(specular_reflectance).z;
+    }
+    else {
+      type |= SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_TEX;
+      textures[0] = std::get<1>(specular_reflectance);
+    }
     values[3] = eta; values[7] = int_fresnel_diffuse_reflectance;
   }
 #else
@@ -138,6 +225,62 @@ struct SurfaceData {
     }
     return diffuse;
   }
+  __forceinline__ __device__ SurfaceConductorData loadConductor(const TextureData* texture_buffer, float u, float v) const {
+    SurfaceConductorData conductor;
+    if ((type & SURFACE_TYPE_CONDUCTOR_OPTION_ETA_COL) == SURFACE_TYPE_CONDUCTOR_OPTION_ETA_COL) {
+      conductor.eta.x = values[0];
+      conductor.eta.y = values[1];
+      conductor.eta.z = values[2];
+    }
+    if ((type & SURFACE_TYPE_CONDUCTOR_OPTION_ETA_TEX) == SURFACE_TYPE_CONDUCTOR_OPTION_ETA_TEX) {
+      conductor.eta = texture_buffer[textures[0]].sample(u, v);
+    }
+
+    if ((type & SURFACE_TYPE_CONDUCTOR_OPTION_K_COL) == SURFACE_TYPE_CONDUCTOR_OPTION_K_COL) {
+      conductor.k.x = values[3];
+      conductor.k.y = values[4];
+      conductor.k.z = values[5];
+    }
+    if ((type & SURFACE_TYPE_CONDUCTOR_OPTION_K_TEX) == SURFACE_TYPE_CONDUCTOR_OPTION_K_TEX) {
+      conductor.k = texture_buffer[textures[1]].sample(u, v);
+    }
+    if ((type & SURFACE_TYPE_CONDUCTOR_OPTION_SPECULAR_REFLECTANCE_COL) == SURFACE_TYPE_CONDUCTOR_OPTION_SPECULAR_REFLECTANCE_COL) {
+      conductor.specular_reflectance.x = values[6];
+      conductor.specular_reflectance.y = values[7];
+      conductor.specular_reflectance.z = values[8];
+    }
+    if ((type & SURFACE_TYPE_CONDUCTOR_OPTION_SPECULAR_REFLECTANCE_TEX) == SURFACE_TYPE_CONDUCTOR_OPTION_SPECULAR_REFLECTANCE_TEX) {
+      conductor.specular_reflectance = texture_buffer[textures[2]].sample(u, v);
+    }
+    return conductor;
+  }
+  __forceinline__ __device__ SurfaceDielectricData loadDielectric(const TextureData* texture_buffer, float u, float v) const {
+    SurfaceDielectricData dielectric;
+    if ((type & SURFACE_TYPE_DIELECTRIC_OPTION_ETA_VAL) == SURFACE_TYPE_DIELECTRIC_OPTION_ETA_VAL) {
+      dielectric.eta = values[0];
+    }
+    if ((type & SURFACE_TYPE_DIELECTRIC_OPTION_ETA_TEX) == SURFACE_TYPE_DIELECTRIC_OPTION_ETA_TEX) {
+      dielectric.eta = texture_buffer[textures[0]].sample(u, v).x;
+    }
+
+    if ((type & SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_REFLECTANCE_COL) == SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_REFLECTANCE_COL) {
+      dielectric.specular_reflectance.x = values[1];
+      dielectric.specular_reflectance.y = values[2];
+      dielectric.specular_reflectance.z = values[3];
+    }
+    if ((type & SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_REFLECTANCE_TEX) == SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_REFLECTANCE_TEX) {
+      dielectric.specular_reflectance = texture_buffer[textures[1]].sample(u, v);
+    }
+    if ((type & SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_TRANSMITTANCE_COL) == SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_TRANSMITTANCE_COL) {
+      dielectric.specular_transmittance.x = values[4];
+      dielectric.specular_transmittance.y = values[5];
+      dielectric.specular_transmittance.z = values[6];
+    }
+    if ((type & SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_TRANSMITTANCE_TEX) == SURFACE_TYPE_DIELECTRIC_OPTION_SPECULAR_TRANSMITTANCE_TEX) {
+      dielectric.specular_transmittance = texture_buffer[textures[2]].sample(u, v);
+    }
+    return dielectric;
+  }
   __forceinline__ __device__ SurfacePlasticData loadPlastic(const TextureData* texture_buffer, float u, float v) const {
     SurfacePlasticData plastic;
     if ((type & SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL) == SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL) {
@@ -147,7 +290,6 @@ struct SurfaceData {
     }
     if ((type & SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_TEX) == SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_TEX) {
       plastic.diffuse_reflectance  = texture_buffer[textures[0]].sample(u, v);
-      plastic.specular_reflectance = texture_buffer[textures[1]].sample(u, v);
     }
     if ((type & SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_COL) == SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_COL) {
       plastic.specular_reflectance.x = values[4];
@@ -161,6 +303,7 @@ struct SurfaceData {
     plastic.int_fresnel_diffuse_reflectance = values[7];
     return plastic;
   }
+
 #endif
   unsigned int          type;
   unsigned short textures[4];
@@ -189,18 +332,15 @@ struct LightEnvmapData {
   }
 #endif
 };
-
 struct LightData {
   LightEnvmapData      envmap;
 };
-
 struct LaunchParams {
   OptixTraversableHandle tlas;
   TextureData*       textures;
   SurfaceData*       surfaces;
   LightData             light;
 };
-
 struct SBTRaygenData {
   CameraData           camera;
   float3*        frame_buffer;
@@ -209,7 +349,6 @@ struct SBTRaygenData {
   int                  height;
   int                  sample;
 };
-
 struct SBTMissData {
 };
 

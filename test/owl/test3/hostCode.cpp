@@ -9,6 +9,8 @@
 #include <hikari/core/subsurface.h>
 #include <hikari/core/bsdf.h>
 #include <hikari/bsdf/diffuse.h>
+#include <hikari/bsdf/conductor.h>
+#include <hikari/bsdf/dielectric.h>
 #include <hikari/bsdf/plastic.h>
 #include <hikari/texture/mipmap.h>
 #include <hikari/texture/checkerboard.h>
@@ -164,6 +166,28 @@ auto loadTexture(OWLContext context, const hikari::TexturePtr& texture, std::vec
   }
   return data;
 }
+auto loadSpectrumOrTexture(OWLContext context, const hikari::SpectrumOrTexture& spectrum_or_texture, std::vector<TextureData>& textures, std::vector<OWLTexture>& objects) -> std::variant<owl::vec3f, unsigned short> {
+  if (spectrum_or_texture.isSpectrum()) {
+    return loadSpectrum(spectrum_or_texture.getSpectrum());
+  }
+  else {
+    auto tex_data = loadTexture(context, spectrum_or_texture.getTexture(), objects);
+    auto size = textures.size();
+    textures.push_back(tex_data);
+    return (unsigned short)size;
+  }
+}
+auto loadFloatOrTexture(OWLContext context, const hikari::FloatOrTexture& float_or_texture, std::vector<TextureData>& textures, std::vector<OWLTexture>& objects) -> std::variant<float, unsigned short> {
+  if (float_or_texture.isFloat()) {
+    return float_or_texture.getFloat().value();
+  }
+  else {
+    auto tex_data = loadTexture(context, float_or_texture.getTexture(), objects);
+    auto size = textures.size();
+    textures.push_back(tex_data);
+    return (unsigned short)size;
+  }
+}
 
 extern "C" char* deviceCode_ptx[];
 int main() {
@@ -187,56 +211,32 @@ int main() {
     auto subsurface = surface->getSubSurface();
     auto bsdf       = subsurface->getBsdf();
     if (bsdf->getID() == hikari::BsdfDiffuse::ID()) {
-      auto diffuse = bsdf->convert<hikari::BsdfDiffuse>();
-      auto reflectance = diffuse->getReflectance();
-      if      (reflectance.isSpectrum()) {
-        auto refl_col = loadSpectrum(reflectance.getSpectrum());
-        surface_data.initDiffuse(refl_col);
-      }
-      else if (reflectance.isTexture ()) {
-        auto refl_tex = loadTexture(context, reflectance.getTexture(), texture_objects);
-        surface_data.initDiffuse(textures.size());
-        textures.push_back(refl_tex);
-      }
-      else    {}
+      auto diffuse         = bsdf->convert<hikari::BsdfDiffuse>();
+      auto reflectance_val = loadSpectrumOrTexture(context, diffuse->getReflectance(), textures, texture_objects);
+      surface_data.initDiffuse(reflectance_val);
+    }
+    if (bsdf->getID() == hikari::BsdfConductor::ID()) {
+      auto conductor            = bsdf->convert<hikari::BsdfConductor>();
+      auto eta_val              = loadSpectrumOrTexture(context, conductor->getEta()                  , textures, texture_objects);
+      auto k_val                = loadSpectrumOrTexture(context, conductor->getK()                    , textures, texture_objects);
+      auto spec_reflectance_val = loadSpectrumOrTexture(context, conductor->getSpecularReflectance()  , textures, texture_objects);
+      surface_data.initConductor(eta_val, k_val, spec_reflectance_val);
+    }
+    if (bsdf->getID() == hikari::BsdfDielectric::ID()) {
+      auto dielectric = bsdf->convert<hikari::BsdfDielectric>();
+      auto eta_val =  loadFloatOrTexture(context, dielectric->getEta(), textures, texture_objects);
+      auto spec_reflectance_val = loadSpectrumOrTexture(context, dielectric->getSpecularReflectance(), textures, texture_objects);
+      auto spec_transmittance_val = loadSpectrumOrTexture(context, dielectric->getSpecularTransmittance(), textures, texture_objects);
+      surface_data.initDielectric(eta_val, spec_reflectance_val, spec_transmittance_val);
     }
     if (bsdf->getID() == hikari::BsdfPlastic::ID()) {
-      auto plastic          = bsdf->convert<hikari::BsdfPlastic>();
-
-      auto diff_reflectance = plastic->getDiffuseReflectance();
-      auto spec_reflectance = plastic->getSpecularReflectance();
-
-      bool is_diff_reflectance_tex = diff_reflectance.isTexture();
-      bool is_spec_reflectance_tex = spec_reflectance.isTexture();
-
+      auto plastic                         = bsdf->convert<hikari::BsdfPlastic>();
+      auto diff_reflectance_val            = loadSpectrumOrTexture(context, plastic->getDiffuseReflectance() , textures, texture_objects);
+      auto spec_reflectance_val            = loadSpectrumOrTexture(context, plastic->getSpecularReflectance(), textures, texture_objects);
       auto eta                             = plastic->getEta();
       auto int_fresnel_diffuse_reflectance = plastic->getIntFresnelDiffuseReflectance();
       if (!plastic->getNonLinear()) { int_fresnel_diffuse_reflectance *= -1.0f; }
-      if (is_diff_reflectance_tex && is_spec_reflectance_tex) {
-        auto diff_refl_tex = loadTexture(context, diff_reflectance.getTexture(), texture_objects);
-        auto spec_refl_tex = loadTexture(context, spec_reflectance.getTexture(), texture_objects);
-        surface_data.initPlastic(textures.size() + 0u, textures.size() + 1u, eta, int_fresnel_diffuse_reflectance);
-        textures.push_back(diff_refl_tex);
-        textures.push_back(spec_refl_tex);
-      }
-      else if (is_diff_reflectance_tex) {
-        auto diff_refl_tex = loadTexture(context, diff_reflectance.getTexture(), texture_objects);
-        auto spec_refl_col = loadSpectrum(spec_reflectance.getSpectrum());
-        surface_data.initPlastic(textures.size() + 0u, spec_refl_col, eta, int_fresnel_diffuse_reflectance);
-        textures.push_back(diff_refl_tex);
-      }
-      else if (is_spec_reflectance_tex) {
-        auto spec_refl_tex = loadTexture(context, spec_reflectance.getTexture(), texture_objects);
-        auto diff_refl_col = loadSpectrum(diff_reflectance.getSpectrum());
-        surface_data.initPlastic(diff_refl_col, textures.size() + 0u, eta, int_fresnel_diffuse_reflectance);
-        textures.push_back(spec_refl_tex);
-      }
-      else {
-        auto diff_refl_col = loadSpectrum(diff_reflectance.getSpectrum());
-        auto spec_refl_col = loadSpectrum(spec_reflectance.getSpectrum());
-        surface_data.initPlastic(diff_refl_col, spec_refl_col, eta, int_fresnel_diffuse_reflectance);
-      }
-
+      surface_data.initPlastic(diff_reflectance_val, spec_reflectance_val, eta, int_fresnel_diffuse_reflectance);
     }
     surfaces.push_back(surface_data);
   }

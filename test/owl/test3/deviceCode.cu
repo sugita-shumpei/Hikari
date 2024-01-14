@@ -7,13 +7,30 @@ struct Payload {
   float3       color;
 };
 
-__forceinline__ __device__ float fresnel(float eta, float cos_in_2, float cos_out_2) {
-  if (cos_out_2 < 0.0f) { return 1.0f; }
+__forceinline__ __device__ float fresnel1(float eta, float cos_in_2, float cos_out_2) {
   float cos_in = sqrtf(cos_in_2);
   float cos_out= sqrtf(cos_out_2);
   float rp = (eta * cos_in - cos_out) / (eta * cos_in + cos_out);
   float rs = (eta * cos_out - cos_in) / (eta * cos_out + cos_in);
   return 0.5f * (rp * rp + rs * rs);
+}
+
+__forceinline__ __device__ float fresnel2(float eta, float k, float cos_in_2, float cos_out_2) {
+
+  float cos_in  = sqrtf(cos_in_2);
+  float cos_out = sqrtf(cos_out_2);
+  float rp1     = (eta * cos_in - cos_out);
+  float rp2     = (eta * cos_in + cos_out);
+  float rpk     = (k * cos_in);
+  float rs1     = (eta * cos_out - cos_in);
+  float rs2     = (eta * cos_out + cos_in);
+  float rsk     = (k * cos_out);
+  float rp      = (rp1*rp1 + rpk*rpk)/ (rp2 * rp2 + rpk * rpk);
+  float rs      = (rs1*rs1 + rsk*rsk)/ (rs2 * rs2 + rsk * rsk);
+  return 0.5f * (rp + rs);
+}
+__forceinline__ __device__ owl::vec3f fresnel2(const owl::vec3f& eta, const owl::vec3f& k, float cos_in_2, const owl::vec3f& cos_out_2) {
+  return owl::vec3f(fresnel2(eta.x, k.x, cos_in_2, cos_out_2.x), fresnel2(eta.y, k.y, cos_in_2, cos_out_2.y), fresnel2(eta.z, k.z, cos_in_2, cos_out_2.z));
 }
 
 __forceinline__ __device__ owl::vec3f random_in_pdf_cosine(owl::LCG<24>& random) {
@@ -119,30 +136,59 @@ extern "C" {
     auto s_normal      = owl::normalize(owl::vec3f((1.0f - barycentrics.x - barycentrics.y) * normal0 + barycentrics.x * normal1 + barycentrics.y * normal2));
     auto texcrd        = (1.0f - barycentrics.x - barycentrics.y) * texcrd0 + barycentrics.x * texcrd1 + barycentrics.y * texcrd2;
     auto cosine_in     = -owl::dot(direction, s_normal);
-    //if (cosine_in < 0.0f) {
-    //  s_normal *= -1.0f;
-    //}
+
 
     auto& payload = owl::getPRD<Payload>();
     auto surface = optixLaunchParams.surfaces[sbt_hg_data->surfaces];
 
-    if (surface.type & SURFACE_TYPE_DIFFUSE) { // DIFFUSEはおおむね一致。
+    if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_DIFFUSE) { // DIFFUSEはおおむね一致。
       auto diffuse     = surface.loadDiffuse(optixLaunchParams.textures, texcrd.x, texcrd.y);
       Onb onb(s_normal);
       auto reflection  = onb.local(random_in_pdf_cosine(payload.random));
 
       owl::RayT<RAY_TYPE_OCCLUDED, RAY_TYPE_COUNT> ray(position+0.01f*s_normal, reflection, 0.0f, 1000000.0f);
-
       auto refl_color = optixLaunchParams.light.envmap.sample(reflection);
       payload.color   = static_cast<float>(!traceOccluded(ray)) * diffuse.reflectance *refl_color;
     }
-    else if (surface.type & SURFACE_TYPE_PLASTIC) { // PLASTICは一致まで時間かかる
+    if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_CONDUCTOR) { // PLASTICはおおむね一致。
+      auto specular_reflection = owl::normalize(direction + 2.0f * cosine_in * s_normal);
+      auto conductor  = surface.loadConductor(optixLaunchParams.textures, texcrd.x, texcrd.y);
+      auto sine_in_2  = 1.0f - cosine_in * cosine_in;
+      auto sine_out_2 = owl::vec3f(sine_in_2) / (conductor.eta * conductor.eta);
+      auto r0         = fresnel2(conductor.eta, conductor.k, cosine_in * cosine_in, owl::vec3f(fmaxf(1.0f-sine_out_2.x,0.0f), fmaxf(1.0f - sine_out_2.y, 0.0f), fmaxf(1.0f - sine_out_2.z, 0.0f)));
+      owl::RayT<RAY_TYPE_OCCLUDED, RAY_TYPE_COUNT> ray(position + 0.01f * s_normal, specular_reflection, 0.0f, 1000000.0f);
+      auto refl_color = optixLaunchParams.light.envmap.sample(specular_reflection);
+      payload.color   = static_cast<float>(!traceOccluded(ray)) * r0 * conductor.specular_reflectance * refl_color;
+    }
+    if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_DIELECTRIC) { // PLASTICはおおむね一致。
+      auto  dielectric = surface.loadDielectric(optixLaunchParams.textures, texcrd.x, texcrd.y);
+      float eta        = cosine_in > 0.0f ? dielectric.eta : 1.0f / dielectric.eta;
+      auto  r_normal   = cosine_in > 0.0f ? s_normal : -s_normal;
+      auto  sine_in_2  = 1.0f - cosine_in * cosine_in;
+      auto  sine_out_2 = sine_in_2 / (eta * eta);
+      auto  r0         = fresnel1(dielectric.eta, cosine_in * cosine_in, fmaxf(1.0f-sine_out_2,0.0f));
+
+      if (payload.random() < r0) {
+        auto specular_reflection = owl::normalize(direction + 2.0f * cosine_in * s_normal);
+        owl::RayT<RAY_TYPE_OCCLUDED, RAY_TYPE_COUNT> ray(position + 0.01f * r_normal, specular_reflection, 0.0f, 1000000.0f);
+        auto refl_color = optixLaunchParams.light.envmap.sample(specular_reflection);
+        payload.color   = static_cast<float>(!traceOccluded(ray)) * dielectric.specular_reflectance * refl_color;
+      }
+      else {
+        auto specular_transmit = owl::normalize((direction + cosine_in * s_normal) / eta - sqrtf(1.0f - sine_out_2) * r_normal);
+        owl::RayT<RAY_TYPE_OCCLUDED, RAY_TYPE_COUNT> ray(position - 0.01f * r_normal, specular_transmit, 0.0f, 1000000.0f);
+        auto tran_color = optixLaunchParams.light.envmap.sample(specular_transmit);
+        payload.color = static_cast<float>(!traceOccluded(ray)) * dielectric.specular_transmittance/(eta* eta) * tran_color;
+      }
+
+    }
+    if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_PLASTIC  ) { // PLASTICはおおむね一致。
       auto specular_reflection  = owl::normalize(direction + 2.0f * cosine_in * s_normal);
 
       auto plastic              = surface.loadPlastic(optixLaunchParams.textures, texcrd.x, texcrd.y);
       auto sine_in_2            = 1.0f - cosine_in * cosine_in;
       auto sine_out_2           = sine_in_2 / (plastic.eta * plastic.eta);
-      auto r0                   = fresnel(plastic.eta, cosine_in * cosine_in, 1.0f - sine_out_2);
+      auto r0                   = fresnel1(plastic.eta, cosine_in * cosine_in, fmaxf(1.0f - sine_out_2,0.0f));
       auto t0                   = 1.0f - r0;
 
       auto diffuse_reflection   = random_in_pdf_cosine(payload.random);
@@ -152,14 +198,14 @@ extern "C" {
 
       Onb onb(s_normal);
       diffuse_reflection        = onb.local(diffuse_reflection);
-      auto r1                   = fresnel(plastic.eta, cos2_in*cos2_in, 1.0f- sin2_out_2);
+      auto r1                   = fresnel1(plastic.eta, cos2_in*cos2_in, fmaxf(1.0f - sin2_out_2, 0.0f));
       auto t1                   = 1.0f - r1;
 
       if (payload.random() < 0.5f)
       {
         owl::RayT<RAY_TYPE_OCCLUDED, RAY_TYPE_COUNT> ray(position + 0.01f * s_normal, specular_reflection, 0.0f, 1000000.0f);
-        auto spec_refl_color                 = optixLaunchParams.light.envmap.sample(specular_reflection);
-        payload.color                        = (!traceOccluded(ray)) * 2.0f * r0 * plastic.specular_reflectance * spec_refl_color;
+        auto spec_refl_color = optixLaunchParams.light.envmap.sample(specular_reflection);
+        payload.color        = (!traceOccluded(ray)) * 2.0f * r0 * plastic.specular_reflectance * spec_refl_color;
       }
       else
       {

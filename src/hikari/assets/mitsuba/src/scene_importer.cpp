@@ -409,9 +409,9 @@ struct hikari::MitsubaSceneImporter::Impl {
       auto specular_reflectance   = loadPropSpectrumOrTexture(xml_data, "specular_reflectance"s, bsdf_data->properties);
       auto specular_transmittance = loadPropSpectrumOrTexture(xml_data, "specular_transmittance"s, bsdf_data->properties);
       auto res = mat_obj->convert<BsdfDielectric>();
-      if (int_ior) { res->setIntIOR(*int_ior); }
-      if (ext_ior) { res->setExtIOR(*ext_ior); }
-      if (specular_reflectance  ) { res->setSpecularReflectance(*specular_reflectance); }
+      if (int_ior) { res->setIntIOR(*int_ior); } else { res->setIntIOR(1.5046); }
+      if (ext_ior) { res->setExtIOR(*ext_ior); } else { res->setExtIOR(1.000277); }
+      if (specular_reflectance  ) { res->setSpecularReflectance(*specular_reflectance); } 
       if (specular_transmittance) { res->setSpecularTransmittance(*specular_transmittance); }
       return mat_obj;
     }
