@@ -394,8 +394,8 @@ struct hikari::MitsubaSceneImporter::Impl {
 
       auto res                  = mat_obj->convert<BsdfRoughConductor>();
 
-      if (eta) { res->setEta(*eta); }
-      if (k) { res->setK(*k); }
+      if (eta) { res->setEta(*eta); }else {res->setEta(SpectrumSrgb::create({1.0f,1.0f,1.0f})); }
+      if (k) { res->setK(*k); } else {res->setK(SpectrumSrgb::create({0.0f,0.0f,0.0f})); }
       if (specular_reflectance) { res->setSpecularReflectance(*specular_reflectance); }
       if (alpha) { res->setAlpha(*alpha); }
       if (alpha_u) { res->setAlphaU(*alpha_u); }
@@ -421,8 +421,8 @@ struct hikari::MitsubaSceneImporter::Impl {
       auto specular_reflectance = loadPropSpectrumOrTexture(xml_data, "specular_reflectance"s, bsdf_data->properties);
       auto specular_transmittance = loadPropSpectrumOrTexture(xml_data, "specular_transmittance"s, bsdf_data->properties);
       auto res = mat_obj->convert<BsdfThinDielectric>();
-      if (int_ior) { res->setIntIOR(*int_ior); }
-      if (ext_ior) { res->setExtIOR(*ext_ior); }
+      if (int_ior) { res->setIntIOR(*int_ior); } else { res->setIntIOR(1.5046); }
+      if (ext_ior) { res->setExtIOR(*ext_ior); } else { res->setExtIOR(1.000277); }
       if (specular_reflectance) { res->setSpecularReflectance(*specular_reflectance); }
       if (specular_transmittance) { res->setSpecularTransmittance(*specular_transmittance); }
       return mat_obj;

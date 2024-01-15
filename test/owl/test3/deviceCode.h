@@ -5,6 +5,7 @@
 #include <owl/common/math/vec.h>
 #include <owl/common/math/random.h>
 #if !defined(__CUDACC__)
+#include <optional>
 #include <variant>
 #endif
 
@@ -87,18 +88,62 @@ struct SurfaceDielectricData {
   owl::vec3f specular_reflectance;
   owl::vec3f specular_transmittance;
 };
+struct SurfaceThinDielectricData {
+  SurfaceDielectricData dielectric;
+};
 struct SurfacePlasticData {
   owl::vec3f diffuse_reflectance;
   float      eta;
   owl::vec3f specular_reflectance;
   float      int_fresnel_diffuse_reflectance;
 };
+struct SurfaceRoughConductorIsotropicData {
+  SurfaceConductorData conductor;
+  float                alpha;
+};
+struct SurfaceRoughConductorAnisotropicData {
+  SurfaceConductorData conductor;
+  float                alpha_u;
+  float                alpha_v;
+};
+struct SurfaceRoughDielectricIsotropicData {
+  SurfaceDielectricData dielectric;
+  float                 alpha;
+};
+struct SurfaceRoughDielectricAnisotropicData {
+  SurfaceDielectricData dielectric;
+  float                 alpha_u;
+  float                 alpha_v;
+};
+struct SurfaceRoughPlasticIsotropicData {
+  SurfacePlasticData    plastic;
+  float                 alpha;
+};
 
-#define SURFACE_TYPE_DIFFUSE    0x0100u
-#define SURFACE_TYPE_CONDUCTOR  0x0200u
-#define SURFACE_TYPE_DIELECTRIC 0x0300u
-#define SURFACE_TYPE_PLASTIC    0x0400u
-#define SURFACE_TYPE_MASK       0xFF00u
+#define SURFACE_TYPE_MASK_DIFFUSE                       0x0100u
+#define SURFACE_TYPE_MASK_CONDUCTOR                     0x0200u
+#define SURFACE_TYPE_MASK_DIELECTRIC                    0x0400u
+#define SURFACE_TYPE_MASK_PLASTIC                       0x0800u
+#define SURFACE_TYPE_MASK_ROUGH                         0x1000u
+#define SURFACE_TYPE_MASK_ANISOTROPIC                   0x2000u
+#define SURFACE_TYPE_MASK_SPECIAL                       0x4000u
+
+#define SURFACE_TYPE_MASK_ALL                           0xFF00u
+
+#define SURFACE_TYPE_DIFFUSE                            SURFACE_TYPE_MASK_DIFFUSE    
+#define SURFACE_TYPE_CONDUCTOR                          SURFACE_TYPE_MASK_CONDUCTOR  
+#define SURFACE_TYPE_DIELECTRIC                         SURFACE_TYPE_MASK_DIELECTRIC 
+#define SURFACE_TYPE_THIN_DIELECTRIC                   (SURFACE_TYPE_MASK_DIELECTRIC |SURFACE_TYPE_MASK_SPECIAL)
+#define SURFACE_TYPE_PLASTIC                            SURFACE_TYPE_MASK_PLASTIC
+#define SURFACE_TYPE_ROUGH_CONDUCTOR                   (SURFACE_TYPE_MASK_CONDUCTOR  |SURFACE_TYPE_MASK_ROUGH  )
+#define SURFACE_TYPE_ROUGH_CONDUCTOR_ISOTROPIC          SURFACE_TYPE_ROUGH_CONDUCTOR
+#define SURFACE_TYPE_ROUGH_CONDUCTOR_ANISOTROPIC       (SURFACE_TYPE_ROUGH_CONDUCTOR |SURFACE_TYPE_MASK_ANISOTROPIC)
+#define SURFACE_TYPE_ROUGH_DIELECTRIC                  (SURFACE_TYPE_MASK_DIELECTRIC |SURFACE_TYPE_MASK_ROUGH  )
+#define SURFACE_TYPE_ROUGH_DIELECTRIC_ISOTROPIC         SURFACE_TYPE_ROUGH_DIELECTRIC
+#define SURFACE_TYPE_ROUGH_DIELECTRIC_ANISOTROPIC      (SURFACE_TYPE_ROUGH_DIELECTRIC|SURFACE_TYPE_MASK_ANISOTROPIC)
+#define SURFACE_TYPE_ROUGH_PLASTIC                     (SURFACE_TYPE_MASK_PLASTIC    |SURFACE_TYPE_MASK_ROUGH)
+#define SURFACE_TYPE_ROUGH_PLASTIC_ISOTROPIC            SURFACE_TYPE_ROUGH_PLASTIC   
+#define SURFACE_TYPE_ROUGH_PLASTIC_ANISOTROPIC         (SURFACE_TYPE_ROUGH_PLASTIC   |SURFACE_TYPE_MASK_ANISOTROPIC)
 
 #define SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_COL               0x0000u
 #define SURFACE_TYPE_DIFFUSE_OPTION_REFLECTANCE_TEX               0x0001u
@@ -122,6 +167,17 @@ struct SurfacePlasticData {
 #define SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_COL      0x0000u
 #define SURFACE_TYPE_PLASTIC_OPTION_SPECULAR_REFLECTANCE_TEX      0x0002u
 
+#define SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_BECKMAN            0x0000u
+#define SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_GGX                0x0008u
+#define SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_PHONG              0x0010u
+#define SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_MASK               0x0018u
+
+#define SURFACE_TYPE_ROUGH_OPTION_ALPHA_VAL                       0x0000u
+#define SURFACE_TYPE_ROUGH_OPTION_ALPHA_TEX                       0x0020u
+#define SURFACE_TYPE_ROUGH_OPTION_ALPHA_U_VAL                     0x0000u
+#define SURFACE_TYPE_ROUGH_OPTION_ALPHA_U_TEX                     0x0020u
+#define SURFACE_TYPE_ROUGH_OPTION_ALPHA_V_VAL                     0x0000u
+#define SURFACE_TYPE_ROUGH_OPTION_ALPHA_V_TEX                     0x0040u
 
 struct SurfaceData {
 #if !defined(__CUDACC__)
@@ -192,6 +248,10 @@ struct SurfaceData {
       textures[2] = std::get<1>(specular_transmittance);
     }
   }
+  void initThinDielectric(const std::variant<float, unsigned short>& eta, const std::variant<owl::vec3f, unsigned short>& specular_reflectance, const std::variant<owl::vec3f, unsigned short>& specular_transmittance) {
+    initDielectric(eta, specular_reflectance, specular_transmittance);
+    type |= SURFACE_TYPE_MASK_SPECIAL;
+  }
   void initPlastic(const std::variant<owl::vec3f, unsigned short>& diffuse_reflectance, const std::variant<owl::vec3f, unsigned short>& specular_reflectance, float eta, float int_fresnel_diffuse_reflectance) {
     type = SURFACE_TYPE_PLASTIC;
     if (diffuse_reflectance.index() == 0) {
@@ -211,6 +271,32 @@ struct SurfaceData {
       textures[0] = std::get<1>(specular_reflectance);
     }
     values[3] = eta; values[7] = int_fresnel_diffuse_reflectance;
+  }
+  void initRoughConductor(
+    unsigned int option,
+    const std::variant<owl::vec3f, unsigned short>& eta, const std::variant<owl::vec3f, unsigned short>& k, const std::variant<owl::vec3f, unsigned short>& specular_reflectance,
+    const std::variant<float, unsigned short>&  alpha_1, const std::optional<std::variant<float, unsigned short>> alpha_2 = std::nullopt) {
+    initConductor(eta, k, specular_reflectance);
+    if (alpha_1.index()   == 0) {
+      values[9] = std::get<0>(alpha_1);
+      type |= SURFACE_TYPE_ROUGH_OPTION_ALPHA_VAL;
+    } else {
+      textures[3] = std::get<1>(alpha_1);
+      type   |= SURFACE_TYPE_ROUGH_OPTION_ALPHA_TEX;
+    }
+    if (!alpha_2) {
+      type   |= SURFACE_TYPE_MASK_ROUGH | option;
+    }
+    else {
+      if (alpha_2->index() == 0) {
+        values[10] = std::get<0>(*alpha_2);
+        type |= SURFACE_TYPE_ROUGH_OPTION_ALPHA_V_VAL;
+      } else {
+        textures[4] = std::get<1>(*alpha_2);
+        type |= SURFACE_TYPE_ROUGH_OPTION_ALPHA_V_TEX;
+      }
+      type   |= SURFACE_TYPE_MASK_ROUGH | SURFACE_TYPE_MASK_ANISOTROPIC | option;
+    }
   }
 #else
   __forceinline__ __device__ SurfaceDiffuseData loadDiffuse(const TextureData* texture_buffer, float u, float v) const {
@@ -281,6 +367,12 @@ struct SurfaceData {
     }
     return dielectric;
   }
+
+  __forceinline__ __device__ SurfaceThinDielectricData loadThinDielectric(const TextureData* texture_buffer, float u, float v) const {
+    SurfaceThinDielectricData thin;
+    thin.dielectric = loadDielectric(texture_buffer, u, v);
+    return thin;
+  }
   __forceinline__ __device__ SurfacePlasticData loadPlastic(const TextureData* texture_buffer, float u, float v) const {
     SurfacePlasticData plastic;
     if ((type & SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL) == SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL) {
@@ -303,11 +395,39 @@ struct SurfaceData {
     plastic.int_fresnel_diffuse_reflectance = values[7];
     return plastic;
   }
+  __forceinline__ __device__ SurfaceRoughConductorIsotropicData loadRoughConductorIsotropic(const TextureData* texture_buffer, float u, float v) const {
+    SurfaceRoughConductorIsotropicData rough_isotropic;
+    rough_isotropic.conductor = loadConductor(texture_buffer, u, v);
+    if ((type & SURFACE_TYPE_ROUGH_OPTION_ALPHA_TEX) == SURFACE_TYPE_ROUGH_OPTION_ALPHA_TEX) {
+      rough_isotropic.alpha = texture_buffer[textures[3]].sample(u, v).x;
+    }
+    else {
+      rough_isotropic.alpha = values[9];
+    }
+    return rough_isotropic;
+  }
 
+  __forceinline__ __device__ SurfaceRoughConductorAnisotropicData loadRoughConductorAnisotropic(const TextureData* texture_buffer, float u, float v) const {
+    SurfaceRoughConductorAnisotropicData rough_anisotropic;
+    rough_anisotropic.conductor = loadConductor(texture_buffer, u, v);
+    if ((type & SURFACE_TYPE_ROUGH_OPTION_ALPHA_U_TEX) == SURFACE_TYPE_ROUGH_OPTION_ALPHA_U_TEX) {
+      rough_anisotropic.alpha_u = texture_buffer[textures[3]].sample(u, v).x;
+    }
+    else {
+      rough_anisotropic.alpha_u = values[9];
+    }
+    if ((type & SURFACE_TYPE_ROUGH_OPTION_ALPHA_V_TEX) == SURFACE_TYPE_ROUGH_OPTION_ALPHA_V_TEX) {
+      rough_anisotropic.alpha_v = texture_buffer[textures[4]].sample(u, v).x;
+    }
+    else {
+      rough_anisotropic.alpha_v = values[10];
+    }
+    return rough_anisotropic;
+  }
 #endif
-  unsigned int          type;
-  unsigned short textures[4];
-  float            values[9];
+  unsigned int          type;// float1
+  unsigned short textures[6];// float3
+  float           values[12];// float12
 };
 
 struct LightEnvmapData {
@@ -392,3 +512,26 @@ struct Onb {
   owl::vec3f w;
 };
 
+
+#if defined(__CUDACC__)
+__forceinline__ __device__
+owl::vec3f offset_ray(const owl::vec3f& p, const owl::vec3f& n)
+{
+  constexpr float k_origin      = 1.0f / 32.0f;
+  constexpr float k_float_scale = 1.0f / 65536.0f;
+  constexpr float k_int_scale   = 256.0f;
+
+  owl::vec3i of_i(k_int_scale * n.x, k_int_scale * n.y, k_int_scale * n.z);
+  owl::vec3f p_i(
+    __int_as_float(__float_as_int(p.x)+((p.x<0.0f)?-of_i.x:of_i.x)),
+    __int_as_float(__float_as_int(p.y)+((p.y<0.0f)?-of_i.y:of_i.y)),
+    __int_as_float(__float_as_int(p.z)+((p.z<0.0f)?-of_i.z:of_i.z))
+  );
+  return owl::vec3f(
+    fabsf(p.x) < k_origin ? p.x + k_float_scale * n.x : p_i.x,
+    fabsf(p.y) < k_origin ? p.y + k_float_scale * n.y : p_i.y,
+    fabsf(p.z) < k_origin ? p.z + k_float_scale * n.z : p_i.z
+ );
+}
+
+#endif

@@ -1,13 +1,3 @@
-#include <hikari/assets/mitsuba/scene_importer.h>
-#include <hikari/camera/perspective.h>
-#include <hikari/shape/mesh.h>
-#include <hikari/light/envmap.h>
-#include <hikari/core/node.h>
-#include <hikari/core/film.h>
-#include <hikari/core/material.h>
-#include <hikari/core/surface.h>
-#include <hikari/core/subsurface.h>
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -23,10 +13,21 @@
 #include <owl/common/math/AffineSpace.h>
 #include <owl/common/math/LinearSpace.h>
 
+#include <hikari/assets/mitsuba/scene_importer.h>
+#include <hikari/camera/perspective.h>
+#include <hikari/shape/mesh.h>
+#include <hikari/light/envmap.h>
+#include <hikari/core/node.h>
+#include <hikari/core/film.h>
+#include <hikari/core/material.h>
+#include <hikari/core/surface.h>
+#include <hikari/core/subsurface.h>
 #include <hikari/core/bsdf.h>
 #include <hikari/bsdf/diffuse.h>
 #include <hikari/bsdf/conductor.h>
+#include <hikari/bsdf/rough_conductor.h>
 #include <hikari/bsdf/dielectric.h>
+#include <hikari/bsdf/thin_dielectric.h>
 #include <hikari/bsdf/plastic.h>
 #include <hikari/texture/mipmap.h>
 #include <hikari/texture/checkerboard.h>
@@ -235,6 +236,13 @@ int main() {
       auto spec_transmittance_val = loadSpectrumOrTexture(context, dielectric->getSpecularTransmittance(), textures, texture_objects);
       surface_data.initDielectric(eta_val, spec_reflectance_val, spec_transmittance_val);
     }
+    if (bsdf->getID() == hikari::BsdfThinDielectric::ID()) {
+      auto thin_dielectric = bsdf->convert<hikari::BsdfThinDielectric>();
+      auto eta_val = loadFloatOrTexture(context, thin_dielectric->getEta(), textures, texture_objects);
+      auto spec_reflectance_val = loadSpectrumOrTexture(context, thin_dielectric->getSpecularReflectance(), textures, texture_objects);
+      auto spec_transmittance_val = loadSpectrumOrTexture(context, thin_dielectric->getSpecularTransmittance(), textures, texture_objects);
+      surface_data.initThinDielectric(eta_val, spec_reflectance_val, spec_transmittance_val);
+    }
     if (bsdf->getID() == hikari::BsdfPlastic::ID()) {
       auto plastic                         = bsdf->convert<hikari::BsdfPlastic>();
       auto diff_reflectance_val            = loadSpectrumOrTexture(context, plastic->getDiffuseReflectance() , textures, texture_objects);
@@ -243,6 +251,33 @@ int main() {
       auto int_fresnel_diffuse_reflectance = plastic->getIntFresnelDiffuseReflectance();
       if (!plastic->getNonLinear()) { int_fresnel_diffuse_reflectance *= -1.0f; }
       surface_data.initPlastic(diff_reflectance_val, spec_reflectance_val, eta, int_fresnel_diffuse_reflectance);
+    }
+    if (bsdf->getID() == hikari::BsdfRoughConductor::ID()) {
+      auto conductor = bsdf->convert<hikari::BsdfRoughConductor>();
+      auto eta_val = loadSpectrumOrTexture(context, conductor->getEta(), textures, texture_objects);
+      auto k_val = loadSpectrumOrTexture(context, conductor->getK(), textures, texture_objects);
+      auto spec_reflectance_val = loadSpectrumOrTexture(context, conductor->getSpecularReflectance(), textures, texture_objects);
+      auto alpha = conductor->getAlpha();
+      auto alpha_1_val = std::variant<float, unsigned short>();
+      auto alpha_2_val = std::optional<std::variant<float, unsigned short>>();
+      if (alpha) {
+        alpha_1_val = loadFloatOrTexture(context, *alpha, textures, texture_objects);
+      }
+      else {
+        auto alpha_u = conductor->getAlphaU();
+        auto alpha_v = conductor->getAlphaV();
+        alpha_1_val = loadFloatOrTexture(context, alpha_u, textures, texture_objects);
+        alpha_2_val = loadFloatOrTexture(context, alpha_v, textures, texture_objects);
+      }
+      auto distribution_type = conductor->getDistribution();
+      auto option = 0u;
+      if (distribution_type == hikari::BsdfDistributionType::eBeckman) {
+        option |= SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_BECKMAN;
+      }
+      if (distribution_type == hikari::BsdfDistributionType::eGGX) {
+        option |= SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_GGX;
+      }
+      surface_data.initRoughConductor(option,eta_val, k_val, spec_reflectance_val, alpha_1_val, alpha_2_val);
     }
     surfaces.push_back(surface_data);
   }

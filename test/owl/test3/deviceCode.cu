@@ -48,7 +48,7 @@ __forceinline__ __device__ float      fresnel2(float eta, float k       , float 
   float rs      = (rs1*rs1 + rsk*rsk)/ (rs2 * rs2 + rsk * rsk);
   return 0.5f * (rp + rs);
 }
-__forceinline__ __device__ owl::vec3f fresnel2(const owl::vec3f& eta, const owl::vec3f& k, float cos_in_2, const owl::vec3f& cos_out_2) {
+__forceinline__ __device__ owl::vec3f fresnel2(const owl::vec3f&     eta, const owl::vec3f& k, float cos_in_2, const owl::vec3f& cos_out_2) {
   return owl::vec3f(fresnel2(eta.x, k.x, cos_in_2, cos_out_2.x), fresnel2(eta.y, k.y, cos_in_2, cos_out_2.y), fresnel2(eta.z, k.z, cos_in_2, cos_out_2.z));
 }
 __forceinline__ __device__ owl::vec3f random_in_pdf_cosine(owl::LCG<24>& random) {
@@ -89,7 +89,7 @@ __forceinline__ __device__ bool       shade_material(
     // Surfaceを取得
     auto& surface    = optixLaunchParams.surfaces[surface_idx];
     // Light
-    if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_DIFFUSE   ) { // DIFFUSEはおおむね一致。
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_DIFFUSE   ) { // DIFFUSEはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
       Onb  onb(s_normal);
       auto refl_dir      = onb.local(random_in_pdf_cosine(random));
@@ -97,12 +97,12 @@ __forceinline__ __device__ bool       shade_material(
       if   (g_cosine_out < 0.0f) { return true; }
 
       auto diffuse       = surface.loadDiffuse(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
-      ray_org           += 0.01f * s_normal;
+      ray_org            = offset_ray(ray_org, s_normal);
       ray_dir            = refl_dir;
       throughput        *= diffuse.reflectance;
       return false;
     }
-    if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_CONDUCTOR ) { // PLASTICはおおむね一致。
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_CONDUCTOR ) { // PLASTICはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
       auto refl_dir     = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
       float g_cosine_out= owl::dot(g_normal, refl_dir);
@@ -117,12 +117,12 @@ __forceinline__ __device__ bool       shade_material(
       auto cos_1_out_sq = owl::vec3f(fmaxf(1.0f - sin_1_out_sq.x, 0.0f), fmaxf(1.0f - sin_1_out_sq.y, 0.0f), fmaxf(1.0f - sin_1_out_sq.z, 0.0f));
       auto r0           = fresnel2(conductor.eta, conductor.k, cos_1_in_sq, cos_1_out_sq);
       
-      ray_org          += 0.01f * s_normal;
+      ray_org           = offset_ray(ray_org, s_normal);
       ray_dir           = refl_dir;
       throughput       *= r0 * conductor.specular_reflectance;
       return false;
     }
-    if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_DIELECTRIC) { // PLASTICはおおむね一致。
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_DIELECTRIC) { // PLASTICはおおむね一致。
       //if (s_cosine_in* g_cosine_in < 0.0f) { return true; }
       auto  dielectric  = surface.loadDielectric(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
       float eta         = s_cosine_in > 0.0f ? dielectric.eta : 1.0f / dielectric.eta;
@@ -137,19 +137,50 @@ __forceinline__ __device__ bool       shade_material(
 
       if (random() < r0) {
         auto refl_dir   = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
-        ray_org        += 0.001f * r_normal;
+        ray_org         = offset_ray(ray_org,r_normal);
         ray_dir         = refl_dir;
         throughput     *= dielectric.specular_reflectance;
       }
       else {
         auto tran_dir  = owl::normalize((ray_dir + s_cosine_in * s_normal) / eta - sqrtf(cos_1_out_sq) * r_normal);
-        ray_org       -= 0.0001f * r_normal;
+        ray_org        = offset_ray(ray_org,-r_normal);
         ray_dir        = tran_dir;
         throughput    *= dielectric.specular_transmittance/(eta*eta);
       }
       return false;
     }
-    if ((surface.type & SURFACE_TYPE_MASK) == SURFACE_TYPE_PLASTIC   ) { // PLASTICはおおむね一致。
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_THIN_DIELECTRIC) { // PLASTICはおおむね一致。
+      //if (s_cosine_in* g_cosine_in < 0.0f) { return true; }
+      auto  thin            = surface.loadThinDielectric(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
+      float eta             = thin.dielectric.eta;
+      auto  r_normal        = s_cosine_in > 0.0f ? s_normal : -s_normal;
+
+      auto cos_1_in         = s_cosine_in;
+      auto cos_1_in_sq      = cos_1_in * cos_1_in;
+      auto sin_1_in_sq      = 1.0f - cos_1_in_sq;
+      auto sin_1_out_sq     = sin_1_in_sq / (eta * eta);
+      auto cos_1_out_sq     = fmaxf(1.0f - sin_1_out_sq, 0.0f);
+      auto r                = fresnel1(eta, cos_1_in_sq, cos_1_out_sq);
+      auto t                = 1.0f - r;
+      if (r < 1.0f) {
+        r += t * t * r / (1.0f - r * r);
+      }
+
+      if (random() < r) {
+        auto refl_dir = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
+        ray_org       = offset_ray(ray_org, r_normal);
+        ray_dir = refl_dir;
+        throughput *= thin.dielectric.specular_reflectance;
+      }
+      else {
+        auto tran_dir = ray_dir;
+        ray_org  = offset_ray(ray_org, -r_normal);
+        ray_dir = tran_dir;
+        throughput *= thin.dielectric.specular_transmittance;
+      }
+      return false;
+    }
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_PLASTIC   ) { // PLASTICはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
       auto plastic                         = surface.loadPlastic(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
       bool nonlinear                       = plastic.int_fresnel_diffuse_reflectance > 0.0f;
@@ -206,6 +237,45 @@ __forceinline__ __device__ bool       shade_material(
         ray_dir     = diff_refl_dir;
         throughput *= total_diff_reflectance/(1.0f-prob);
       }
+      return false;
+    }
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_CONDUCTOR_ISOTROPIC) { // PLASTICはおおむね一致。
+      if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
+      auto refl_dir = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
+      float g_cosine_out = owl::dot(g_normal, refl_dir);
+      if (g_cosine_out < 0.0f) { return true; }
+      auto rough_isotropic = surface.loadRoughConductorIsotropic(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
+
+      auto cos_1_in     = s_cosine_in;
+      auto cos_1_in_sq  = cos_1_in * cos_1_in;
+      auto sin_1_in_sq  = 1.0f - cos_1_in_sq;
+      auto sin_1_out_sq = owl::vec3f(sin_1_in_sq) / (rough_isotropic.conductor.eta * rough_isotropic.conductor.eta);
+      auto cos_1_out_sq = owl::vec3f(fmaxf(1.0f - sin_1_out_sq.x, 0.0f), fmaxf(1.0f - sin_1_out_sq.y, 0.0f), fmaxf(1.0f - sin_1_out_sq.z, 0.0f));
+      auto r0           = fresnel2(rough_isotropic.conductor.eta, rough_isotropic.conductor.k, cos_1_in_sq, cos_1_out_sq);
+
+      ray_org = offset_ray(ray_org, s_normal);
+      ray_dir = refl_dir;
+      throughput *= r0 * rough_isotropic.conductor.specular_reflectance;
+      return false;
+    }
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_CONDUCTOR_ANISOTROPIC) { // PLASTICはおおむね一致。
+      if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
+      auto refl_dir = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
+      float g_cosine_out = owl::dot(g_normal, refl_dir);
+      if (g_cosine_out < 0.0f) { return true; }
+
+      auto rough_anisotropic = surface.loadRoughConductorAnisotropic(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
+
+      auto cos_1_in = s_cosine_in;
+      auto cos_1_in_sq = cos_1_in * cos_1_in;
+      auto sin_1_in_sq = 1.0f - cos_1_in_sq;
+      auto sin_1_out_sq = owl::vec3f(sin_1_in_sq) / (rough_anisotropic.conductor.eta * rough_anisotropic.conductor.eta);
+      auto cos_1_out_sq = owl::vec3f(fmaxf(1.0f - sin_1_out_sq.x, 0.0f), fmaxf(1.0f - sin_1_out_sq.y, 0.0f), fmaxf(1.0f - sin_1_out_sq.z, 0.0f));
+      auto r0 = fresnel2(rough_anisotropic.conductor.eta, rough_anisotropic.conductor.k, cos_1_in_sq, cos_1_out_sq);
+
+      ray_org = offset_ray(ray_org, s_normal);
+      ray_dir = refl_dir;
+      throughput *= r0 * rough_anisotropic.conductor.specular_reflectance;
       return false;
     }
     return false;
