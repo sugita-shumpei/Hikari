@@ -1,5 +1,6 @@
 #pragma once
 #include <hikari/core/data_type.h>
+#include <hikari/spectrum/srgb.h>
 #include <algorithm>
 namespace hikari
 {
@@ -92,6 +93,7 @@ namespace hikari
         }
 
         std::vector<F32> wavelengths;
-        std::vector<F32> values;
+        std::vector<F32> values     ;
     };
+
 }

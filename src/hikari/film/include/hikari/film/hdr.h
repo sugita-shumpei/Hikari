@@ -13,8 +13,8 @@ namespace hikari {
     auto getWidth () const->U32 override;
     auto getHeight() const->U32 override;
 
-    void setWidth (U32 width);
-    void setHeight(U32 height);
+    void setWidth (U32 width)override;
+    void setHeight(U32 height)override;
 
     void setComponentFormat(FilmComponentFormat component_format);
     auto getComponentFormat() const -> FilmComponentFormat;

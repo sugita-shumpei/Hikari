@@ -7,6 +7,22 @@
 #include <hikari/core/material.h>
 #include <hikari/core/surface.h>
 #include <hikari/core/subsurface.h>
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <tuple>
+#include <random>
+#include <filesystem>
+
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <owl/owl.h>
+#include <owl/common/math/vec.h>
+#include <owl/common/math/constants.h>
+#include <owl/common/math/AffineSpace.h>
+#include <owl/common/math/LinearSpace.h>
+
 #include <hikari/core/bsdf.h>
 #include <hikari/bsdf/diffuse.h>
 #include <hikari/bsdf/conductor.h>
@@ -17,23 +33,13 @@
 #include <hikari/assets/image/exporter.h>
 #include <hikari/spectrum/srgb.h>
 #include <hikari/spectrum/uniform.h>
-#include <testlib_config.h>
+#include <pinhole_camera.h>
 #include <gl_viewer.h>
 #include <tonemap.h>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <owl/owl.h>
-#include <owl/common/math/vec.h>
-#include <owl/common/math/constants.h>
-#include <owl/common/math/AffineSpace.h>
-#include <owl/common/math/LinearSpace.h>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <tuple>
-#include <random>
-#include <filesystem>
+
+#include <testlib_config.h>
 #include "deviceCode.h"
+
 auto loadSpectrum(const hikari::SpectrumPtr& spectrum) -> owl::vec3f {
   owl::vec3f res = {};
   if (spectrum->getID() == hikari::SpectrumSrgb::ID()) {
@@ -446,21 +452,57 @@ int main() {
       TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
       owlBufferResize(p_tracer_data->accum_buffer, new_w * new_h);
       owlBufferResize(p_tracer_data->frame_buffer, new_w * new_h);
-      owlParamsSet2i(p_tracer_data->params, "frame_size", new_w, new_h);
+      owlRayGenSet1i(p_tracer_data->raygen, "width" , new_w);
+      owlRayGenSet1i(p_tracer_data->raygen, "height", new_h);
+      auto film = p_tracer_data->camera->getFilm()  ;
+      film->setWidth(new_w); film->setHeight(new_h) ;
+      p_tracer_data->p_tonemap->resize(new_w, new_h);
       return true;
-      };
+    };
     auto presskey_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, hikari::test::owl::testlib::KeyType           key) {
       TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
-      //if (key == hikari::test::owl::testlib::KeyType::eW) { p_tracer_data->p_camera->processPressKeyW(1.0f); return true; }
-      //if (key == hikari::test::owl::testlib::KeyType::eS) { p_tracer_data->p_camera->processPressKeyS(1.0f); return true; }
-      //if (key == hikari::test::owl::testlib::KeyType::eA) { p_tracer_data->p_camera->processPressKeyA(1.0f); return true; }
-      //if (key == hikari::test::owl::testlib::KeyType::eD) { p_tracer_data->p_camera->processPressKeyD(1.0f); return true; }
-      //if (key == hikari::test::owl::testlib::KeyType::eLeft) { p_tracer_data->p_camera->processPressKeyLeft(0.5f); return true; }
-      //if (key == hikari::test::owl::testlib::KeyType::eRight) { p_tracer_data->p_camera->processPressKeyRight(0.5f); return true; }
-      //if (key == hikari::test::owl::testlib::KeyType::eUp) { p_tracer_data->p_camera->processPressKeyUp(0.5f); return true; }
-      //if (key == hikari::test::owl::testlib::KeyType::eDown) { p_tracer_data->p_camera->processPressKeyDown(0.5f); return true; }
-      return false;
-      };
+      auto camera_node          = p_tracer_data->camera->getNode();
+      auto view_matrix          = camera_node->getGlobalTransform().getMat();
+      view_matrix[0]           *= -1.0f;
+      view_matrix[2]           *= -1.0f;
+      // SCREEN->CAMERA
+      auto proj_matrix          = p_tracer_data->camera->convert<hikari::CameraPerspective>()->getProjMatrix_Infinite();
+      auto inv_proj_matrix      = glm::inverse(hikari::Mat3x3(proj_matrix));
+      auto view_matrix3         = hikari::Mat3x3(view_matrix);
+      auto view_matrix_len      = hikari::Vec3(glm::length(view_matrix[0]), glm::length(view_matrix[1]), glm::length(view_matrix[2]));
+      auto camera_eye           = hikari::Vec3(view_matrix[3]);
+      //view_matrix3            = view_matrix3 * inv_proj_matrix;
+      hikari::test::owl::testlib::PinholeCamera controller;
+      controller.origin         = camera_eye;
+      controller.direction      = glm::normalize(view_matrix3[2]);
+      controller.vup            = glm::cross(controller.direction,glm::normalize(view_matrix3[0]));
+      auto camera_u             =  glm::cross(controller.vup, controller.direction);
+      controller.width          = 1;
+      controller.height         = 1;
+      controller.fovy           = 90.0f;
+      controller.speed          = hikari::Vec3(0.005f);
+
+      bool res = false;
+      if (key == hikari::test::owl::testlib::KeyType::eW    ) { controller.processPressKeyW(1.0f)    ; res = true; }
+      if (key == hikari::test::owl::testlib::KeyType::eS    ) { controller.processPressKeyS(1.0f)    ; res = true; }
+      if (key == hikari::test::owl::testlib::KeyType::eA    ) { controller.processPressKeyA(1.0f)    ; res = true; }
+      if (key == hikari::test::owl::testlib::KeyType::eD    ) { controller.processPressKeyD(1.0f)    ; res = true; }
+      if (key == hikari::test::owl::testlib::KeyType::eLeft ) { controller.processPressKeyLeft(0.5f) ; res = true; }
+      if (key == hikari::test::owl::testlib::KeyType::eRight) { controller.processPressKeyRight(0.5f); res = true; }
+      if (key == hikari::test::owl::testlib::KeyType::eUp   ) { controller.processPressKeyUp(0.5f)   ; res = true; }
+      if (key == hikari::test::owl::testlib::KeyType::eDown ) { controller.processPressKeyDown(0.5f) ; res = true; }
+      if (res == true) {
+        auto [u, v, w] = controller.getUVW();
+
+        view_matrix[0] = hikari::Vec4(-view_matrix_len.x * u, 0.0f);
+        view_matrix[1] = hikari::Vec4(+view_matrix_len.y * v, 0.0f);
+        view_matrix[2] = hikari::Vec4(-view_matrix_len.z * w, 0.0f);
+        view_matrix[3] = hikari::Vec4(controller.origin     , 1.0f);
+
+        camera_node->setGlobalTransform(view_matrix);
+      }
+      return res;
+    };
     auto press_mouse_button_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, hikari::test::owl::testlib::MouseButtonType mouse) {
       TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
       if (mouse == hikari::test::owl::testlib::MouseButtonType::eLeft) {
@@ -472,24 +514,110 @@ int main() {
         float sx = std::clamp((float)x / (float)width, 0.0f, 1.0f);
         float sy = std::clamp((float)y / (float)height, 0.0f, 1.0f);
         printf("%f %f\n", sx, sy);
-        //if (sx < 0.5f) { p_tracer_data->p_camera->processPressKeyLeft(0.5f - sx); }
-        //else { p_tracer_data->p_camera->processPressKeyRight(sx - 0.5f); }
-        //if (sy < 0.5f) { p_tracer_data->p_camera->processPressKeyUp(0.5f - sy); }
-        //else { p_tracer_data->p_camera->processPressKeyDown(sy - 0.5f); }
+
+
+        auto camera_node = p_tracer_data->camera->getNode();
+        auto view_matrix = camera_node->getGlobalTransform().getMat();
+        view_matrix[0] *= -1.0f;
+        view_matrix[2] *= -1.0f;
+        // SCREEN->CAMERA
+        auto proj_matrix = p_tracer_data->camera->convert<hikari::CameraPerspective>()->getProjMatrix_Infinite();
+        auto inv_proj_matrix = glm::inverse(hikari::Mat3x3(proj_matrix));
+        auto view_matrix3 = hikari::Mat3x3(view_matrix);
+        auto view_matrix_len = hikari::Vec3(glm::length(view_matrix[0]), glm::length(view_matrix[1]), glm::length(view_matrix[2]));
+        auto camera_eye = hikari::Vec3(view_matrix[3]);
+        //view_matrix3            = view_matrix3 * inv_proj_matrix;
+        hikari::test::owl::testlib::PinholeCamera controller;
+        controller.origin = camera_eye;
+        controller.direction = glm::normalize(view_matrix3[2]);
+        controller.vup = glm::cross(controller.direction, glm::normalize(view_matrix3[0]));
+        auto camera_u = glm::cross(controller.vup, controller.direction);
+        controller.width = 1;
+        controller.height = 1;
+        controller.fovy = 90.0f;
+        controller.speed = hikari::Vec3(0.005f);
+
+        bool res = false;
+        if (sx < 0.5f) { controller.processPressKeyLeft(0.5f - sx); res = true; }
+        else { controller.processPressKeyRight(sx - 0.5f);  res = true; }
+        if (sy < 0.5f) { controller.processPressKeyUp(0.5f - sy);  res = true; }
+        else { controller.processPressKeyDown(sy - 0.5f);  res = true; }
+        if (res == true) {
+          auto [u, v, w] = controller.getUVW();
+
+          view_matrix[0] = hikari::Vec4(-view_matrix_len.x * u, 0.0f);
+          view_matrix[1] = hikari::Vec4(+view_matrix_len.y * v, 0.0f);
+          view_matrix[2] = hikari::Vec4(-view_matrix_len.z * w, 0.0f);
+          view_matrix[3] = hikari::Vec4(controller.origin, 1.0f);
+
+          camera_node->setGlobalTransform(view_matrix);
+        }
         return true;
       }
       return false;
       };
     auto mouse_scroll_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, double x, double y) {
       TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+      auto camera_node = p_tracer_data->camera->getNode();
+      auto view_matrix = camera_node->getGlobalTransform().getMat();
+      view_matrix[0] *= -1.0f;
+      view_matrix[2] *= -1.0f;
+      // SCREEN->CAMERA
+      auto proj_matrix = p_tracer_data->camera->convert<hikari::CameraPerspective>()->getProjMatrix_Infinite();
+      auto inv_proj_matrix = glm::inverse(hikari::Mat3x3(proj_matrix));
+      auto view_matrix3 = hikari::Mat3x3(view_matrix);
+      auto view_matrix_len = hikari::Vec3(glm::length(view_matrix[0]), glm::length(view_matrix[1]), glm::length(view_matrix[2]));
+      auto camera_eye = hikari::Vec3(view_matrix[3]);
+      //view_matrix3            = view_matrix3 * inv_proj_matrix;
+      hikari::test::owl::testlib::PinholeCamera controller;
+      controller.origin = camera_eye;
+      controller.direction = glm::normalize(view_matrix3[2]);
+      controller.vup = glm::cross(controller.direction, glm::normalize(view_matrix3[0]));
+      auto camera_u = glm::cross(controller.vup, controller.direction);
+      controller.width = 1;
+      controller.height = 1;
+      controller.fovy = 90.0f;
+      controller.speed = hikari::Vec3(0.005f);
+      bool res = false;
       if (y != 0.0f) {
-        //p_tracer_data->p_camera->processMouseScrollY(y);
-        return true;
+        controller.processMouseScrollY(y);
+        res = true;
+      }
+      if (res == true) {
+        auto [u, v, w] = controller.getUVW();
+
+        view_matrix[0] = hikari::Vec4(-view_matrix_len.x * u, 0.0f);
+        view_matrix[1] = hikari::Vec4(+view_matrix_len.y * v, 0.0f);
+        view_matrix[2] = hikari::Vec4(-view_matrix_len.z * w, 0.0f);
+        view_matrix[3] = hikari::Vec4(controller.origin, 1.0f);
+
+        camera_node->setGlobalTransform(view_matrix);
       }
       return false;
       };
     auto update_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer) {
-      };
+      TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
+      auto camera_node = p_tracer_data->camera->getNode();
+      auto view_matrix = camera_node->getGlobalTransform().getMat();
+      view_matrix[0] *= -1.0f;
+      view_matrix[2] *= -1.0f;
+      // SCREEN->CAMERA
+      auto proj_matrix     = p_tracer_data->camera->convert<hikari::CameraPerspective>()->getProjMatrix_Infinite();
+      auto inv_proj_matrix = glm::inverse(hikari::Mat3x3(proj_matrix));
+      auto view_matrix3    = hikari::Mat3x3(view_matrix);
+
+      auto camera_eye = hikari::Vec3(view_matrix[3]);
+      view_matrix3 = view_matrix3 * inv_proj_matrix;
+      owlBufferClear( p_tracer_data->accum_buffer);
+      owlBufferClear( p_tracer_data->frame_buffer);
+      owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_u", (const float*)&view_matrix3[0]);
+      owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_v", (const float*)&view_matrix3[1]);
+      owlRayGenSet3fv(p_tracer_data->raygen, "camera.dir_w", (const float*)&view_matrix3[2]);
+      owlRayGenSet3fv(p_tracer_data->raygen, "camera.eye"  , (const float*)&camera_eye);
+      owlRayGenSet1f( p_tracer_data->raygen, "camera.near_clip", p_tracer_data->camera->convert<hikari::CameraPerspective>()->getNearClip());
+      owlRayGenSet1f( p_tracer_data->raygen, "camera.far_clip" , p_tracer_data->camera->convert<hikari::CameraPerspective>()->getFarClip());
+      p_tracer_data->accum_sample = 0;
+    };
     auto render_callback = [](hikari::test::owl::testlib::GLViewer* p_viewer, void* p_fb_data) {
       TracerData* p_tracer_data = (TracerData*)p_viewer->getUserPtr();
       auto film = p_tracer_data->camera->getFilm();

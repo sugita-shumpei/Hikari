@@ -31,6 +31,8 @@ namespace hikari {
 
     virtual auto getWidth()  const->U32 = 0;
     virtual auto getHeight() const->U32 = 0;
+    virtual void setWidth(U32 width) = 0;
+    virtual void setHeight(U32 height) = 0;
   protected:
     Film() {}
   private:

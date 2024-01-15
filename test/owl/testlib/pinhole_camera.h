@@ -96,15 +96,15 @@ namespace hikari {
 						auto dir_v = ::glm::normalize(::glm::cross(dir_w, dir_u));
 						origin += delta * dir_v * speed.y;
 					}
-					::glm::vec3 origin = ::glm::vec3(0.0f, 0.0f, -1.0f);
+					::glm::vec3 origin    = ::glm::vec3(0.0f, 0.0f, -1.0f);
 					::glm::vec3 direction = ::glm::vec3(0.0f, 0.0f, 1.0f);
-					::glm::vec3 vup = ::glm::vec3(0.0f, 1.0f, 0.0f);
-					::glm::vec3 speed = ::glm::vec3(1.0f, 1.0f,1.0f);
+					::glm::vec3 vup       = ::glm::vec3(0.0f, 1.0f, 0.0f);
+					::glm::vec3 speed     = ::glm::vec3(1.0f, 1.0f,1.0f);
 					float fovy   = 30.0f;
 					int   width  = 1024;
 					int   height = 1024;
 				};
-			}
+                        }
 		}
 	}
 }

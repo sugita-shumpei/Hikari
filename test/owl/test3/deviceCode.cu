@@ -51,7 +51,6 @@ __forceinline__ __device__ float      fresnel2(float eta, float k       , float 
 __forceinline__ __device__ owl::vec3f fresnel2(const owl::vec3f& eta, const owl::vec3f& k, float cos_in_2, const owl::vec3f& cos_out_2) {
   return owl::vec3f(fresnel2(eta.x, k.x, cos_in_2, cos_out_2.x), fresnel2(eta.y, k.y, cos_in_2, cos_out_2.y), fresnel2(eta.z, k.z, cos_in_2, cos_out_2.z));
 }
-
 __forceinline__ __device__ owl::vec3f random_in_pdf_cosine(owl::LCG<24>& random) {
   float cos_tht = sqrtf(1 - random());
   float sin_tht = sqrtf(fmaxf(1 - cos_tht * cos_tht,0.0f));
@@ -60,7 +59,6 @@ __forceinline__ __device__ owl::vec3f random_in_pdf_cosine(owl::LCG<24>& random)
   float sin_phi = sinf(phi);
   return { sin_tht * cos_phi,sin_tht * sin_phi,cos_tht };
 }
-
 __forceinline__ __device__ bool       traceOccluded(const owl::RayT<RAY_TYPE_OCCLUDED, RAY_TYPE_COUNT>& ray) {
   unsigned int occluded = 0;
   optixTrace(optixLaunchParams.tlas, { ray.origin.x,ray.origin.y,ray.origin.z }, { ray.direction.x,ray.direction.y,ray.direction.z }, 0.0f, 1e10f, 0.0f, 255u,
@@ -70,16 +68,15 @@ __forceinline__ __device__ bool       traceOccluded(const owl::RayT<RAY_TYPE_OCC
     RAY_TYPE_OCCLUDED, occluded);
   return occluded;
 }
-
 __forceinline__ __device__ bool       shade_material(
-  const PayloadData& payload,
-  float              min_depth,
-  float              max_depth,
-  owl::vec3f&        ray_org,
-  owl::vec3f&        ray_dir,
-  owl::vec3f&        color,
+  const PayloadData& payload   ,
+  float              min_depth ,
+  float              max_depth ,
+  owl::vec3f&        ray_org   ,
+  owl::vec3f&        ray_dir   ,
+  owl::vec3f&        color     ,
   owl::vec3f&        throughput,
-  owl::LCG<24>&      random) {
+  owl::LCG<24>&      random   ) {
   ray_org           = ray_org + payload.distance * ray_dir;
   auto s_normal     = payload.s_normal;
   auto g_normal     = payload.g_normal;
