@@ -59,15 +59,6 @@ __forceinline__ __device__ owl::vec3f random_in_pdf_cosine(owl::LCG<24>& random)
   float sin_phi = sinf(phi);
   return { sin_tht * cos_phi,sin_tht * sin_phi,cos_tht };
 }
-__forceinline__ __device__ bool       traceOccluded(const owl::RayT<RAY_TYPE_OCCLUDED, RAY_TYPE_COUNT>& ray) {
-  unsigned int occluded = 0;
-  optixTrace(optixLaunchParams.tlas, { ray.origin.x,ray.origin.y,ray.origin.z }, { ray.direction.x,ray.direction.y,ray.direction.z }, 0.0f, 1e10f, 0.0f, 255u,
-    OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT,
-    RAY_TYPE_OCCLUDED,
-    RAY_TYPE_COUNT,
-    RAY_TYPE_OCCLUDED, occluded);
-  return occluded;
-}
 __forceinline__ __device__ bool       shade_material(
   const PayloadData& payload   ,
   float              min_depth ,
@@ -92,7 +83,7 @@ __forceinline__ __device__ bool       shade_material(
     if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_DIFFUSE   ) { // DIFFUSEはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
       Onb  onb(s_normal);
-      auto refl_dir      = onb.local(random_in_pdf_cosine(random));
+      auto refl_dir      = onb.local_to_world(random_in_pdf_cosine(random));
       float g_cosine_out = owl::dot(g_normal, refl_dir);
       if   (g_cosine_out < 0.0f) { return true; }
 
@@ -207,7 +198,7 @@ __forceinline__ __device__ bool       shade_material(
       auto cos_2_out_sq = fmaxf(1.0f - sin_2_out_sq, 0.0f);
 
       Onb onb(s_normal);
-      diff_refl_dir = onb.local(diff_refl_dir);
+      diff_refl_dir = onb.local_to_world(diff_refl_dir);
 
       auto r1 = fresnel1(plastic.eta, cos_2_in_sq, cos_2_out_sq);
       auto t1 = 1.0f - r1;
@@ -253,8 +244,8 @@ __forceinline__ __device__ bool       shade_material(
       auto cos_1_out_sq = owl::vec3f(fmaxf(1.0f - sin_1_out_sq.x, 0.0f), fmaxf(1.0f - sin_1_out_sq.y, 0.0f), fmaxf(1.0f - sin_1_out_sq.z, 0.0f));
       auto r0           = fresnel2(rough_isotropic.conductor.eta, rough_isotropic.conductor.k, cos_1_in_sq, cos_1_out_sq);
 
-      ray_org = offset_ray(ray_org, s_normal);
-      ray_dir = refl_dir;
+      ray_org     = offset_ray(ray_org, s_normal);
+      ray_dir     = refl_dir;
       throughput *= r0 * rough_isotropic.conductor.specular_reflectance;
       return false;
     }

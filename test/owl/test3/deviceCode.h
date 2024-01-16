@@ -502,9 +502,15 @@ struct Onb {
 #if defined(__CUDACC__)
   __forceinline__ __device__
 #endif
-    owl::vec3f local(const owl::vec3f& direction) const {
+    owl::vec3f local_to_world(const owl::vec3f& direction) const {
     return direction.x * u + direction.y * v + direction.z * w;
-  }
+    }
+#if defined(__CUDACC__)
+  __forceinline__ __device__
+#endif
+    owl::vec3f world_to_local(const owl::vec3f& direction) const {
+      return owl::vec3f(owl::dot(u,direction),owl::dot(v,direction),owl::dot(w,direction));
+    }
 
 
   owl::vec3f u;

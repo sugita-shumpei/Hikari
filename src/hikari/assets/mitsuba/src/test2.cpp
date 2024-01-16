@@ -1,4 +1,4 @@
-#include <hikari/assets/mitsuba/scene_importer.h>
+ #include <hikari/assets/mitsuba/scene_importer.h>
 #include <hikari/core/camera.h>
 #include <hikari/core/film.h>
 #include <hikari/core/node.h>
