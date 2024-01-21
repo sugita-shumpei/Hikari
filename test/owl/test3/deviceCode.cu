@@ -51,13 +51,87 @@ __forceinline__ __device__ float      fresnel2(float eta, float k       , float 
 __forceinline__ __device__ owl::vec3f fresnel2(const owl::vec3f&     eta, const owl::vec3f& k, float cos_in_2, const owl::vec3f& cos_out_2) {
   return owl::vec3f(fresnel2(eta.x, k.x, cos_in_2, cos_out_2.x), fresnel2(eta.y, k.y, cos_in_2, cos_out_2.y), fresnel2(eta.z, k.z, cos_in_2, cos_out_2.z));
 }
-__forceinline__ __device__ owl::vec3f random_in_pdf_cosine(owl::LCG<24>& random) {
+__forceinline__ __device__ float      eval_ndf_isotropic_beckmann(float alpha_2, float n_cos_m_2, float xi_of_m_dot_n) {
+  float n_sin_m_2 = fmaxf(1.0f - n_cos_m_2,0.0f);
+  float n_cos_m_4 = n_cos_m_2 * n_cos_m_2;
+  float n_tan_m_2 = n_sin_m_2 / n_cos_m_2;
+  float log_res   = -n_tan_m_2 / alpha_2 - logf(M_PI * alpha_2 * n_cos_m_4);
+  return xi_of_m_dot_n * expf(log_res);
+}
+__forceinline__ __device__ float      schlick_g1_isotropic_beckmann(float a,float xi_of_v_dot_m_per_v_dot_n) {
+  if (a < 1.6f) { return xi_of_v_dot_m_per_v_dot_n * (3.535f * a + 2.181f * a * a) / (1.0f + 2.276f * a + 2.577f * a * a); }
+  else { return xi_of_v_dot_m_per_v_dot_n; }
+}
+__forceinline__ __device__ float      schlick_g2_isotropic_beckmann(float a_v, float a_l, float xi_of_v_dot_m_per_v_dot_n, float xi_of_l_dot_m_per_l_dot_n) {
+  return schlick_g1_isotropic_beckmann(a_v, xi_of_v_dot_m_per_v_dot_n) * schlick_g1_isotropic_beckmann(a_l, xi_of_l_dot_m_per_l_dot_n);
+}
+__forceinline__ __device__ owl::vec3f sample_pdf_isotropic_beckmann(float alpha_2, owl::LCG<24>& random) {
+  float tan_tht_m_2     =-alpha_2 * logf(1.0f - random());
+  float inv_cos_tht_m_2 = 1.0f + tan_tht_m_2;
+  float cos_tht_m_2     = 1.0f / inv_cos_tht_m_2;
+  float sin_tht_m_2     = tan_tht_m_2 * cos_tht_m_2;
+  float cos_tht_m       = sqrtf(cos_tht_m_2);
+  float sin_tht_m       = sqrtf(sin_tht_m_2);
+  float phi_m           = 2.0f * static_cast<float>(M_PI)*random();
+  float cos_phi_m       = cosf(phi_m);
+  float sin_phi_m       = sinf(phi_m);
+  return owl::vec3f(sin_tht_m * cos_phi_m, sin_tht_m * sin_phi_m, cos_tht_m);
+}
+__forceinline__ __device__ owl::vec4f sample_and_eval_pdf_isotropic_beckmann(float alpha_2, owl::LCG<24>& random) {
+  float tan_tht_m_2     = -alpha_2 * logf(1.0f - random());
+  float inv_cos_tht_m_2 = 1.0f + tan_tht_m_2;
+  float cos_tht_m_2 = 1.0f / inv_cos_tht_m_2;
+  float sin_tht_m_2 = tan_tht_m_2 * cos_tht_m_2;
+  float cos_tht_m = sqrtf(cos_tht_m_2);
+  float sin_tht_m = sqrtf(sin_tht_m_2);
+  float phi_m = 2.0f * static_cast<float>(M_PI) * random();
+  float cos_phi_m = cosf(phi_m);
+  float sin_phi_m = sinf(phi_m);
+  return owl::vec4f(sin_tht_m * cos_phi_m, sin_tht_m * sin_phi_m, cos_tht_m, eval_ndf_isotropic_beckmann(alpha_2,cos_tht_m_2,1.0f)* cos_tht_m);
+}
+__forceinline__ __device__ float      eval_pdf_isotropic_beckmann(float alpha_2, float n_cos_m) {
+  return eval_ndf_isotropic_beckmann(alpha_2, n_cos_m * n_cos_m, static_cast<float>(n_cos_m > 0.0f)) * n_cos_m;
+}
+__forceinline__ __device__ owl::vec3f sample_pdf_cosine(owl::LCG<24>& random) {
   float cos_tht = sqrtf(1 - random());
   float sin_tht = sqrtf(fmaxf(1 - cos_tht * cos_tht,0.0f));
   float phi = 2.0f * M_PI * random();
   float cos_phi = cosf(phi);
   float sin_phi = sinf(phi);
   return { sin_tht * cos_phi,sin_tht * sin_phi,cos_tht };
+}
+__forceinline__ __device__ float      eval_pdf_cosine(float cos_tht) {
+  return fmaxf(cos_tht,0.0f)*M_1_PI;
+}
+__forceinline__ __device__ owl::vec3f sample_and_eval_bsdf_isotropic_beckmann(const owl::vec3f& eta, const owl::vec3f& k, float alpha, const owl::vec3f& wi, owl::vec3f& wm, owl::vec3f& weight, float& pdf, owl::LCG<24>& random) {
+  float alpha_2         = alpha * alpha;
+  owl::vec4f wm_and_pdf = sample_and_eval_pdf_isotropic_beckmann(alpha_2, random);
+  wm              = owl::vec3f(wm_and_pdf);
+  pdf             = wm_and_pdf.w;
+  float n_cos_m   = wm.z;
+  float n_cos_i   = wi.z;
+  float m_cos_i   = owl::dot(wi, wm);
+  auto  wo        = owl::normalize(2.0f * m_cos_i * wm - wi);
+  float n_cos_o   = wo.z;
+  float m_cos_o   = owl::dot(wo, wm);
+  float n_cos_i_2 = n_cos_i * n_cos_i;
+  float n_cos_o_2 = n_cos_o * n_cos_o;
+  float n_sin_i_2 = fmaxf(1.0f-n_cos_i_2,0.0f);
+  float n_sin_o_2 = fmaxf(1.0f-n_cos_o_2,0.0f);
+  float n_sin_i   = sqrtf(n_sin_i_2);
+  float n_sin_o   = sqrtf(n_sin_o_2);
+  float a_i       = n_sin_i!=0.0f?n_cos_i/(alpha*n_sin_i):copysignf(FLT_MAX,n_cos_i);
+  float a_o       = n_sin_o!=0.0f?n_cos_o/(alpha*n_sin_o):copysignf(FLT_MAX,n_cos_o);
+  float xi_of_i_dot_m_per_i_dot_n = static_cast<float>((n_cos_i * m_cos_i) > 0.0f);
+  float xi_of_o_dot_m_per_o_dot_n = static_cast<float>((n_cos_o * m_cos_o) > 0.0f);
+  float g2        = schlick_g2_isotropic_beckmann(a_i,a_o,xi_of_i_dot_m_per_i_dot_n,xi_of_o_dot_m_per_o_dot_n);
+  float m_sin_i_2 = fmaxf(1.0f - m_cos_i * m_cos_i,0.0f);
+  auto  m_sin_t_2 = m_sin_i_2 / (eta * eta);
+  auto  m_cos_t_2 = owl::vec3f(fmaxf(1.0f - m_sin_t_2.x, 0.0f), fmaxf(1.0f - m_sin_t_2.y, 0.0f), fmaxf(1.0f - m_sin_t_2.z, 0.0f));
+  auto  f         = fresnel2(eta, k, m_cos_i * m_cos_i, m_cos_t_2);
+  weight          = f * g2 * fabsf(n_cos_m) * fabsf(m_cos_i) / n_cos_i;
+  if (n_cos_o < 0.0f) { weight = 0.0f; }
+  return wo;
 }
 __forceinline__ __device__ bool       shade_material(
   const PayloadData& payload   ,
@@ -83,7 +157,7 @@ __forceinline__ __device__ bool       shade_material(
     if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_DIFFUSE   ) { // DIFFUSEはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
       Onb  onb(s_normal);
-      auto refl_dir      = onb.local_to_world(random_in_pdf_cosine(random));
+      auto refl_dir      = onb.local_to_world(sample_pdf_cosine(random));
       float g_cosine_out = owl::dot(g_normal, refl_dir);
       if   (g_cosine_out < 0.0f) { return true; }
 
@@ -189,7 +263,7 @@ __forceinline__ __device__ bool       shade_material(
       auto t0 = 1.0f - r0;
 
       auto spec_refl_dir = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
-      auto diff_refl_dir = random_in_pdf_cosine(random);
+      auto diff_refl_dir = sample_pdf_cosine(random);
 
       auto cos_2_in     = diff_refl_dir.z;
       auto cos_2_in_sq  = cos_2_in * cos_2_in;
@@ -232,21 +306,18 @@ __forceinline__ __device__ bool       shade_material(
     }
     if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_CONDUCTOR_ISOTROPIC) { // PLASTICはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
-      auto refl_dir = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
-      float g_cosine_out = owl::dot(g_normal, refl_dir);
-      if (g_cosine_out < 0.0f) { return true; }
       auto rough_isotropic = surface.loadRoughConductorIsotropic(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
-
-      auto cos_1_in     = s_cosine_in;
-      auto cos_1_in_sq  = cos_1_in * cos_1_in;
-      auto sin_1_in_sq  = 1.0f - cos_1_in_sq;
-      auto sin_1_out_sq = owl::vec3f(sin_1_in_sq) / (rough_isotropic.conductor.eta * rough_isotropic.conductor.eta);
-      auto cos_1_out_sq = owl::vec3f(fmaxf(1.0f - sin_1_out_sq.x, 0.0f), fmaxf(1.0f - sin_1_out_sq.y, 0.0f), fmaxf(1.0f - sin_1_out_sq.z, 0.0f));
-      auto r0           = fresnel2(rough_isotropic.conductor.eta, rough_isotropic.conductor.k, cos_1_in_sq, cos_1_out_sq);
-
+      Onb onb(s_normal);
+      auto wi     = onb.world_to_local(-ray_dir);
+      auto wm     = owl::vec3f();
+      auto weight = owl::vec3f();
+      auto pdf    = 0.0f;
+      auto wo     = sample_and_eval_bsdf_isotropic_beckmann(rough_isotropic.conductor.eta, rough_isotropic.conductor.k, rough_isotropic.alpha, wi, wm, weight,pdf, random);
+      auto avg_wei = weight.x + weight.y + weight.z;
+      if (avg_wei <= 0.0f) { return true; }
       ray_org     = offset_ray(ray_org, s_normal);
-      ray_dir     = refl_dir;
-      throughput *= r0 * rough_isotropic.conductor.specular_reflectance;
+      ray_dir     = onb.local_to_world(wo);
+      throughput *= weight * rough_isotropic.conductor.specular_reflectance;
       return false;
     }
     if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_CONDUCTOR_ANISOTROPIC) { // PLASTICはおおむね一致。
@@ -287,7 +358,7 @@ OPTIX_RAYGEN_PROGRAM(default)() {
   auto frame_index = dim.x * idx.y + idx.x;
 
   constexpr auto frame_samples = 1;
-  constexpr auto trace_depth   = 100;
+  constexpr auto trace_depth   = 3;
 
   auto payload = PayloadData();
   owl::LCG<24> random = {};
