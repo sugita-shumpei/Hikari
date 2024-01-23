@@ -8,6 +8,8 @@
 
 using Random = owl::PCG32;
 
+#define FORMATTER_VEC3F(V) (V.x), (V.y), (V.z)
+
 
 extern "C" { __constant__ LaunchParams optixLaunchParams;  }
 
@@ -96,77 +98,6 @@ __forceinline__ __device__ owl::vec4f sample_and_eval_pdf_isotropic_beckmann(flo
 __forceinline__ __device__ float      eval_pdf_isotropic_beckmann(float alpha_2, float n_cos_m) {
   return eval_ndf_isotropic_beckmann(alpha_2, n_cos_m * n_cos_m, static_cast<float>(n_cos_m > 0.0f)) * n_cos_m ;
 }
-__forceinline__ __device__ owl::vec2f sample_pdf_isotropic_beckmann2_impl_p22_11(const owl::vec3f& wi, Random& random) {
-  float cos_tht = wi.z;
-  if (cos_tht < 0.0001f) {
-    float r = sqrtf(fmaxf(-logf(random()), 0.0f));
-    float p = static_cast<float>(M_PI) * 2.0f * random();
-    return owl::vec2f(r * cosf(p), r * sinf(p));
-  }
-  float cos_tht2    = cos_tht * cos_tht;
-  float sin_tht2    = fmaxf(1.0f - cos_tht2, 0.0f);
-  float sin_tht     = sqrtf(sin_tht2);
-  float a           = cos_tht/ sin_tht;
-  float a_2         = cos_tht2/ sin_tht2;
-  float erf_a       = erff(a);
-  float exp_a2      = expf(-a_2);
-  float g1       = 2.0f/(1.0f+ erf_a + static_cast<float>(M_2_SQRTPI) * 0.5f * exp_a2);
-  float c        = fmaxf(1.0f- g1 * erf_a,0.0f);
-  float u1       = random();
-  float u2       = random();
-  float xm       = 0.0f;
-  if (u1 <= c) {
-    u1 /= c;
-    float weight1 = sin_tht * static_cast<float>(M_2_SQRTPI) * 0.25f * exp_a2;
-    float weight2 = cos_tht * 0.5f * (1.0f - erf_a);
-    float p = weight1 / (weight1 + weight2);
-    if (u1 <= p) {
-      u1 /= p;
-      xm =-sqrtf(fmaxf(a_2-logf(u1),0.0f));
-    }
-    else {
-      u1 = (u1 - p) / (1.0f - p);
-      xm = erfinvf(u1 - 1.0f - u1 * erf_a);
-    }
-  }
-  else {
-    u1 = (u1 - c) / (1.0f - c);
-    xm = erfinvf((- 1.0f + 2.0f * u1) * erf_a);
-    float p = (-xm * sin_tht + cos_tht) / (2.0f * cos_tht);
-    if (u2 > p) {
-      xm = -xm;
-      u2 = (u2 - p) / (1.0f - p);
-    }
-    else {
-      u2 /= p;
-    }
-  }
-  float ym       = erfinvf(2.0f*u2-1.0f);
-  return owl::vec2f(xm, ym);
-}
-__forceinline__ __device__ owl::vec3f sample_pdf_isotropic_beckmann2(float alpha, const owl::vec3f& wi, Random& random) {
-  owl::vec3f wi_stretch          = owl::normalize(owl::vec3f(wi.x * alpha, wi.y * alpha, wi.z));
-  owl::vec2f xi_and_yi           = sample_pdf_isotropic_beckmann2_impl_p22_11(wi, random);
-  owl::vec3f cos_sin_phi_stretch = owl::vec3f(0.0f);
-  if (wi_stretch.z < 0.9999f) {
-    cos_sin_phi_stretch = owl::normalize(owl::vec3f(wi_stretch.x, wi_stretch.y, 0.0f));
-  }
-  float wm_stretch_x = (xi_and_yi.x * cos_sin_phi_stretch.x - xi_and_yi.y * cos_sin_phi_stretch.y) * alpha;
-  float wm_stretch_y = (xi_and_yi.y * cos_sin_phi_stretch.x + xi_and_yi.x * cos_sin_phi_stretch.y) * alpha;
-  return owl::normalize(owl::vec3f(- wm_stretch_x, -wm_stretch_y, 1.0f));
-}
-__forceinline__ __device__ owl::vec4f sample_and_eval_pdf_isotropic_beckmann2(float alpha, const owl::vec3f& wi, Random& random) {
-  owl::vec3f wi_stretch          = owl::normalize(owl::vec3f(wi.x * alpha, wi.y * alpha, wi.z));
-  owl::vec2f xi_and_yi           = sample_pdf_isotropic_beckmann2_impl_p22_11(wi, random);
-  owl::vec3f cos_sin_phi_stretch = owl::normalize(owl::vec3f(wi_stretch.x, wi_stretch.y, 0.0f));
-  float wm_stretch_x             = (xi_and_yi.x * cos_sin_phi_stretch.x - xi_and_yi.y * cos_sin_phi_stretch.y) * alpha;
-  float wm_stretch_y             = (xi_and_yi.y * cos_sin_phi_stretch.x + xi_and_yi.x * cos_sin_phi_stretch.y) * alpha;
-  owl::vec3f wm                  = owl::normalize(owl::vec3f(-wm_stretch_x, -wm_stretch_y, 1.0f));
-  float d                        = eval_pdf_isotropic_beckmann(alpha*alpha,wm.z);
-  float g1                       = schlick_g1_isotropic_beckmann(wm_stretch_x/ (alpha * wm_stretch_y),1.0f);
-  float pdf                      = d * g1 / (fabsf(wi.z)* fabsf(owl::dot(wi, wm)));
-  return owl::vec4f(wm.x, wm.y, wm.z, pdf);
-}
 __forceinline__ __device__ owl::vec3f sample_pdf_cosine(Random& random) {
   float cos_tht = sqrtf(1 - random());
   float sin_tht = sqrtf(fmaxf(1 - cos_tht * cos_tht,0.0f));
@@ -205,33 +136,6 @@ __forceinline__ __device__ owl::vec3f sample_and_eval_bsdf_isotropic_beckmann(co
   auto  m_cos_t_2 = owl::vec3f(fmaxf(1.0f - m_sin_t_2.x, 0.0f), fmaxf(1.0f - m_sin_t_2.y, 0.0f), fmaxf(1.0f - m_sin_t_2.z, 0.0f));
   auto  f         = fresnel2(eta, k, m_cos_i * m_cos_i, m_cos_t_2);
   weight          = f * g2 * fabsf(m_cos_i) / (n_cos_i* n_cos_m);
-  if (n_cos_i <= 0.0f) { weight = 0.0f; }
-  if (n_cos_o <= 0.0f) { weight = 0.0f; }
-  return wo;
-}
-__forceinline__ __device__ owl::vec3f sample_and_eval_bsdf_isotropic_beckmann2(const owl::vec3f& eta, const owl::vec3f& k, float alpha, const owl::vec3f& wi, owl::vec3f& wm, owl::vec3f& weight, float& pdf, Random& random) {
-  owl::vec4f wm_and_pdf = sample_and_eval_pdf_isotropic_beckmann2(alpha,wi, random);
-  wm  = owl::vec3f(wm_and_pdf);
-  pdf = wm_and_pdf.w;
-  float n_cos_m = wm.z;
-  float n_cos_i = wi.z;
-  float m_cos_i = owl::dot(wi, wm);
-  auto  wo      = owl::normalize(2.0f * m_cos_i * wm - wi);
-  float n_cos_o = wo.z;
-  float m_cos_o = owl::dot(wo, wm);
-  float n_cos_i_2 = n_cos_i * n_cos_i;
-  float n_cos_o_2 = n_cos_o * n_cos_o;
-  float n_sin_i_2 = fmaxf(1.0f - n_cos_i_2, 0.0f);
-  float n_sin_o_2 = fmaxf(1.0f - n_cos_o_2, 0.0f);
-  float n_sin_o = sqrtf(n_sin_o_2);
-  float a_o = n_sin_o != 0.0f ? n_cos_o / (alpha * n_sin_o) : copysignf(FLT_MAX, n_cos_o);
-  float xi_of_o_dot_m_per_o_dot_n = static_cast<float>((n_cos_o * m_cos_o) > 0.0f);
-  float g1 = schlick_g1_isotropic_beckmann(a_o, xi_of_o_dot_m_per_o_dot_n);
-  float m_sin_i_2 = fmaxf(1.0f - m_cos_i * m_cos_i, 0.0f);
-  auto  m_sin_t_2 = m_sin_i_2 / (eta * eta);
-  auto  m_cos_t_2 = owl::vec3f(fmaxf(1.0f - m_sin_t_2.x, 0.0f), fmaxf(1.0f - m_sin_t_2.y, 0.0f), fmaxf(1.0f - m_sin_t_2.z, 0.0f));
-  auto  f         = fresnel2(eta, k, m_cos_i * m_cos_i, m_cos_t_2);
-  weight          = f * g1;
   if (n_cos_i <= 0.0f) { weight = 0.0f; }
   if (n_cos_o <= 0.0f) { weight = 0.0f; }
   return wo;
@@ -415,7 +319,7 @@ __forceinline__ __device__ bool       shade_material(
       auto wm     = owl::vec3f();
       auto weight = owl::vec3f();
       auto pdf    = 0.0f;
-      auto wo     = sample_and_eval_bsdf_isotropic_beckmann2(rough_isotropic.conductor.eta, rough_isotropic.conductor.k, rough_isotropic.alpha, wi, wm, weight,pdf, random);
+      auto wo     = sample_and_eval_bsdf_isotropic_beckmann(rough_isotropic.conductor.eta, rough_isotropic.conductor.k, rough_isotropic.alpha, wi, wm, weight,pdf, random);
       auto avg_wei = weight.x + weight.y + weight.z;
       if (avg_wei <= 0.0f) { return true; }
       ray_org     = offset_ray(ray_org, s_normal);
