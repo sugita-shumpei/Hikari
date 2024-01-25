@@ -32,6 +32,7 @@ __forceinline__ __device__ bool       traceOccluded(const owl::RayT<0, 1>& ray) 
     RAY_TYPE_OCCLUDED, occluded);
   return occluded;
 }
+
 __forceinline__ __device__ float      fresnel1(float eta, float cos_in_2, float cos_out_2) {
   float cos_in = sqrtf(cos_in_2);
   float cos_out= sqrtf(cos_out_2);
@@ -58,22 +59,23 @@ __forceinline__ __device__ float      fresnel2(float eta, float k, float cos_in)
 __forceinline__ __device__ owl::vec3f fresnel2(const owl::vec3f&     eta, const owl::vec3f& k, float cos_in) {
   return owl::vec3f(fresnel2(eta.x, k.x, cos_in), fresnel2(eta.y, k.y, cos_in), fresnel2(eta.z, k.z, cos_in));
 }
-__forceinline__ __device__ float      eval_ndf_isotropic_beckmann(float alpha_2, float n_cos_m_2, float xi_of_m_dot_n) {
+
+__forceinline__ __device__ float                 eval_ndf_isotropic_beckmann(float alpha_2, float n_cos_m_2, float xi_of_m_dot_n) {
   float n_sin_m_2 = fmaxf(1.0f - n_cos_m_2,0.0f);
   float n_cos_m_4 = n_cos_m_2 * n_cos_m_2;
   float n_tan_m_2 = n_sin_m_2 / n_cos_m_2;
   float log_res   = -n_tan_m_2 / alpha_2 - logf(M_PI * alpha_2 * n_cos_m_4);
   return xi_of_m_dot_n * expf(log_res);
 }
-__forceinline__ __device__ float      schlick_g1_isotropic_beckmann(float a,float xi_of_v_dot_m_per_v_dot_n) {
+__forceinline__ __device__ float               schlick_g1_isotropic_beckmann(float a,float xi_of_v_dot_m_per_v_dot_n) {
   if (a < 1.6f) { return xi_of_v_dot_m_per_v_dot_n * (3.535f * a + 2.181f * a * a) / (1.0f + 2.276f * a + 2.577f * a * a); }
   else { return xi_of_v_dot_m_per_v_dot_n; }
 }
-__forceinline__ __device__ float      schlick_g2_isotropic_beckmann(float a_v, float a_l, float xi_of_v_dot_m_per_v_dot_n, float xi_of_l_dot_m_per_l_dot_n) {
+__forceinline__ __device__ float               schlick_g2_isotropic_beckmann(float a_v, float a_l, float xi_of_v_dot_m_per_v_dot_n, float xi_of_l_dot_m_per_l_dot_n) {
   return schlick_g1_isotropic_beckmann(a_v, xi_of_v_dot_m_per_v_dot_n) * schlick_g1_isotropic_beckmann(a_l, xi_of_l_dot_m_per_l_dot_n);
 }
 // sample D(wm,wn) dot(wm,wn)
-__forceinline__ __device__ owl::vec3f sample_pdf_isotropic_beckmann(float alpha_2, Random& random) {
+__forceinline__ __device__ owl::vec3f  sample_pdf_isotropic_beckmann(float alpha_2, Random& random) {
   float tan_tht_m_2     =-alpha_2 * logf(1.0f-random());
   float inv_cos_tht_m_2 = 1.0f + tan_tht_m_2;
   float cos_tht_m_2     = 1.0f / inv_cos_tht_m_2;
@@ -85,7 +87,7 @@ __forceinline__ __device__ owl::vec3f sample_pdf_isotropic_beckmann(float alpha_
   float sin_phi_m       = sinf(phi_m);
   return owl::vec3f(sin_tht_m * cos_phi_m, sin_tht_m * sin_phi_m, cos_tht_m);
 }
-__forceinline__ __device__ owl::vec4f sample_and_eval_pdf_isotropic_beckmann(float alpha_2, Random& random) {
+__forceinline__ __device__ owl::vec4f  sample_and_eval_pdf_isotropic_beckmann(float alpha_2, Random& random) {
   float tan_tht_m_2     = -alpha_2 * logf(1.0f - random());
   float inv_cos_tht_m_2 = 1.0f + tan_tht_m_2;
   float cos_tht_m_2 = 1.0f / inv_cos_tht_m_2;
@@ -97,9 +99,54 @@ __forceinline__ __device__ owl::vec4f sample_and_eval_pdf_isotropic_beckmann(flo
   float sin_phi_m = sinf(phi_m);
   return owl::vec4f(sin_tht_m * cos_phi_m, sin_tht_m * sin_phi_m, cos_tht_m, eval_ndf_isotropic_beckmann(alpha_2,cos_tht_m_2,1.0f)* cos_tht_m);
 }
-__forceinline__ __device__ float      eval_pdf_isotropic_beckmann(float alpha_2, float n_cos_m) {
+__forceinline__ __device__ float       eval_pdf_isotropic_beckmann(float alpha_2, float n_cos_m) {
   return eval_ndf_isotropic_beckmann(alpha_2, n_cos_m * n_cos_m, static_cast<float>(n_cos_m > 0.0f)) * n_cos_m ;
 }
+
+__forceinline__ __device__ float      eval_ndf_isotropic_ggx(float alpha_2, float n_cos_m_2, float xi_of_m_dot_n) {
+  float n_sin_m_2 = fmaxf(1.0f - n_cos_m_2, 0.0f);
+  float n_cos_m_4 = n_cos_m_2 * n_cos_m_2;
+  float n_tan_m_2 = n_sin_m_2 / n_cos_m_2;
+  float alpha2_plus_tan_m_2 = alpha_2 + n_tan_m_2;
+  return xi_of_m_dot_n * M_1_PI * alpha_2 / ((alpha2_plus_tan_m_2* alpha2_plus_tan_m_2)*n_cos_m_4);
+}
+__forceinline__ __device__ float      schlick_g1_isotropic_ggx(float inv_a  , float xi_of_v_dot_m_per_v_dot_n) {
+  return xi_of_v_dot_m_per_v_dot_n * 2.0f / (1.0f + sqrtf(1.0f + inv_a * inv_a));
+}
+__forceinline__ __device__ float      schlick_g2_isotropic_ggx(float inv_a_v, float inv_a_l, float xi_of_v_dot_m_per_v_dot_n, float xi_of_l_dot_m_per_l_dot_n) {
+  return schlick_g1_isotropic_ggx(inv_a_v, xi_of_v_dot_m_per_v_dot_n) * schlick_g1_isotropic_ggx(inv_a_l, xi_of_l_dot_m_per_l_dot_n);
+}
+// sample D(wm,wn) dot(wm,wn)
+__forceinline__ __device__ owl::vec3f sample_pdf_isotropic_ggx(float alpha_2, Random& random) {
+  float zeta         = random();
+  float tan_tht_m_2  = alpha_2 * zeta / (1.0f - zeta);
+  float inv_cos_tht_m_2 = 1.0f + tan_tht_m_2;
+  float cos_tht_m_2  = 1.0f / inv_cos_tht_m_2;
+  float sin_tht_m_2  = tan_tht_m_2 * cos_tht_m_2;
+  float cos_tht_m    = sqrtf(cos_tht_m_2);
+  float sin_tht_m    = sqrtf(sin_tht_m_2);
+  float phi_m        = 2.0f * static_cast<float>(M_PI) * random();
+  float cos_phi_m    = cosf(phi_m);
+  float sin_phi_m    = sinf(phi_m);
+  return owl::vec3f(sin_tht_m * cos_phi_m, sin_tht_m * sin_phi_m, cos_tht_m);
+}
+__forceinline__ __device__ owl::vec4f sample_and_eval_pdf_isotropic_ggx(float alpha_2, Random& random) {
+  float zeta = random();
+  float tan_tht_m_2 = alpha_2 * zeta / (1.0f - zeta);
+  float inv_cos_tht_m_2 = 1.0f + tan_tht_m_2;
+  float cos_tht_m_2 = 1.0f / inv_cos_tht_m_2;
+  float sin_tht_m_2 = tan_tht_m_2 * cos_tht_m_2;
+  float cos_tht_m = sqrtf(cos_tht_m_2);
+  float sin_tht_m = sqrtf(sin_tht_m_2);
+  float phi_m = 2.0f * static_cast<float>(M_PI) * random();
+  float cos_phi_m = cosf(phi_m);
+  float sin_phi_m = sinf(phi_m);
+  return owl::vec4f(sin_tht_m * cos_phi_m, sin_tht_m * sin_phi_m, cos_tht_m, eval_ndf_isotropic_ggx(alpha_2, cos_tht_m_2, 1.0f) * cos_tht_m);
+}
+__forceinline__ __device__ float      eval_pdf_isotropic_ggx(float alpha_2, float n_cos_m) {
+  return eval_ndf_isotropic_ggx(alpha_2, n_cos_m * n_cos_m, static_cast<float>(n_cos_m > 0.0f)) * n_cos_m;
+}
+
 __forceinline__ __device__ owl::vec3f sample_pdf_cosine(Random& random) {
   float cos_tht = sqrtf(1 - random());
   float sin_tht = sqrtf(fmaxf(1 - cos_tht * cos_tht,0.0f));
@@ -111,7 +158,8 @@ __forceinline__ __device__ owl::vec3f sample_pdf_cosine(Random& random) {
 __forceinline__ __device__ float      eval_pdf_cosine(float cos_tht) {
   return fmaxf(cos_tht,0.0f)*M_1_PI;
 }
-__forceinline__ __device__ owl::vec3f sample_and_eval_bsdf_isotropic_beckmann(const owl::vec3f& eta, const owl::vec3f& k, float alpha, const owl::vec3f& wi, owl::vec3f& wm, owl::vec3f& weight, float& pdf, Random& random) {
+
+__forceinline__ __device__ owl::vec3f sample_and_eval_bsdf_rough_conductor_isotropic_beckmann(const owl::vec3f& eta, const owl::vec3f& k, float alpha, const owl::vec3f& wi, owl::vec3f& wm, owl::vec3f& weight, float& pdf, Random& random) {
   float alpha_2         = alpha * alpha;
   owl::vec4f wm_and_pdf = sample_and_eval_pdf_isotropic_beckmann(alpha_2, random);
   wm              = owl::vec3f(wm_and_pdf);
@@ -139,6 +187,35 @@ __forceinline__ __device__ owl::vec3f sample_and_eval_bsdf_isotropic_beckmann(co
   if (n_cos_o <= 0.0f) { weight = 0.0f; }
   return wo;
 }
+__forceinline__ __device__ owl::vec3f sample_and_eval_bsdf_rough_conductor_isotropic_ggx     (const owl::vec3f& eta, const owl::vec3f& k, float alpha, const owl::vec3f& wi, owl::vec3f& wm, owl::vec3f& weight, float& pdf, Random& random) {
+  float alpha_2 = alpha * alpha;
+  owl::vec4f wm_and_pdf = sample_and_eval_pdf_isotropic_ggx(alpha_2, random);
+  wm = owl::vec3f(wm_and_pdf);
+  pdf = wm_and_pdf.w;
+  float n_cos_m = wm.z;
+  float n_cos_i = wi.z;
+  float m_cos_i = owl::dot(wi, wm);
+  auto  wo = owl::normalize(2.0f * m_cos_i * wm - wi);
+  float n_cos_o = wo.z;
+  float m_cos_o = owl::dot(wo, wm);
+  float n_cos_i_2 = n_cos_i * n_cos_i;
+  float n_cos_o_2 = n_cos_o * n_cos_o;
+  float n_sin_i_2 = fmaxf(1.0f - n_cos_i_2, 0.0f);
+  float n_sin_o_2 = fmaxf(1.0f - n_cos_o_2, 0.0f);
+  float n_sin_i = sqrtf(n_sin_i_2);
+  float n_sin_o = sqrtf(n_sin_o_2);
+  float inv_a_i = alpha * n_sin_i / (n_cos_i);
+  float inv_a_o = alpha * n_sin_o / (n_cos_o);
+  float xi_of_i_dot_m_per_i_dot_n = static_cast<float>((n_cos_i * m_cos_i) > 0.0f);
+  float xi_of_o_dot_m_per_o_dot_n = static_cast<float>((n_cos_o * m_cos_o) > 0.0f);
+  float g2 = schlick_g2_isotropic_ggx(inv_a_i, inv_a_o, xi_of_i_dot_m_per_i_dot_n, xi_of_o_dot_m_per_o_dot_n);
+  auto  f = fresnel2(eta, k, m_cos_i);
+  weight = f * g2 * fabsf(m_cos_i) / (n_cos_i * n_cos_m);
+  if (n_cos_i <= 0.0f) { weight = 0.0f; }
+  if (n_cos_o <= 0.0f) { weight = 0.0f; }
+  return wo;
+}
+
 __forceinline__ __device__ bool       shade_material(
   const PayloadData& payload   ,
   float              min_depth ,
@@ -159,7 +236,6 @@ __forceinline__ __device__ bool       shade_material(
     auto surface_idx = payload.surface_idx - 1;
     // Surfaceを取得
     auto& surface    = optixLaunchParams.surfaces[surface_idx];
-    // Light
     if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_DIFFUSE   ) { // DIFFUSEはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
       Onb  onb(s_normal);
@@ -307,7 +383,7 @@ __forceinline__ __device__ bool       shade_material(
       }
       return false;
     }
-    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_CONDUCTOR_ISOTROPIC) { // PLASTICはおおむね一致。
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_CONDUCTOR_ISOTROPIC   ) { // PLASTICはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
       auto rough_isotropic = surface.loadRoughConductorIsotropic(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
       Onb onb(s_normal);
@@ -315,7 +391,14 @@ __forceinline__ __device__ bool       shade_material(
       auto wm     = owl::vec3f();
       auto weight = owl::vec3f();
       auto pdf    = 0.0f;
-      auto wo     = sample_and_eval_bsdf_isotropic_beckmann(rough_isotropic.conductor.eta, rough_isotropic.conductor.k, rough_isotropic.alpha, wi, wm, weight,pdf, random);
+      auto wo     = owl::vec3f();
+      if ((surface.type & SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_MASK) == SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_BECKMAN) {
+        wo = sample_and_eval_bsdf_rough_conductor_isotropic_beckmann(rough_isotropic.conductor.eta, rough_isotropic.conductor.k, rough_isotropic.alpha, wi, wm, weight, pdf, random);
+      }
+      if ((surface.type & SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_MASK) == SURFACE_TYPE_ROUGH_OPTION_DISTRIBUTION_GGX    ) {
+        wo = sample_and_eval_bsdf_rough_conductor_isotropic_ggx     (rough_isotropic.conductor.eta, rough_isotropic.conductor.k, rough_isotropic.alpha, wi, wm, weight, pdf, random);
+      }
+
       auto avg_wei = weight.x + weight.y + weight.z;
       if (avg_wei <= 0.0f) { return true; }
       ray_org     = offset_ray(ray_org, s_normal);
@@ -323,7 +406,7 @@ __forceinline__ __device__ bool       shade_material(
       throughput *= weight * rough_isotropic.conductor.specular_reflectance;
       return false;
     }
-    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_CONDUCTOR_ANISOTROPIC) { // PLASTICはおおむね一致。
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_CONDUCTOR_ANISOTROPIC ) { // PLASTICはおおむね一致。
       if (s_cosine_in < 0.0f || g_cosine_in < 0.0f) { return true; }
       auto refl_dir = owl::normalize(ray_dir + 2.0f * s_cosine_in * s_normal);
       float g_cosine_out = owl::dot(g_normal, refl_dir);
@@ -337,6 +420,12 @@ __forceinline__ __device__ bool       shade_material(
       ray_dir = refl_dir;
       throughput *= r0 * rough_anisotropic.conductor.specular_reflectance;
       return false;
+    }
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_DIELECTRIC_ISOTROPIC  ) {
+      
+    }
+    if ((surface.type & SURFACE_TYPE_MASK_ALL) == SURFACE_TYPE_ROUGH_DIELECTRIC_ANISOTROPIC) {
+
     }
     return false;
   }
