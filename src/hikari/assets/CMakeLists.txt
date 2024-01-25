@@ -1,2 +1,0 @@
-add_subdirectory(mitsuba)
-add_subdirectory(image)
