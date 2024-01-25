@@ -181,7 +181,7 @@ struct SurfaceRoughPlasticIsotropicData {
 
 struct SurfaceData {
 #if !defined(__CUDACC__)
-  void initDiffuse(const std::variant<owl::vec3f,unsigned short>& reflectance)
+  void initDiffuse(       const std::variant<owl::vec3f,unsigned short>& reflectance)
   {
     type = SURFACE_TYPE_DIFFUSE ;
     if (reflectance.index() == 0) {
@@ -193,7 +193,7 @@ struct SurfaceData {
       textures[0] = std::get<1>(reflectance);
     }
   }
-  void initConductor(const std::variant<owl::vec3f, unsigned short>& eta, const std::variant<owl::vec3f, unsigned short>& k, const std::variant<owl::vec3f, unsigned short>& specular_reflectance)
+  void initConductor(     const std::variant<owl::vec3f, unsigned short>& eta, const std::variant<owl::vec3f, unsigned short>& k, const std::variant<owl::vec3f, unsigned short>& specular_reflectance)
   {
     type = SURFACE_TYPE_CONDUCTOR;
     if (eta.index() == 0) {
@@ -221,7 +221,7 @@ struct SurfaceData {
       textures[2] = std::get<1>(specular_reflectance);
     }
   }
-  void initDielectric(const std::variant<float, unsigned short>& eta, const std::variant<owl::vec3f, unsigned short>& specular_reflectance, const std::variant<owl::vec3f, unsigned short>& specular_transmittance) {
+  void initDielectric(    const std::variant<float, unsigned short>    & eta, const std::variant<owl::vec3f, unsigned short>& specular_reflectance, const std::variant<owl::vec3f, unsigned short>& specular_transmittance) {
     type = SURFACE_TYPE_DIELECTRIC;
     if (eta.index() == 0) {
       type |= SURFACE_TYPE_DIELECTRIC_OPTION_ETA_VAL;
@@ -252,7 +252,7 @@ struct SurfaceData {
     initDielectric(eta, specular_reflectance, specular_transmittance);
     type |= SURFACE_TYPE_MASK_SPECIAL;
   }
-  void initPlastic(const std::variant<owl::vec3f, unsigned short>& diffuse_reflectance, const std::variant<owl::vec3f, unsigned short>& specular_reflectance, float eta, float int_fresnel_diffuse_reflectance) {
+  void initPlastic(       const std::variant<owl::vec3f, unsigned short>& diffuse_reflectance, const std::variant<owl::vec3f, unsigned short>& specular_reflectance, float eta, float int_fresnel_diffuse_reflectance) {
     type = SURFACE_TYPE_PLASTIC;
     if (diffuse_reflectance.index() == 0) {
       type |= SURFACE_TYPE_PLASTIC_OPTION_DIFFUSE_REFLECTANCE_COL;

@@ -39,22 +39,24 @@ __forceinline__ __device__ float      fresnel1(float eta, float cos_in_2, float 
   float rs = (eta * cos_out - cos_in) / (eta * cos_out + cos_in);
   return 0.5f * (rp * rp + rs * rs);
 }
-__forceinline__ __device__ float      fresnel2(float eta, float k       , float cos_in_2, float cos_out_2) {
-
-  float cos_in  = sqrtf(cos_in_2);
-  float cos_out = sqrtf(cos_out_2);
-  float rp1     = (eta * cos_in - cos_out);
-  float rp2     = (eta * cos_in + cos_out);
-  float rpk     = (k * cos_in);
-  float rs1     = (eta * cos_out - cos_in);
-  float rs2     = (eta * cos_out + cos_in);
-  float rsk     = (k * cos_out);
-  float rp      = (rp1*rp1 + rpk*rpk)/ (rp2 * rp2 + rpk * rpk);
-  float rs      = (rs1*rs1 + rsk*rsk)/ (rs2 * rs2 + rsk * rsk);
+__forceinline__ __device__ float      fresnel2(float eta, float k, float cos_in) {
+  float cos_in_2   = cos_in*cos_in;
+  float eta_2      = eta*eta;
+  float k_2        = k*k;
+  float sin_in_2   = fmaxf(1.0f - cos_in_2,0.0f);
+  float t0         = eta_2 - k_2 - sin_in_2;
+  float a2_plus_b2 = sqrtf(fmaxf(t0*t0+4.0f*eta_2*k_2,0.0f));
+  float t1         = a2_plus_b2 + cos_in_2;
+  float a          = sqrtf(0.5f * (a2_plus_b2 + t0));
+  float t2         = 2.0f * cos_in * a;
+  float rs         = (t1-t2)/(t1+t2);
+  float t3         = cos_in_2 * a2_plus_b2 + sin_in_2 * sin_in_2;
+  float t4         = t2 * sin_in_2;
+  float rp         = rs * (t3-t4)/(t3+t4);
   return 0.5f * (rp + rs);
 }
-__forceinline__ __device__ owl::vec3f fresnel2(const owl::vec3f&     eta, const owl::vec3f& k, float cos_in_2, const owl::vec3f& cos_out_2) {
-  return owl::vec3f(fresnel2(eta.x, k.x, cos_in_2, cos_out_2.x), fresnel2(eta.y, k.y, cos_in_2, cos_out_2.y), fresnel2(eta.z, k.z, cos_in_2, cos_out_2.z));
+__forceinline__ __device__ owl::vec3f fresnel2(const owl::vec3f&     eta, const owl::vec3f& k, float cos_in) {
+  return owl::vec3f(fresnel2(eta.x, k.x, cos_in), fresnel2(eta.y, k.y, cos_in), fresnel2(eta.z, k.z, cos_in));
 }
 __forceinline__ __device__ float      eval_ndf_isotropic_beckmann(float alpha_2, float n_cos_m_2, float xi_of_m_dot_n) {
   float n_sin_m_2 = fmaxf(1.0f - n_cos_m_2,0.0f);
@@ -72,7 +74,7 @@ __forceinline__ __device__ float      schlick_g2_isotropic_beckmann(float a_v, f
 }
 // sample D(wm,wn) dot(wm,wn)
 __forceinline__ __device__ owl::vec3f sample_pdf_isotropic_beckmann(float alpha_2, Random& random) {
-  float tan_tht_m_2     =-alpha_2 * logf(1.0f - random());
+  float tan_tht_m_2     =-alpha_2 * logf(1.0f-random());
   float inv_cos_tht_m_2 = 1.0f + tan_tht_m_2;
   float cos_tht_m_2     = 1.0f / inv_cos_tht_m_2;
   float sin_tht_m_2     = tan_tht_m_2 * cos_tht_m_2;
@@ -131,10 +133,7 @@ __forceinline__ __device__ owl::vec3f sample_and_eval_bsdf_isotropic_beckmann(co
   float xi_of_i_dot_m_per_i_dot_n = static_cast<float>((n_cos_i * m_cos_i) > 0.0f);
   float xi_of_o_dot_m_per_o_dot_n = static_cast<float>((n_cos_o * m_cos_o) > 0.0f);
   float g2        = schlick_g2_isotropic_beckmann(a_i,a_o,xi_of_i_dot_m_per_i_dot_n,xi_of_o_dot_m_per_o_dot_n);
-  float m_sin_i_2 = fmaxf(1.0f - m_cos_i * m_cos_i,0.0f);
-  auto  m_sin_t_2 = m_sin_i_2 / (eta * eta);
-  auto  m_cos_t_2 = owl::vec3f(fmaxf(1.0f - m_sin_t_2.x, 0.0f), fmaxf(1.0f - m_sin_t_2.y, 0.0f), fmaxf(1.0f - m_sin_t_2.z, 0.0f));
-  auto  f         = fresnel2(eta, k, m_cos_i * m_cos_i, m_cos_t_2);
+  auto  f         = fresnel2(eta, k, m_cos_i);
   weight          = f * g2 * fabsf(m_cos_i) / (n_cos_i* n_cos_m);
   if (n_cos_i <= 0.0f) { weight = 0.0f; }
   if (n_cos_o <= 0.0f) { weight = 0.0f; }
@@ -184,10 +183,7 @@ __forceinline__ __device__ bool       shade_material(
 
       auto cos_1_in     = s_cosine_in;
       auto cos_1_in_sq  = cos_1_in * cos_1_in;
-      auto sin_1_in_sq  = 1.0f - cos_1_in_sq;
-      auto sin_1_out_sq = owl::vec3f(sin_1_in_sq) / (conductor.eta * conductor.eta);
-      auto cos_1_out_sq = owl::vec3f(fmaxf(1.0f - sin_1_out_sq.x, 0.0f), fmaxf(1.0f - sin_1_out_sq.y, 0.0f), fmaxf(1.0f - sin_1_out_sq.z, 0.0f));
-      auto r0           = fresnel2(conductor.eta, conductor.k, cos_1_in_sq, cos_1_out_sq);
+      auto r0           = fresnel2(conductor.eta, conductor.k, cos_1_in_sq);
       
       ray_org           = offset_ray(ray_org, s_normal);
       ray_dir           = refl_dir;
@@ -334,13 +330,8 @@ __forceinline__ __device__ bool       shade_material(
       if (g_cosine_out < 0.0f) { return true; }
 
       auto rough_anisotropic = surface.loadRoughConductorAnisotropic(optixLaunchParams.textures, payload.texcoord.x, payload.texcoord.y);
-
-      auto cos_1_in = s_cosine_in;
-      auto cos_1_in_sq = cos_1_in * cos_1_in;
-      auto sin_1_in_sq = 1.0f - cos_1_in_sq;
-      auto sin_1_out_sq = owl::vec3f(sin_1_in_sq) / (rough_anisotropic.conductor.eta * rough_anisotropic.conductor.eta);
-      auto cos_1_out_sq = owl::vec3f(fmaxf(1.0f - sin_1_out_sq.x, 0.0f), fmaxf(1.0f - sin_1_out_sq.y, 0.0f), fmaxf(1.0f - sin_1_out_sq.z, 0.0f));
-      auto r0 = fresnel2(rough_anisotropic.conductor.eta, rough_anisotropic.conductor.k, cos_1_in_sq, cos_1_out_sq);
+      auto cos_1_in          = s_cosine_in;
+      auto r0 = fresnel2(rough_anisotropic.conductor.eta, rough_anisotropic.conductor.k, cos_1_in);
 
       ray_org = offset_ray(ray_org, s_normal);
       ray_dir = refl_dir;
