@@ -883,111 +883,87 @@ namespace hikari
             if constexpr (!std::is_same_v<std::remove_cv_t<std::remove_reference_t<decltype(v[0])>>, std::shared_ptr<Object>>)
             {
                 std::string type_str = Type2String<T>::value;
-                res = "{ \"type\" : \"" + type_str + "\", \"value\" : " + res + " }";
+                res = "{ "type" : "" + type_str + "", "value" : " + res + " }";
             }
             return res;
         }
 
-        template <typename T>
-        struct ConvertJSONStringToPropertyTypeTraits : std::false_type
-        {
+        namespace impl {
+          static inline constexpr size_t kConvertJSONStringToPropertyTypeTraitsSwitchIndexSingleDataTypes = 0;
+          static inline constexpr size_t kConvertJSONStringToPropertyTypeTraitsSwitchIndexArrayDataTypes  = 1;
+          static inline constexpr size_t kConvertJSONStringToPropertyTypeTraitsSwitchIndexDefault         = 2;
+          template<typename T>
+          using kConvertJSONStringToPropertyTypeTraitsSwitchSequence = std::integer_sequence<bool,
+            in_tuple<T, PropertySingleTypes>::value && !std::is_same_v<T, std::shared_ptr<Object>>,
+            in_tuple<T, PropertyArrayTypes>::value  && !std::is_same_v<T, std::vector<std::shared_ptr<Object>>>
+          >;
+
+          template<typename T, size_t idx = find_integer_sequence<bool,true,kConvertJSONStringToPropertyTypeTraitsSwitchSequence<T>>::value>
+          struct ConvertJSONStringToPropertyTypeTraitsImpl;
+
+          template<typename T> struct ConvertJSONStringToPropertyTypeTraitsImpl<T, 0> : std::true_type {
+            using ResultType = Option<T>;
+            static auto eval(const Str& v) -> ResultType {
+              return convertFromJSONString<T>(v);
+            }
+          };
+          template<typename T> struct ConvertJSONStringToPropertyTypeTraitsImpl<T, 1> : std::true_type {
+            using ResultType = T;
+            static auto eval(const Str& v) -> T
+            {
+              nlohmann::json j = nlohmann::json::parse(v);
+              if (!j.is_object())
+              {
+                return {};
+              }
+              auto iter_type = j.find("type");
+              if (iter_type == j.end())
+              {
+                return {};
+              }
+              if (!iter_type.value().is_string())
+              {
+                return {};
+              }
+              auto& type = iter_type.value();
+              if (type != Type2String<T>::value)
+              {
+                return {};
+              }
+              auto& iter_value = j.find("value");
+              if (iter_value == j.end())
+              {
+                return {};
+              }
+              if (!iter_value.value().is_array())
+              {
+                return {};
+              }
+              auto& arr = iter_value.value();
+              T res = {};
+              for (auto& elm : arr)
+              {
+                auto tmp = convertFromString<std::remove_reference_t<decltype(std::declval<T>()[0])>>(elm.dump());
+                if (!tmp)
+                {
+                  return {};
+                }
+                res.push_back(*tmp);
+              }
+              return res;
+            }
+          };
+          template<typename T> struct ConvertJSONStringToPropertyTypeTraitsImpl<T, 2> : std::false_type{
+            using ResultType = T;
+            static auto eval(const Str& v) -> ResultType {
+              return T();
+            }
+          };
+        }
+
+        template<typename T> struct ConvertJSONStringToPropertyTypeTraits : impl::ConvertJSONStringToPropertyTypeTraitsImpl<T> {
+          using impl::ConvertJSONStringToPropertyTypeTraitsImpl<T>::eval;
         };
-
-#define HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(TYPE)                               \
-    template <>                                                                                   \
-    struct ConvertJSONStringToPropertyTypeTraits<TYPE> : std::true_type                           \
-    {                                                                                             \
-        static auto eval(const Str &v) -> Option<TYPE> { return convertFromJSONString<TYPE>(v); } \
-    }
-#define HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(TYPE)            \
-    template <>                                                                      \
-    struct ConvertJSONStringToPropertyTypeTraits<std::vector<TYPE>> : std::true_type \
-    {                                                                                \
-        static auto eval(const Str &v) -> std::optional<std::vector<TYPE>>           \
-        {                                                                            \
-            nlohmann::json j = nlohmann::json::parse(v);                             \
-            if (!j.is_object())                                                      \
-            {                                                                        \
-                return std::nullopt;                                                 \
-            }                                                                        \
-            auto iter_type = j.find("type");                                         \
-            if (iter_type == j.end())                                                \
-            {                                                                        \
-                return std::nullopt;                                                 \
-            }                                                                        \
-            if (!iter_type.value().is_string())                                      \
-            {                                                                        \
-                return std::nullopt;                                                 \
-            }                                                                        \
-            auto &type = iter_type.value();                                          \
-            if (type != Type2String<std::vector<TYPE>>::value)                       \
-            {                                                                        \
-                return std::nullopt;                                                 \
-            }                                                                        \
-            auto &iter_value = j.find("value");                                      \
-            if (iter_value == j.end())                                               \
-            {                                                                        \
-                return std::nullopt;                                                 \
-            }                                                                        \
-            if (!iter_value.value().is_array())                                      \
-            {                                                                        \
-                return std::nullopt;                                                 \
-            }                                                                        \
-            auto &arr = iter_value.value();                                          \
-            std::vector<TYPE> res = {};                                              \
-            for (auto &elm : arr)                                                    \
-            {                                                                        \
-                auto tmp = convertFromString<TYPE>(elm.dump());                      \
-                if (!tmp)                                                            \
-                {                                                                    \
-                    return std::nullopt;                                             \
-                }                                                                    \
-                res.push_back(*tmp);                                                 \
-            }                                                                        \
-            return res;                                                              \
-        }                                                                            \
-    }
-
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(I8);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(I16);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(I32);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(I64);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(U8);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(U16);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(U32);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(U64);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(F32);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(F64);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Vec2);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Vec3);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Vec4);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Mat2);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Mat3);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Mat4);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Quat);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Bool);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Str);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_DEFINE(Transform);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(I8);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(I16);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(I32);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(I64);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(U8);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(U16);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(U32);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(U64);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(F32);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(F64);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Vec2);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Vec3);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Vec4);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Mat2);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Mat3);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Mat4);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Quat);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Bool);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Str);
-        HK_CONVERT_JSON_STRING_TO_PROPERTY_TYPE_TRAITS_ARRAY_DEFINE(Transform);
 
         template <typename T, std::enable_if_t<in_tuple<T, PropertyTypes>::value, nullptr_t> = nullptr>
         inline auto convertJSONStringToPropertyType(const Str &str) -> Option<T>

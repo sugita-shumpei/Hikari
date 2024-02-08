@@ -83,6 +83,8 @@ namespace hikari {
       auto operator[](size_t idx) const->Field;
       auto operator[](size_t idx)->FieldRef;
 
+      auto clone() -> Field;
+
       void setPropertyBlock(const PropertyBlock& pb);
       void getPropertyBlock(PropertyBlock& pb) const;
 
