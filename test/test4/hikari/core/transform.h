@@ -167,6 +167,5 @@ namespace hikari {
       }
     }
     HK_TYPE_2_STRING_DEFINE(Transform);
-
   }
 }

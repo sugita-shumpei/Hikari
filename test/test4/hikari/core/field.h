@@ -1,6 +1,7 @@
 #pragma once
 #include <hikari/core/object.h>
 #include <hikari/core/serializer.h>
+#include <hikari/core/deserializer.h>
 namespace hikari {
   inline namespace core {
     struct Field;
@@ -36,6 +37,8 @@ namespace hikari {
       }
 
       auto clone() const ->std::shared_ptr<FieldObject>;
+
+      auto getKeys() const->Array<Str>;
 
       Bool getPropertyTypeIndex(const Str& name, size_t& type_index) const;
 
@@ -126,6 +129,7 @@ namespace hikari {
 
       auto clone() const -> Field;
 
+      auto getKeys() const->Array<Str>;
       void setName(const Str& name);
 
       auto getSize() const->size_t;
@@ -148,7 +152,7 @@ namespace hikari {
       using impl_type::operator[];
       using impl_type::isConvertible;
       using impl_type::getName;
-      using impl_type::getKeys;
+      using impl_type::getPropertyNames;
       using impl_type::getObject;
       using impl_type::getPropertyBlock;
       using impl_type::setPropertyBlock;
@@ -180,7 +184,7 @@ namespace hikari {
       using impl_type::operator bool;
       using impl_type::getPropertyBlock;
       using impl_type::setPropertyBlock;
-      using impl_type::getKeys;
+      using impl_type::getPropertyNames;
       using impl_type::getName;
       using impl_type::getValue;
       using impl_type::setValue;
@@ -188,6 +192,7 @@ namespace hikari {
       auto getSize() const->size_t;
       void setSize(size_t count);
 
+      auto getKeys() const->Array<Str>;
       void setName(const Str& name);
 
       auto getChildCount() const->size_t;
@@ -207,11 +212,15 @@ namespace hikari {
         impl_type(impl::ObjectWrapperHolderChildObjectRef<FieldObject>(object, idx))
       {}
     };
-
     struct FieldSerializer : public ObjectSerializer {
       virtual ~FieldSerializer() noexcept;
       auto getTypeString() const noexcept -> Str override;
       auto eval(const std::shared_ptr<Object>& object) const->Json override;
+    };
+    struct FieldDeserializer : public ObjectDeserializer {
+      virtual ~FieldDeserializer() noexcept;
+      auto getTypeString() const noexcept -> Str override;
+      virtual auto eval(const Json& json) const->std::shared_ptr<Object> override;
     };
   }
 }

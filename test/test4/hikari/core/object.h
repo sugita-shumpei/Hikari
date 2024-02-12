@@ -1,6 +1,20 @@
 #pragma once
 #include <memory>
 #include <hikari/core/property.h>
+
+#define HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(METHOD, ARG) \
+  void METHOD(const ARG& arg) { auto object = getObject(); if (object){ object->METHOD(arg); } }
+#define HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE(METHOD, RES) \
+  Option<RES> METHOD() const { auto object = getObject(); if (object){ return RES(object->METHOD()); } else { return std::nullopt;} }
+#define HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(METHOD, RES,DEF) \
+  RES METHOD() const { auto object = getObject(); if (object){ return RES(object->METHOD()); } else { return RES(DEF);} }
+#define HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(METHOD, RES) \
+  Option<RES> METHOD() const { auto object = getObject(); if (object){ return object->METHOD(); } else { return std::nullopt;} }
+#define HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(METHOD, RES) \
+  Bool METHOD(RES& res) const { auto object = getObject(); if (object){ return object->METHOD(res); } return false; }
+#define HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(METHOD, RES) \
+  Bool METHOD(RES& res) const { auto object = getObject(); if (object){ object->METHOD(res); return true; } return false; }
+
 namespace hikari {
   inline namespace core {
     template<typename ObjectT>
@@ -187,7 +201,7 @@ namespace hikari {
       ObjectWrapperImplBase(const ObjectWrapperImplBase&) = default;
       ObjectWrapperImplBase(const std::shared_ptr<type>& object) : m_holder{ object } {}
 
-      auto getKeys() const -> std::vector<Str>
+      auto getPropertyNames() const -> std::vector<Str>
       {
         auto object = getObject();
         if (!object)
@@ -246,7 +260,7 @@ namespace hikari {
         auto object = getObject();
         if (!object)
         {
-          return;
+          return false;
         }
         return object->setProperty(name, prop);
       }
@@ -369,7 +383,7 @@ namespace hikari {
       using impl_type::operator[];
       using impl_type::isConvertible;
       using impl_type::getName;
-      using impl_type::getKeys;
+      using impl_type::getPropertyNames;
       using impl_type::getObject;
       using impl_type::getPropertyBlock;
       using impl_type::setPropertyBlock;
@@ -400,6 +414,60 @@ namespace hikari {
       virtual Bool getProperty(const Str& name, PropertyBase<Object>& prop) const = 0;
       virtual Bool setProperty(const Str& name, const PropertyBase<Object>& prop) = 0;
     };
+
+    namespace ObjectUtils {
+      template<typename ObjectTTo, typename ObjectTFrom>
+      auto convert(const std::shared_ptr<ObjectTFrom>& from) -> decltype(std::enable_if_t<
+        std::is_base_of_v<Object, ObjectTFrom>&&
+        std::is_base_of_v<Object, ObjectTTo  >&&
+        std::is_base_of_v<ObjectTFrom, ObjectTTo  >, nullptr_t>{nullptr},
+        std::shared_ptr<ObjectTTo>()) {
+        if (!from) { return nullptr; }
+        if (!from->isConvertible(ObjectTTo::TypeString())) { return nullptr;  }
+        return std::static_pointer_cast<ObjectTTo>(from);
+      }
+      template<typename ObjectTTo, typename ObjectTFrom>
+      auto convert(const std::shared_ptr<ObjectTFrom>& from) -> decltype(std::enable_if_t<
+        std::is_base_of_v<Object, ObjectTFrom>&&
+        std::is_base_of_v<Object, ObjectTTo  >&&
+        std::is_base_of_v<ObjectTTo, ObjectTFrom  >, nullptr_t>{nullptr},
+        std::shared_ptr<ObjectTTo>()) {
+        return std::static_pointer_cast<ObjectTTo>(from);
+      }
+    }
+    namespace ObjectWrapperUtils {
+      template<typename ObjectTTo, typename ObjectTFrom>
+      auto convert(const ObjectTFrom& from) -> decltype(std::enable_if_t <
+        std::is_base_of_v<Object, typename ObjectTFrom::type> &&
+        std::is_base_of_v<Object, typename ObjectTTo::type  >&&
+        !std::is_same_v<typename ObjectTFrom::type, typename ObjectTTo::type> &&
+        std::is_base_of_v<typename ObjectTFrom::type, typename ObjectTTo::type>, nullptr_t>{nullptr},
+        ObjectTTo()) {
+        auto from_object = from.getObject();
+        auto to_object = ObjectUtils::convert<typename ObjectTTo::type>(from_object);
+        return ObjectTTo(to_object);
+      }
+      template<typename ObjectTTo, typename ObjectTFrom>
+      auto convert(const ObjectTFrom& from) -> decltype(std::enable_if_t <
+        std::is_base_of_v < Object, typename ObjectTFrom::type>&&
+        std::is_base_of_v<Object, typename ObjectTTo::type  >&&
+        !std::is_same_v<typename ObjectTFrom::type, typename ObjectTTo::type> &&
+        std::is_base_of_v<typename ObjectTTo::type, typename ObjectTFrom::type>, nullptr_t>{nullptr},
+        ObjectTTo()) {
+        auto from_object = from.getObject();
+        auto to_object = ObjectUtils::convert<typename ObjectTTo::type>(from_object);
+        return ObjectTTo(to_object);
+      }
+      template<typename ObjectTTo, typename ObjectTFrom>
+      auto convert(const ObjectTFrom& from) -> decltype(std::enable_if_t <
+        std::is_base_of_v < Object, typename ObjectTFrom::type>&&
+        std::is_base_of_v<Object, typename ObjectTTo::type  > &&
+        std::is_same_v<typename ObjectTFrom::type, typename ObjectTTo::type>, nullptr_t>{nullptr},
+        ObjectTTo()) {
+        auto from_object = from.getObject();
+        return ObjectTTo(from_object);
+      }
+    }
 
     template <typename ObjectT, template <typename...> typename ObjectHolder, typename ObjectDerive, std::enable_if_t<std::is_base_of_v<ObjectT, ObjectDerive>, nullptr_t> = nullptr>
     struct ObjectWrapperRefImplBase
@@ -454,7 +522,7 @@ namespace hikari {
       }
       operator wrapper_type() const { return wrapper_type(getObject()); }
 
-      auto getKeys() const -> std::vector<Str>
+      auto getPropertyNames() const -> std::vector<Str>
       {
         auto object = getObject();
         if (!object)
@@ -577,6 +645,10 @@ namespace hikari {
     using ObjectWrapperImpl   = ObjectWrapperImplBase<Object, ObjectHolder, ObjectDerive>;
     template <template <typename...> typename ObjectHolder, typename ObjectDerive>
     using ObjectWrapperRefImpl= ObjectWrapperRefImplBase<Object, ObjectHolder, ObjectDerive>;
+    template<typename T>
+    using ObjectWrapperTraits = ObjectWrapperTraitsBase<Object, T>;
+    template<typename T>
+    using ObjectWrapperArrayTraits = ObjectWrapperArrayTraitsBase<Object, T>;
     using Property            = PropertyBase<Object>;
     using PropertyBlock       = PropertyBlockBase<Object>;
     using PropertySingleTypes = PropertySingleTypesBase<Object>;

@@ -20,17 +20,17 @@ namespace hikari {
     template<typename To, typename From>
     Option<To> safe_numeric_cast(From from) {
       // もし符号付整数にキャストするなら
-      if      constexpr (std::is_signed_v<To>) {
+      if      constexpr (std::is_integral_v<To> && std::is_signed_v<To>) {
         // もとが符号付整数の場合, 範囲に収まっていればよい
-        if      constexpr (std::is_signed_v<From>) {
+        if      constexpr (std::is_integral_v<From> && std::is_signed_v<From>) {
           if constexpr (sizeof(To) >= sizeof(From)) { return To(from); }
           else {
-            if (from <= std::numeric_limits<To>::max()) { return To(from); }
+            if ((std::numeric_limits<To>::min() <= from) && (from <= std::numeric_limits<To>::max())) { return To(from); }
             return {};
           }
         }
         // もとが符号無整数の場合, 範囲に収まっていればよい
-        else if constexpr (std::is_unsigned_v<From>) {
+        else if constexpr (std::is_integral_v<From> && std::is_unsigned_v<From>) {
           if constexpr (sizeof(To) > sizeof(From)) { return To(from); }
           else {
             if (from <= std::numeric_limits<To>::max()) { return To(from); }
@@ -44,7 +44,7 @@ namespace hikari {
           // 整数であれば, 型変換が可能
           // F32: 23
           // F64: 52
-          if constexpr (std::numeric_limits<From>::digits() < 8 * sizeof(To)) {
+          if constexpr (std::numeric_limits<From>::digits < 8 * sizeof(To)) {
             return To(from);
           }
           else {
@@ -55,17 +55,17 @@ namespace hikari {
         else { return {}; }
       }
       // もし符号無整数にキャストするなら
-      else if constexpr (std::is_unsigned_v<To>) {
+      else if constexpr (std::is_integral_v<To> && std::is_unsigned_v<To>) {
         // もとが符号無整数の場合, 範囲に収まっていればよい
-        if      constexpr (std::is_unsigned_v<From>) {
+        if      constexpr (std::is_integral_v<From> && std::is_unsigned_v<From>) {
           if constexpr (sizeof(To) >= sizeof(From)) { return To(from); }
           else {
-            if (from <= std::numeric_limits<To>::max()) { return To(from); }
+            if ((std::numeric_limits<To>::min() <= from) && (from <= std::numeric_limits<To>::max())) { return To(from); }
             return {};
           }
         }
         // もとが符号付整数の場合, 0以上でなければならない
-        else if constexpr (std::is_signed_v<From>) {
+        else if constexpr (std::is_integral_v<From> && std::is_signed_v<From>) {
           if constexpr (sizeof(To) > sizeof(From)) { return To(from); }
           else {
             if (from >= 0 && from <= std::numeric_limits<To>::max()) { return To(from); }
@@ -81,7 +81,7 @@ namespace hikari {
           // 整数であれば, 型変換が可能
           // F32: 23
           // F64: 52
-          if constexpr (std::numeric_limits<From>::digits() < 8 * sizeof(To)) {
+          if constexpr (std::numeric_limits<From>::digits < 8 * sizeof(To)) {
             return To(from);
           }
           else {
@@ -94,13 +94,19 @@ namespace hikari {
       // もし浮動小数にキャストするなら
       else if constexpr (std::is_floating_point_v<To>) {
         // もとが整数の場合, 範囲に収まっていればよい
-        if constexpr (std::is_unsigned_v<From> || std::is_signed_v<From>) {
-          if constexpr (std::numeric_limits<To>::digits() >= 8 * sizeof(From)) {
+        if constexpr (std::is_integral_v<From> && (std::is_unsigned_v<From> || std::is_signed_v<From>)) {
+          if constexpr (std::numeric_limits<To>::digits >= 8 * sizeof(From)) {
             return To(from);
           }
           else {
-            if (std::log2(from) > std::numeric_limits<To>::digits()) { return {}; }
-            return To(from);
+            auto val = To(from);
+            auto iva = From(val);
+            if (iva == from) {
+              return val;
+            }
+            else {
+              return std::nullopt;
+            }
           }
         }
         else if constexpr (std::is_floating_point_v<From>){
@@ -108,9 +114,8 @@ namespace hikari {
             return To(from);
           }
           else {
-            if (from < std::numeric_limits<To>::min()) { return {}; }
-            if (from > std::numeric_limits<To>::max()) { return {}; }
-            return To(from);
+            if ((std::numeric_limits<To>::min() <= from) && (from <= std::numeric_limits<To>::max())) { return To(from); }
+            return {};
           }
         }
       }

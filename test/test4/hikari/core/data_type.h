@@ -7,6 +7,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <imath/half.h>
 #include <nlohmann/json.hpp>
 #include <hikari/core/tuple.h>
 
@@ -106,6 +107,7 @@ namespace hikari
         template <typename Key, typename Val>
         struct Type2String<Pair<Key,Val>> : TemplateTypeString<impl::PairTypeString, Key, Val> {};
 
+        typedef Imath::half F16;
         typedef float F32;
         typedef double F64;
         typedef glm::quat Quat;
@@ -118,6 +120,7 @@ namespace hikari
         HK_TYPE_2_STRING_DEFINE(Quat);
         HK_TYPE_2_STRING_DEFINE(Bool);
 
+        HK_TYPE_2_STRING_DEFINE(F16);
         HK_TYPE_2_STRING_DEFINE(F32);
         HK_TYPE_2_STRING_DEFINE(F64);
 

@@ -521,43 +521,6 @@ auto hikari::core::Node::operator[](size_t idx) -> NodeRef
   return NodeRef(object, idx);
 }
 
-auto hikari::core::Node::getSize() const -> size_t
-{
-  return getChildCount();
-}
-
-void hikari::core::Node::setSize(size_t count)
-{
-  setChildCount(count);
-}
-
-void hikari::core::Node::setName(const Str& name)
-{
-  auto object = getObject();
-  if (object) {
-    return object->setName(name);
-  }
-}
-
-auto hikari::core::Node::getChildCount() const -> size_t
-{
-  auto object = getObject();
-  if (object) {
-    return object->getChildCount();
-  }
-  else {
-    return 0;
-  }
-}
-
-void hikari::core::Node::setChildCount(size_t count)
-{
-  auto object = getObject();
-  if (object) {
-    return object->setChildCount(count);
-  }
-}
-
 auto hikari::core::Node::getChildren() const -> std::vector<Node>
 {
   auto object = getObject();
@@ -625,159 +588,6 @@ void hikari::core::Node::popChild(size_t idx)
   object->popChild(idx);
 }
 
-void hikari::core::Node::setGlobalTransform(const Transform& transform)
-{
-  auto object = getObject();
-  if (!object) { return; }
-  object->setGlobalTransform(transform);
-}
-
-void hikari::core::Node::getGlobalTransform(Transform& transform) const
-{
-  auto object = getObject();
-  if (!object) { return; }
-  object->getGlobalTransform(transform);
-}
-
-auto hikari::core::Node::getGlobalTransform() const -> Transform
-{
-  auto object = getObject();
-  if (!object) { return Transform(); }
-  return object->getGlobalTransform();
-}
-
-auto hikari::core::Node::getGlobalMatrix() const -> Mat4
-{
-  auto object = getObject();
-  if (!object) { return Mat4(); }
-  return object->getGlobalMatrix();
-}
-
-bool hikari::core::Node::getGlobalPosition(Vec3& position)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getGlobalPosition(position);
-}
-
-bool hikari::core::Node::getGlobalRotation(Quat& rotation)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getGlobalRotation(rotation);
-}
-
-bool hikari::core::Node::getGlobalScale(Vec3& scale)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getGlobalScale(scale);
-}
-
-auto hikari::core::Node::getGlobalPosition() const -> Option<Vec3>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getGlobalPosition();
-}
-
-auto hikari::core::Node::getGlobalRotation() const -> Option<Quat>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getGlobalRotation();
-}
-
-auto hikari::core::Node::getGlobalScale() const -> Option<Vec3>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getGlobalScale();
-}
-
-void hikari::core::Node::setLocalTransform(const Transform& transform)
-{
-  auto object = getObject();
-  if (!object) { return; }
-  object->setLocalTransform(transform);
-}
-
-void hikari::core::Node::getLocalTransform(Transform& transform) const
-{
-  auto object = getObject();
-  if (!object) { return; }
-  object->getLocalTransform(transform);
-}
-
-auto hikari::core::Node::getLocalTransform() const -> Transform
-{
-  auto object = getObject();
-  if (!object) { return Transform(); }
-  return object->getLocalTransform();
-}
-
-auto hikari::core::Node::getLocalMatrix() const -> Mat4
-{
-  auto object = getObject();
-  if (!object) { return Mat4(); }
-  return object->getLocalMatrix();
-}
-
-bool hikari::core::Node::getLocalPosition(Vec3& position)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getLocalPosition(position);
-}
-
-bool hikari::core::Node::getLocalRotation(Quat& rotation)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getLocalRotation(rotation);
-}
-
-bool hikari::core::Node::getLocalScale(Vec3& scale)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getLocalScale(scale);
-}
-
-auto hikari::core::Node::getLocalPosition() const -> Option<Vec3>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getLocalPosition();
-}
-
-auto hikari::core::Node::getLocalRotation() const -> Option<Quat>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getLocalRotation();
-}
-
-auto hikari::core::Node::getLocalScale() const -> Option<Vec3>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getLocalScale();
-}
-
-auto hikari::core::NodeRef::getChildCount() const -> size_t
-{
-  auto object = getObject();
-  if (!object) { return 0; }
-  return object->getChildCount();
-}
-
-void hikari::core::NodeRef::setChildCount(size_t count)
-{
-  auto object = getObject();
-  if (!object) { return; }
-  return object->setChildCount(count);
-}
 
 auto hikari::core::NodeRef::getChildren() const -> std::vector<Node>
 {
@@ -816,24 +626,6 @@ auto hikari::core::NodeRef::operator[](size_t idx) -> Ref
   return NodeRef(getObject(), idx);
 }
 
-auto hikari::core::NodeRef::getSize() const -> size_t
-{
-  return getChildCount();
-}
-
-void hikari::core::NodeRef::setSize(size_t count)
-{
-  setChildCount(count);
-}
-
-void hikari::core::NodeRef::setName(const Str& name)
-{
-  auto object = getObject();
-  if (object) {
-    return object->setName(name);
-  }
-}
-
 void hikari::core::NodeRef::popChildren()
 {
   auto object = getObject();
@@ -869,146 +661,6 @@ void hikari::core::NodeRef::popChild(size_t idx)
   object->popChild(idx);
 }
 
-
-void hikari::core::NodeRef::setGlobalTransform(const Transform& transform)
-{
-  auto object = getObject();
-  if (!object) { return; }
-  object->setGlobalTransform(transform);
-}
-
-void hikari::core::NodeRef::getGlobalTransform(Transform& transform) const
-{
-  auto object = getObject();
-  if (!object) { return; }
-  object->getGlobalTransform(transform);
-}
-
-auto hikari::core::NodeRef::getGlobalTransform() const -> Transform
-{
-  auto object = getObject();
-  if (!object) { return Transform(); }
-  return object->getGlobalTransform();
-}
-
-auto hikari::core::NodeRef::getGlobalMatrix() const -> Mat4
-{
-  auto object = getObject();
-  if (!object) { return Mat4(); }
-  return object->getGlobalMatrix();
-}
-
-bool hikari::core::NodeRef::getGlobalPosition(Vec3& position)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getGlobalPosition(position);
-}
-
-bool hikari::core::NodeRef::getGlobalRotation(Quat& rotation)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getGlobalRotation(rotation);
-}
-
-bool hikari::core::NodeRef::getGlobalScale(Vec3& scale)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getGlobalScale(scale);
-}
-
-auto hikari::core::NodeRef::getGlobalPosition() const -> Option<Vec3>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getGlobalPosition();
-}
-
-auto hikari::core::NodeRef::getGlobalRotation() const -> Option<Quat>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getGlobalRotation();
-}
-
-auto hikari::core::NodeRef::getGlobalScale() const -> Option<Vec3>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getGlobalScale();
-}
-
-void hikari::core::NodeRef::setLocalTransform(const Transform& transform)
-{
-  auto object = getObject();
-  if (!object) { return; }
-  object->setLocalTransform(transform);
-}
-
-void hikari::core::NodeRef::getLocalTransform(Transform& transform) const
-{
-  auto object = getObject();
-  if (!object) { return; }
-  object->getLocalTransform(transform);
-}
-
-auto hikari::core::NodeRef::getLocalTransform() const -> Transform
-{
-  auto object = getObject();
-  if (!object) { return Transform(); }
-  return object->getLocalTransform();
-}
-
-auto hikari::core::NodeRef::getLocalMatrix() const -> Mat4
-{
-  auto object = getObject();
-  if (!object) { return Mat4(); }
-  return object->getLocalMatrix();
-}
-
-bool hikari::core::NodeRef::getLocalPosition(Vec3& position)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getLocalPosition(position);
-}
-
-bool hikari::core::NodeRef::getLocalRotation(Quat& rotation)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getLocalRotation(rotation);
-}
-
-bool hikari::core::NodeRef::getLocalScale(Vec3& scale)
-{
-  auto object = getObject();
-  if (!object) { return false; }
-  return object->getLocalScale(scale);
-}
-
-auto hikari::core::NodeRef::getLocalPosition() const -> Option<Vec3>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getLocalPosition();
-}
-
-auto hikari::core::NodeRef::getLocalRotation() const -> Option<Quat>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getLocalRotation();
-}
-
-auto hikari::core::NodeRef::getLocalScale() const -> Option<Vec3>
-{
-  auto object = getObject();
-  if (!object) { return std::nullopt; }
-  return object->getLocalScale();
-}
 
 hikari::core::NodeComponentObject::~NodeComponentObject() noexcept {}
 
@@ -1315,11 +967,8 @@ hikari::core::NodeSerializer::~NodeSerializer() noexcept
   json["name"]       = object->getName();
   json["properties"] = {};
   auto children      = node.getChildren();
-  json["properties"]["children"] = Array<Json>();
-  for (auto& child : children) {
-    json["properties"]["children"].push_back(eval(child.getObject()));
-  }
-  json["properties"]["transform"]  = PropertySerializer::eval(Property(node.getLocalTransform()));
+  json["properties"]["children"] = serialize(children);
+  json["properties"]["transform"] = serialize(node.getLocalTransform());
   json["properties"]["components"] = Array<Json>();
   auto components = node.getComponents<NodeComponent>();
   {
@@ -1334,8 +983,46 @@ hikari::core::NodeSerializer::~NodeSerializer() noexcept
       ++i;
     }
   }
-  for (auto& child : children) {
-    json["properties"]["children"].push_back(eval(child.getObject()));
-  }
   return json;
 }
+
+ hikari::core::NodeDeserializer::~NodeDeserializer() noexcept
+ {
+ }
+
+ auto hikari::core::NodeDeserializer::getTypeString() const noexcept -> Str 
+ {
+   return NodeObject::TypeString();
+ }
+
+ auto hikari::core::NodeDeserializer::eval(const Json& json) const -> std::shared_ptr<Object> 
+ {
+   auto type     = json.find("type");
+   if (type     == json.end()) { return nullptr; }
+   if (!type.value().is_string()) { return nullptr; }
+   auto str_type = type.value().get<Str>();
+   if (str_type != "Node") { return nullptr; }
+   auto name     = json.find("name");
+   if (name == json.end()) { return nullptr; }
+   if (!name.value().is_string()) { return nullptr; }
+   auto str_name = name.value().get<Str>();
+   auto prop     = json.find("properties");
+   if ( prop == json.end()) { return nullptr; }
+   if (!prop.value().is_object()) { return nullptr; }
+   auto transform     = prop.value().find("transform");
+   if (transform == prop.value().end()) { return nullptr; }
+   if (!transform.value().is_object()) { return nullptr; }
+   auto val_transform = deserialize<Transform>(transform.value());
+   if (!val_transform) { return nullptr; }
+   auto node = Node(str_name,*val_transform);
+   auto children = prop.value().find("children");
+   if ( children == prop.value().end()) { return nullptr; }
+   if (!children.value().is_array()) { return nullptr; }
+   auto val_children  = children.value().get<Array<Json>>();
+   for (auto& child : val_children) {
+     auto child_node  = eval(child);
+     if (!child_node) { return nullptr; }
+     node.addChild(Node(std::static_pointer_cast<NodeObject>(child_node)));
+   }
+   return node.getObject();
+ }

@@ -223,6 +223,19 @@ namespace hikari {
       PropertyBase& operator=(const PropertyBase&) noexcept = default;
       PropertyBase& operator=(PropertyBase&&) noexcept = default;
 
+      PropertyBase(const std::shared_ptr<ObjectT>& object) noexcept :m_data{ object } {}
+      PropertyBase& operator=(const std::shared_ptr<ObjectT>& v) noexcept
+      {
+        m_data = v;
+        return *this;
+      }
+      PropertyBase(const Array<std::shared_ptr<ObjectT>>& objects) noexcept :m_data{ objects } {}
+      PropertyBase& operator=(const Array<std::shared_ptr<ObjectT>>& v) noexcept
+      {
+        m_data = v;
+        return *this;
+      }
+
       template <typename T, std::enable_if_t<impl_type_switch<T>::value, nullptr_t> = nullptr>
       explicit PropertyBase(const T& v) noexcept : m_data{} { impl_type_switch<T>::setValue(m_data,v); }
       template <typename T, std::enable_if_t<impl_type_switch<T>::value, nullptr_t> = nullptr>
@@ -299,7 +312,7 @@ namespace hikari {
       auto to##TYPE() const noexcept -> Option<TYPE> { \
         return std::visit([](const auto& v){ return Option<TYPE>(safe_numeric_cast<TYPE>(v));},m_data); \
       }
-
+      // get to methodが欲しい
       HK_PROPERTY_METHOD_TO_TYPE(I8);
       HK_PROPERTY_METHOD_TO_TYPE(I16);
       HK_PROPERTY_METHOD_TO_TYPE(I32);
@@ -308,13 +321,13 @@ namespace hikari {
       HK_PROPERTY_METHOD_TO_TYPE(U16);
       HK_PROPERTY_METHOD_TO_TYPE(U32);
       HK_PROPERTY_METHOD_TO_TYPE(U64);
+      HK_PROPERTY_METHOD_TO_TYPE(F16);
       HK_PROPERTY_METHOD_TO_TYPE(F32);
       HK_PROPERTY_METHOD_TO_TYPE(F64);
-
       auto toVec() const noexcept -> Option<Vec4> {
         auto type_index = getTypeIndex();
-        if (type_index == PropertyTypeIndexBase<ObjectT, Vec2>::value) { return Vec4(std::get<Vec2>(m_data)); }
-        if (type_index == PropertyTypeIndexBase<ObjectT, Vec3>::value) { return Vec4(std::get<Vec3>(m_data)); }
+        if (type_index == PropertyTypeIndexBase<ObjectT, Vec2>::value) { return Vec4(std::get<Vec2>(m_data),0.0f,0.0f); }
+        if (type_index == PropertyTypeIndexBase<ObjectT, Vec3>::value) { return Vec4(std::get<Vec3>(m_data),0.0f); }
         if (type_index == PropertyTypeIndexBase<ObjectT, Vec4>::value) { return Vec4(std::get<Vec4>(m_data)); }
         return {};
       }
@@ -325,8 +338,16 @@ namespace hikari {
         if (type_index == PropertyTypeIndexBase<ObjectT, Mat4>::value) { return Mat4(std::get<Mat4>(m_data)); }
         return {};
       }
-      auto toStr() const noexcept -> Str {
-        return "";
+      auto toTransform() const -> Option<Transform> {
+        auto type_index = getTypeIndex();
+        if (type_index == PropertyTypeIndexBase<ObjectT, Transform>::value) { return std::get<Transform>(m_data); }
+        if (type_index == PropertyTypeIndexBase<ObjectT, Mat2>::value) { return Transform(Mat4(std::get<Mat2>(m_data))); }
+        if (type_index == PropertyTypeIndexBase<ObjectT, Mat3>::value) { return Transform(Mat4(std::get<Mat3>(m_data))); }
+        if (type_index == PropertyTypeIndexBase<ObjectT, Mat4>::value) { return Transform(Mat4(std::get<Mat4>(m_data))); }
+        return {};
+      }
+      auto toStr() const noexcept -> Option<Str> {
+        return getValue<Str>();
       }
 
       auto toVariant() const noexcept-> variant_type { return m_data; }
@@ -358,7 +379,9 @@ namespace hikari {
       template<typename T>
       struct impl_type_switch<T, kTypeSwitchIdxDataTypes> : std::true_type {
         using result_type = Option<T>;
-        static void setValue(PropertyBlockBase<ObjectT>& pb, const Str& name, const T& v) noexcept { pb.impl_setValue(name,v); }
+        static void setValue(PropertyBlockBase<ObjectT>& pb, const Str& name, const T& v) noexcept {
+          pb.impl_setValue(name,v);
+        }
         static auto getValue(const PropertyBlockBase<ObjectT>& pb, const Str& name) noexcept -> result_type {
           T res = {};
           if (pb.impl_getValue<T>(name,res)) { return res; }
@@ -440,8 +463,10 @@ namespace hikari {
         Storage() noexcept = default;
         Storage(const Storage&) noexcept = default;
         Storage& operator=(const Storage&) noexcept = default;
-        auto operator[](size_t idx) const -> const T& { return m_data[idx]; }
-        auto operator[](size_t idx) -> T& { return m_data[idx]; }
+        //auto operator[](size_t idx) const -> const T& { return m_data[idx]; }
+        //auto operator[](size_t idx) -> T& { return m_data[idx]; }
+        auto getValue(size_t idx) const -> T { return m_data.at(idx); }
+        //void setValue(size_t idx, const T& val) { m_datas[idx] = val; }
 
         auto insert(T value) -> size_t
         {
@@ -655,6 +680,7 @@ namespace hikari {
       }
       template<typename T, std::enable_if_t<impl_type_switch<T>::value, nullptr_t> = nullptr>
       void setValue(const Str& name, const T& value) noexcept{
+        popValue(name);
         return impl_type_switch<T>::setValue(*this, name, value);
       }
       template<typename T, std::enable_if_t<impl_type_switch<T>::value, nullptr_t> = nullptr>
@@ -684,14 +710,15 @@ namespace hikari {
         auto iter = m_types.find(name);
         if (iter == m_types.end()) { return false; }
         if (iter->second.first != PropertyTypeIndexBase<ObjectT,T>::value) { return false; }
-        value = std::get<Storage<T>>(m_datas)[iter->second.second];
+        value = std::get<Storage<T>>(m_datas).getValue(iter->second.second);
         return true;
       }
       template <typename T, std::enable_if_t<in_tuple<T, types>::value, nullptr_t> = nullptr>
       void impl_setValue(const Str& name, const T& value) noexcept
       {
         popValue(name);
-        m_types.insert({ name, {tuple_index<T, types>::value, std::get<Storage<T>>(m_datas).insert(value)} });
+        auto val = std::get<Storage<T>>(m_datas).insert(value);
+        m_types.insert({ name, {tuple_index<T, types>::value, val } });
       }
       template <size_t... Is>
       auto impl_getValue_for_each(U8 type_idx, size_t data_idx, std::index_sequence<Is...>) const -> PropertyBase<ObjectT>
@@ -699,8 +726,11 @@ namespace hikari {
         PropertyBase<ObjectT> res = {};
         using Swallow = int[];
         (void)Swallow {
-          (Is, (type_idx == Is) ? (res.m_data = std::get<Is>(m_datas)[data_idx], 0) : 0)...
+          (Is, (type_idx == Is) ? ((res.m_data = std::get<Is>(m_datas).getValue(data_idx)), 0) : 0)...
         };
+        if (type_idx == 10) {
+          std::cout << std::get<10>(m_datas).getValue(data_idx) << std::endl;
+        }
         return res;
       }
       template <size_t... Is>

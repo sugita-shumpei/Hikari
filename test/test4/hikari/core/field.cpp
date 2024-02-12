@@ -16,6 +16,7 @@ auto hikari::core::Field::getSize() const -> size_t { return getChildCount(); }
 
 void hikari::core::Field::setSize(size_t count) { setChildCount(count); }
 
+auto hikari::core::Field::getKeys() const -> std::vector<Str> { auto object = getObject(); if (object) { return object->getKeys(); } else { return{}; } }
 void hikari::core::Field::setName(const Str& name) { auto object = getObject(); if (object) { object->setName(name); } }
 
 auto hikari::core::Field::getChildCount() const -> size_t { auto object = getObject(); return object->getChildCount(); }
@@ -64,6 +65,8 @@ auto hikari::core::FieldRef::operator[](size_t idx) -> FieldRef { auto object = 
 auto hikari::core::FieldRef::getSize() const -> size_t { return getChildCount(); }
 
 void hikari::core::FieldRef::setSize(size_t count) { setChildCount(count); }
+
+auto hikari::core::FieldRef::getKeys() const -> std::vector<Str> { auto object = getObject(); if (object) { return object->getKeys(); } else { return{}; } }
 
 void hikari::core::FieldRef::setName(const Str& name) { auto object = getObject(); if (object) { object->setName(name); } }
 
@@ -202,6 +205,11 @@ auto hikari::core::FieldObject::clone() const -> std::shared_ptr<FieldObject>
   return field;
 }
 
+auto hikari::core::FieldObject::getKeys() const -> Array<Str>
+{
+  return m_property_block.getKeys();
+}
+
 bool hikari::core::FieldObject::getPropertyTypeIndex(const Str& name, size_t& type_index) const {
   if (name == "children") { type_index = PropertyTypeIndex<std::vector<std::shared_ptr<Object>>>::value; return true; }
   return m_property_block.getTypeIndex(name, type_index);
@@ -247,7 +255,7 @@ auto hikari::core::FieldSerializer::eval(const std::shared_ptr<Object>& object) 
   if (!object) { return Json(); }
   auto field = Field(std::static_pointer_cast<FieldObject>(object));
   Json json = {};
-  json["type"] = "Node";
+  json["type"] = "Field";
   json["name"] = object->getName();
   json["properties"] = {};
   auto children = field.getChildren();
@@ -257,8 +265,53 @@ auto hikari::core::FieldSerializer::eval(const std::shared_ptr<Object>& object) 
   }
   for (auto& key : field.getKeys()) {
     if (key != "children") {
-      json["properties"][key] = PropertySerializer::eval(field.getValue(key));
+      json["properties"][key] = serialize(field.getValue(key));
     }
   }
   return json;
+}
+
+hikari::core::FieldDeserializer::~FieldDeserializer() noexcept
+{
+}
+
+auto hikari::core::FieldDeserializer::getTypeString() const noexcept -> Str 
+{
+  return FieldObject::TypeString();
+}
+
+auto hikari::core::FieldDeserializer::eval(const Json& json) const -> std::shared_ptr<Object> 
+{
+  auto type = json.find("type");
+  if (type == json.end()) { return nullptr; }
+  if (!type.value().is_string()) { return nullptr; }
+  auto str_type = type.value().get<Str>();
+  if (str_type != "Field") { return nullptr; }
+  auto name = json.find("name");
+  if (name == json.end()) { return nullptr; }
+  if (!name.value().is_string()) { return nullptr; }
+  auto str_name = name.value().get<Str>();
+  auto prop = json.find("properties");
+  if (prop == json.end()) { return nullptr; }
+  if (!prop.value().is_object()) { return nullptr; }
+  auto field = Field(str_name);
+  {
+    auto items = prop.value().items();
+    for (auto& item : items) {
+      if (item.key() == "children") { continue; }
+      auto prop = deserialize<Property>(item.value());
+      field.setValue(item.key(), prop);
+    }
+  }
+
+  auto children = prop.value().find("children");
+  if (children == prop.value().end()) { return nullptr; }
+  if (!children.value().is_array()) { return nullptr; }
+  auto val_children = children.value().get<Array<Json>>();
+  for (auto& child : val_children) {
+    auto child_node = eval(child);
+    if (!child_node) { return nullptr; }
+    field.addChild(Field(std::static_pointer_cast<FieldObject>(child_node)));
+  }
+  return field.getObject();
 }
