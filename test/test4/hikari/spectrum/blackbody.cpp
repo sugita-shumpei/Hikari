@@ -16,9 +16,9 @@ void hikari::spectrum::SpectrumBlackbodyObject::getPropertyBlock(PropertyBlockBa
 
 void hikari::spectrum::SpectrumBlackbodyObject::setPropertyBlock(const PropertyBlockBase<Object>& pb)
 {
-  auto min_wavelength = pb.getValue("min_wavelength").toF32();
-  auto max_wavelength = pb.getValue("max_wavelength").toF32();
-  auto temperature = pb.getValue("temperature").toF32();
+  auto min_wavelength = pb.getValue("min_wavelength").getValueTo<F32>();
+  auto max_wavelength = pb.getValue("max_wavelength").getValueTo<F32>();
+  auto temperature = pb.getValue("temperature").getValueTo<F32>();
   auto color_setting = pb.getValue("color_setting").getValue<ColorSetting>();
   if (min_wavelength) { setMinWaveLength(*min_wavelength); }
   if (max_wavelength) { setMaxWaveLength(*max_wavelength); }
@@ -44,9 +44,9 @@ bool hikari::spectrum::SpectrumBlackbodyObject::getProperty(const Str& name, Pro
 
 bool hikari::spectrum::SpectrumBlackbodyObject::setProperty(const Str& name, const PropertyBase<Object>& prop)
 {
-  if (name == "min_wavelength") { auto val = prop.toF32(); if (val) { setMinWaveLength(*val); return true; } return false; }
-  if (name == "max_wavelength") { auto val = prop.toF32(); if (val) { setMaxWaveLength(*val); return true; } return false; }
-  if (name == "temperature") { auto val = prop.toF32(); if (val) { setTemperature(*val); return true; } return false; }
+  if (name == "min_wavelength") { auto val = prop.getValueTo<F32>(); if (val) { setMinWaveLength(*val); return true; } return false; }
+  if (name == "max_wavelength") { auto val = prop.getValueTo<F32>(); if (val) { setMaxWaveLength(*val); return true; } return false; }
+  if (name == "temperature") { auto val = prop.getValueTo<F32>(); if (val) { setTemperature(*val); return true; } return false; }
   if (name == "color_setting") { auto color_setting = prop.getValue<ColorSetting>(); setColorSetting(color_setting.getObject()); return true; }
   return false;
 }

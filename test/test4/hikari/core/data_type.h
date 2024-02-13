@@ -78,6 +78,12 @@ namespace hikari
             };
         }
 
+        template <>                                
+        struct Type2String<std::monostate>
+        {
+          static constexpr char value[] = "None";
+        };
+
         template <typename T>
         struct Type2String<Array<T>> : TemplateTypeString<impl::ArrayTypeString, T> {};
 

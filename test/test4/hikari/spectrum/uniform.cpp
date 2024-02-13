@@ -10,17 +10,20 @@ auto hikari::spectrum::SpectrumUniformObject::getXYZColor() const -> ColorXYZ
   auto max_wavelength = std::min(m_max_wavelength, 830.0f);
   auto xyz = Vec3();
   auto den = 0.0f;
-  for (size_t i = 360; i <= 830; ++i) {
-    F32 x = SpectrumXYZLUT::color_matching_functions[4 * (i - 360) + 1];
-    F32 y = SpectrumXYZLUT::color_matching_functions[4 * (i - 360) + 2];
-    F32 z = SpectrumXYZLUT::color_matching_functions[4 * (i - 360) + 3];
-    den += y;
+  for (size_t i = 360; i <= 830 - 1; ++i) {
+    F32 xi   = SpectrumXYZLUT::color_matching_functions[4 * (i   - 360) + 1];
+    F32 yi   = SpectrumXYZLUT::color_matching_functions[4 * (i   - 360) + 2];
+    F32 zi   = SpectrumXYZLUT::color_matching_functions[4 * (i   - 360) + 3];
+    F32 xi_1 = SpectrumXYZLUT::color_matching_functions[4 * (i+1 - 360) + 1];
+    F32 yi_1 = SpectrumXYZLUT::color_matching_functions[4 * (i+1 - 360) + 2];
+    F32 zi_1 = SpectrumXYZLUT::color_matching_functions[4 * (i+1 - 360) + 3];
+    den += (yi + yi_1)*0.5f;
     if (min_wavelength > i) { continue; }
     if (max_wavelength < i) { continue; }
-    xyz += Vec3{x, y, z};
+    xyz += Vec3{0.5f * (xi + xi_1), 0.5f * (yi + yi_1), 0.5f * (zi + zi_1) };
   }
   xyz /= den;
-  return ColorXYZ{ xyz.x  ,xyz.y ,xyz.z };
+  return ColorXYZ{ xyz.x ,xyz.y ,xyz.z };
 }
 
 auto hikari::spectrum::SpectrumUniformObject::getPropertyNames() const -> std::vector<Str>
@@ -37,9 +40,9 @@ void hikari::spectrum::SpectrumUniformObject::getPropertyBlock(PropertyBlockBase
 }
 
 void hikari::spectrum::SpectrumUniformObject::setPropertyBlock(const PropertyBlockBase<Object>& pb) {
-  auto min_wavelength = pb.getValue("min_wavelength").toF32();
-  auto max_wavelength = pb.getValue("max_wavelength").toF32();
-  auto intensity = pb.getValue("intensity").toF32();
+  auto min_wavelength = pb.getValue("min_wavelength").getValueTo<F32>();
+  auto max_wavelength = pb.getValue("max_wavelength").getValueTo<F32>();
+  auto intensity = pb.getValue("intensity").getValueTo<F32>();
   auto color_setting = pb.getValue("color_setting").getValue<ColorSetting>();
   if (min_wavelength) { setMinWaveLength(*min_wavelength); }
   if (max_wavelength) { setMaxWaveLength(*max_wavelength); }
@@ -67,9 +70,9 @@ bool hikari::spectrum::SpectrumUniformObject::getProperty(const Str& name, Prope
 }
 
 bool hikari::spectrum::SpectrumUniformObject::setProperty(const Str& name, const PropertyBase<Object>& prop) {
-  if (name == "min_wavelength") { auto value = prop.toF32(); if (value) { setMinWaveLength(*value); return true; } return false; }
-  if (name == "max_wavelength") { auto value = prop.toF32(); if (value) { setMaxWaveLength(*value); return true; } return false; }
-  if (name == "intensity") { auto value = prop.toF32(); if (value) { setIntensity(*value); return true; } return false; }
+  if (name == "min_wavelength") { auto value = prop.getValueTo<F32>(); if (value) { setMinWaveLength(*value); return true; } return false; }
+  if (name == "max_wavelength") { auto value = prop.getValueTo<F32>(); if (value) { setMaxWaveLength(*value); return true; } return false; }
+  if (name == "intensity") { auto value = prop.getValueTo<F32>(); if (value) { setIntensity(*value); return true; } return false; }
   if (name == "color_setting") { auto color_setting = prop.getValue<ColorSetting>(); setColorSetting(color_setting.getObject()); }
   return false;
 }

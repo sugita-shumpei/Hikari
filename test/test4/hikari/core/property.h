@@ -114,12 +114,12 @@ namespace hikari {
 
     template<typename ObjectT, typename T>
     struct PropertyTraitsBase : public PropertyCommonDefinitionsBase<ObjectT>{
-      using data_types                                       = PropertyDataTypes;
-      using array_data_types                                 = PropertyArrayDataTypes;
-      using types                                            = PropertyTypesBase<ObjectT>;
-      using traits_data_types           = in_tuple<T, data_types>;
-      using traits_array_data_types     = in_tuple<T, array_data_types>;
-      using traits_object_wrapper       = ObjectWrapperTraitsBase<ObjectT, T>;
+      using data_types       = PropertyDataTypes;
+      using array_data_types = PropertyArrayDataTypes;
+      using types            = PropertyTypesBase<ObjectT>;
+      using traits_data_types       = in_tuple<T, data_types>;
+      using traits_array_data_types = in_tuple<T, array_data_types>;
+      using traits_object_wrapper   = ObjectWrapperTraitsBase<ObjectT, T>;
       using traits_object_wrapper_array = ObjectWrapperArrayTraitsBase<ObjectT, T>;
       static inline constexpr size_t kTypeSwitchIdx = find_integer_sequence<bool,true,std::integer_sequence<bool,
         traits_data_types::value,
@@ -144,7 +144,7 @@ namespace hikari {
       static inline constexpr size_t kTypeSwitchIdxObjectWrapper      = PropertyCommonDefinitionsBase<ObjectT>::kTypeSwitchIdxObjectWrapper;
       static inline constexpr size_t kTypeSwitchIdxObjectWrapperArray = PropertyCommonDefinitionsBase<ObjectT>::kTypeSwitchIdxObjectWrapperArray;
       static inline constexpr size_t kTypeSwitchIdxDefault            = PropertyCommonDefinitionsBase<ObjectT>::kTypeSwitchIdxDefault;
-      using variant_type         = typename variant_from_tuple<types>::type;
+      using variant_type = typename variant_from_tuple<types>::type;
     private:
       template<typename T, size_t idx = PropertyTraitsBase<ObjectT, T>::kTypeSwitchIdx>
       struct impl_type_switch : std::false_type {};
@@ -214,12 +214,12 @@ namespace hikari {
         }
       };
     public:
-      PropertyBase() noexcept : m_data{} {}
-      PropertyBase(nullptr_t) noexcept : m_data{} {}
+      PropertyBase() noexcept : m_data{std::monostate()} {}
+      PropertyBase(nullptr_t) noexcept : m_data{ std::monostate() } {}
       PropertyBase(const PropertyBase&) noexcept = default;
       PropertyBase(PropertyBase&&) noexcept = default;
 
-      PropertyBase& operator=(nullptr_t) noexcept { m_data = std::monostate{}; return *this; }
+      PropertyBase& operator=(nullptr_t) noexcept { m_data = std::monostate(); return *this; }
       PropertyBase& operator=(const PropertyBase&) noexcept = default;
       PropertyBase& operator=(PropertyBase&&) noexcept = default;
 
@@ -307,6 +307,175 @@ namespace hikari {
 
       template<typename T, std::enable_if_t<impl_type_switch<T>::value, nullptr_t> = nullptr>
       void setValue(const T& value) noexcept { return impl_type_switch<T>::setValue(m_data,value); }
+
+      // 数へのキャストは整数, 小数に限る 
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<in_tuple<T,typename concat_tuple<PropertySignedTypes, PropertyUnsignedTypes, PropertyFloatTypes>::type>::value, nullptr_t>{nullptr}, Option<T>()) {
+        return std::visit([](const auto& v) { return Option<T>(safe_numeric_cast<T>(v)); }, m_data);
+      }
+      // BoolへのキャストはBool, 文字列に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T,Bool>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Bool>::value) {
+          return std::get<Bool>(m_data);
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Str>::value) {
+          auto& str = std::get<Str>(m_data);
+          if (str == "True"  || str == "true" ) { return true; }
+          if (str == "False" || str == "false") { return false; }
+          return std::nullopt;
+        }
+        return std::nullopt;
+      }
+      // 文字列へのキャストは文字列に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T, Str>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Str>::value) {
+          return std::get<Str>(m_data);
+        }
+        return std::nullopt;
+      }
+      // Vec2へのキャストは整数, 小数, Vec2に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T, Vec2>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec2>::value) {
+          return Vec2(std::get<Vec2>(m_data));
+        }
+        {
+          auto tmp = std::visit([](const auto& v) { return Option<F32>(safe_numeric_cast<F32>(v)); }, m_data);
+          if (tmp) { return Vec2(*tmp); }
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec3>::value) {
+          return Vec2(std::get<Vec3>(m_data));
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec4>::value) {
+          return Vec2(std::get<Vec4>(m_data));
+        }
+        return std::nullopt;
+      }
+      // Vec3へのキャストは整数, 小数, Vec2, Vec3に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T, Vec3>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec3>::value) {
+          return Vec3(std::get<Vec3>(m_data));
+        }
+        {
+          auto tmp = std::visit([](const auto& v) { return Option<F32>(safe_numeric_cast<F32>(v)); }, m_data);
+          if (tmp) { return Vec3(*tmp); }
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec2>::value) {
+          return Vec3(std::get<Vec2>(m_data),0.0f);
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec4>::value) {
+          return Vec3(std::get<Vec4>(m_data));
+        }
+        return std::nullopt;
+      }
+      // Vec4へのキャストは整数, 小数, Vec2, Vec3, Vec4に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T, Vec4>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec4>::value) {
+          return Vec4(std::get<Vec4>(m_data));
+        }
+        {
+          auto tmp = std::visit([](const auto& v) { return Option<F32>(safe_numeric_cast<F32>(v)); }, m_data);
+          if (tmp) { return Vec4(*tmp); }
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec2>::value) {
+          return Vec4(std::get<Vec2>(m_data), 0.0f, 0.0f);
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Vec3>::value) {
+          return Vec4(std::get<Vec3>(m_data), 0.0f);
+        }
+        return std::nullopt;
+      }
+      // Mat2へのキャストは整数, 小数, Mat2に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T, Mat2>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat2>::value) {
+          return Mat2(std::get<Mat2>(m_data));
+        }
+        {
+          auto tmp = std::visit([](const auto& v) { return Option<F32>(safe_numeric_cast<F32>(v)); }, m_data);
+          if (tmp) { return Mat2(*tmp); }
+        }
+        return std::nullopt;
+      }
+      // Mat3へのキャストは整数, 小数, Mat2, Mat3に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T, Mat3>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat3>::value) {
+          return Mat3(std::get<Mat3>(m_data));
+        }
+        {
+          auto tmp = std::visit([](const auto& v) { return Option<F32>(safe_numeric_cast<F32>(v)); }, m_data);
+          if (tmp) { return Mat3(*tmp); }
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat2>::value) {
+          return Mat3(std::get<Mat2>(m_data));
+        }
+        return std::nullopt;
+      }
+      // Mat4へのキャストは整数, 小数, Mat2, Mat3, Mat4に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T, Mat4>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat4>::value) {
+          return Mat4(std::get<Mat4>(m_data));
+        }
+        {
+          auto tmp = std::visit([](const auto& v) { return Option<F32>(safe_numeric_cast<F32>(v)); }, m_data);
+          if (tmp) { return Mat4(*tmp); }
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat2>::value) {
+          return Mat4(std::get<Mat2>(m_data));
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat3>::value) {
+          return Mat4(std::get<Mat3>(m_data));
+        }
+        return std::nullopt;
+      }
+      // Transformへのキャストは整数, 小数, Mat2, Mat3, Mat4, Transformに限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<std::is_same_v<T, Transform>, nullptr_t>{nullptr}, Option<T>()) {
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Transform>::value) {
+          return std::get<Transform>(m_data);
+        }
+        {
+          auto tmp = std::visit([](const auto& v) { return Option<F32>(safe_numeric_cast<F32>(v)); }, m_data);
+          if (tmp) { return Transform(Mat4(*tmp)); }
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat2>::value) {
+          return Transform(Mat4(std::get<Mat2>(m_data)));
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat3>::value) {
+          return Transform(Mat4(std::get<Mat3>(m_data)));
+        }
+        if (m_data.index() == PropertyTypeIndexBase<ObjectT, Mat4>::value) {
+          return Transform(Mat4(std::get<Mat4>(m_data)));
+        }
+        return std::nullopt;
+      }
+      // Array<T>へのキャストは整数, 小数の配列に限る
+      template<typename T>
+      auto getValueTo() const noexcept -> decltype(std::enable_if_t<in_tuple<T,typename transform_tuple<Array,typename concat_tuple<PropertySignedTypes, PropertyUnsignedTypes, PropertyFloatTypes>::type >::type > ::value, nullptr_t > {nullptr}, Option<T>()) {
+        return std::visit([](const auto& v) {
+          using from_type = std::remove_cv_t<std::remove_reference_t<decltype(v)>>;
+          using to_elm_type = std::remove_cv_t<std::remove_reference_t<decltype(std::declval<T>()[0])>>;
+          if constexpr (in_tuple<from_type, typename transform_tuple<Array, typename concat_tuple<PropertySignedTypes, PropertyUnsignedTypes, PropertyFloatTypes>::type >::type > ::value) {
+            T res = {};
+            res.reserve(v.size());
+            for (auto& elm : v) {
+              auto tmp = safe_numeric_cast<to_elm_type>(elm);
+              if (!tmp) { return Option<T>(std::nullopt); }
+              res.push_back(*tmp);
+            }
+            return Option<T>(res);
+          }
+          else {
+            return  Option<T>(std::nullopt);
+          }
+        }, m_data);
+      }
 
 #define HK_PROPERTY_METHOD_TO_TYPE(TYPE) \
       auto to##TYPE() const noexcept -> Option<TYPE> { \

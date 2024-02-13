@@ -1,6 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <algorithm>
+#include <vector>
 #include <hikari/core/data_type.h>
 namespace hikari {
   inline namespace core {
@@ -22,7 +23,7 @@ namespace hikari {
       // もし符号付整数にキャストするなら
       if      constexpr (std::is_integral_v<To> && std::is_signed_v<To>) {
         // もとが符号付整数の場合, 範囲に収まっていればよい
-        if      constexpr (std::is_integral_v<From> && std::is_signed_v<From>) {
+        if constexpr (std::is_integral_v<From> && std::is_signed_v<From>) {
           if constexpr (sizeof(To) >= sizeof(From)) { return To(from); }
           else {
             if ((std::numeric_limits<To>::min() <= from) && (from <= std::numeric_limits<To>::max())) { return To(from); }
@@ -66,7 +67,10 @@ namespace hikari {
         }
         // もとが符号付整数の場合, 0以上でなければならない
         else if constexpr (std::is_integral_v<From> && std::is_signed_v<From>) {
-          if constexpr (sizeof(To) > sizeof(From)) { return To(from); }
+          if constexpr (sizeof(To) > sizeof(From)) {
+            if (from < 0) { return {}; }
+            return To(from);
+          }
           else {
             if (from >= 0 && from <= std::numeric_limits<To>::max()) { return To(from); }
             return {};
@@ -121,5 +125,6 @@ namespace hikari {
       }
       return {};
     }
+
   }
 }

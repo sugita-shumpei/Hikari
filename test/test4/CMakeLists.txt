@@ -11,7 +11,7 @@ find_package(Imath         CONFIG REQUIRED)
 find_package(Matplot++ CONFIG REQUIRED)
 # find_package(Python COMPONENTS Interpreter Development NumPy)
 # find_package(pybind11 CONFIG)
-# find_path(MATPLOTLIB_CPP_INCLUDE_DIRS "matplotlibcpp.h")
+# find_path(MATPLOTLIB_CPP_INCLUDE_DIRS  matplotlibcpp.h )
 add_executable(hikari-test-test4
  main.cpp
  hikari/core/object.h
@@ -37,21 +37,39 @@ add_executable(hikari-test-test4
  hikari/core/serializer.cpp
  hikari/core/deserializer.cpp
  hikari/core/deserializer.h
-"hikari/core/texture.h"
-"hikari/core/texture.cpp"
-"hikari/core/spectrum.h"
-"hikari/core/spectrum.cpp"
-"hikari/core/color.h"
-"hikari/core/color.cpp"
-"hikari/spectrum/color.h"
-"hikari/spectrum/color.cpp"
-"hikari/spectrum/regular.h"
-"hikari/spectrum/regular.cpp"
-"hikari/spectrum/blackbody.h"
-"hikari/spectrum/blackbody.cpp"
-"hikari/spectrum/uniform.h"
-"hikari/spectrum/uniform.cpp"
- "hikari/spectrum/irregular.h" "hikari/spectrum/irregular.cpp")
+ hikari/core/shape.h 
+ hikari/core/shape.cpp 
+ hikari/core/light.h 
+ hikari/core/light.cpp 
+ hikari/core/camera.h 
+ hikari/core/camera.cpp 
+ hikari/core/material.h 
+ hikari/core/material.cpp 
+ hikari/core/texture.h 
+ hikari/core/texture.cpp 
+ hikari/core/spectrum.h 
+ hikari/core/spectrum.cpp 
+ hikari/core/color.h 
+ hikari/core/color.cpp 
+ hikari/spectrum/color.h 
+ hikari/spectrum/color.cpp 
+ hikari/spectrum/regular.h 
+ hikari/spectrum/regular.cpp 
+ hikari/spectrum/blackbody.h 
+ hikari/spectrum/blackbody.cpp 
+ hikari/spectrum/uniform.h 
+ hikari/spectrum/uniform.cpp 
+ hikari/spectrum/irregular.h 
+ hikari/spectrum/irregular.cpp 
+ hikari/shape/mesh.h 
+ hikari/shape/mesh.cpp 
+ hikari/shape/cube.h 
+ hikari/shape/cube.cpp 
+ hikari/shape/quad.h 
+ hikari/shape/quad.cpp 
+ hikari/shape/sphere.h 
+ hikari/shape/sphere.cpp 
+)
 target_compile_features(hikari-test-test4 PRIVATE cxx_std_17)
 target_compile_options(hikari-test-test4 PRIVATE /utf-8)
 target_include_directories(hikari-test-test4

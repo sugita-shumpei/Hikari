@@ -65,50 +65,7 @@ namespace hikari
         //
         template <typename T>
         struct PropertyTypeDeserializer;
-#define HK_PROPERTY_TYPE_DESERIALIZER_INTEGER_DEFINE(TYPE)                \
-    template <>                                                           \
-    struct PropertyTypeDeserializer<TYPE>                                 \
-    {                                                                     \
-        template <Bool CheckType = true>                                  \
-        static auto eval(const Json &json) -> Option<TYPE>                \
-        {                                                                 \
-            if constexpr (CheckType)                                      \
-            {                                                             \
-                auto type = json.find("type");                            \
-                if (type == json.end())                                   \
-                {                                                         \
-                    return std::nullopt;                                  \
-                }                                                         \
-                if (!type.value().is_string())                            \
-                {                                                         \
-                    return std::nullopt;                                  \
-                }                                                         \
-                if (type.value().get<Str>() != Type2String<TYPE>::value)  \
-                {                                                         \
-                    return std::nullopt;                                  \
-                }                                                         \
-                auto value = json.find("value");                          \
-                if (value == json.end())                                  \
-                {                                                         \
-                    return std::nullopt;                                  \
-                }                                                         \
-                if (!value.value().is_number_integer())                   \
-                {                                                         \
-                    return std::nullopt;                                  \
-                }                                                         \
-                return safe_numeric_cast<TYPE>(value.value().get<I64>()); \
-            }                                                             \
-            else                                                          \
-            {                                                             \
-                if (!json.is_number_integer())                            \
-                {                                                         \
-                    return std::nullopt;                                  \
-                }                                                         \
-                return safe_numeric_cast<TYPE>(json.get<I64>());          \
-            }                                                             \
-        }                                                                 \
-    }
-#define HK_PROPERTY_TYPE_DESERIALIZER_UINTEGER_DEFINE(TYPE)           \
+#define HK_PROPERTY_TYPE_DESERIALIZER_INTEGER_DEFINE(TYPE)            \
     template <>                                                       \
     struct PropertyTypeDeserializer<TYPE>                             \
     {                                                                 \
@@ -119,7 +76,7 @@ namespace hikari
             {                                                         \
                 if (json.is_number_integer())                         \
                 {                                                     \
-                    return safe_numeric_cast<TYPE>(json.get<U64>());  \
+                    return safe_numeric_cast<TYPE>(json.get<I64>());  \
                 }                                                     \
             }                                                         \
             auto type = json.find("type");                            \
@@ -144,7 +101,54 @@ namespace hikari
             {                                                         \
                 return std::nullopt;                                  \
             }                                                         \
+            return safe_numeric_cast<TYPE>(value.value().get<I64>()); \
+        }                                                             \
+    }
+#define HK_PROPERTY_TYPE_DESERIALIZER_UINTEGER_DEFINE(TYPE)           \
+    template <>                                                       \
+    struct PropertyTypeDeserializer<TYPE>                             \
+    {                                                                 \
+        template <Bool CheckType = true>                              \
+        static auto eval(const Json &json) -> Option<TYPE>            \
+        {                                                             \
+            if constexpr (!CheckType)                                 \
+            {                                                         \
+                if (json.is_number_unsigned())                        \
+                {                                                     \
+                    return safe_numeric_cast<TYPE>(json.get<U64>());  \
+                }                                                     \
+                if (json.is_number_integer())                         \
+                {                                                     \
+                    return safe_numeric_cast<TYPE>(json.get<I64>());  \
+                }                                                     \
+            }                                                         \
+            auto type = json.find("type");                            \
+            if (type == json.end())                                   \
+            {                                                         \
+                return std::nullopt;                                  \
+            }                                                         \
+            if (!type.value().is_string())                            \
+            {                                                         \
+                return std::nullopt;                                  \
+            }                                                         \
+            if (type.value().get<Str>() != Type2String<TYPE>::value)  \
+            {                                                         \
+                return std::nullopt;                                  \
+            }                                                         \
+            auto value = json.find("value");                          \
+            if (value == json.end())                                  \
+            {                                                         \
+                return std::nullopt;                                  \
+            }                                                         \
+            if (value.value().is_number_unsigned())                   \
+            {                                                         \
             return safe_numeric_cast<TYPE>(value.value().get<U64>()); \
+            }                                                         \
+            if (value.value().is_number_integer())                    \
+            {                                                         \
+            return safe_numeric_cast<TYPE>(value.value().get<I64>()); \
+            }                                                         \
+            return std::nullopt;                                      \
         }                                                             \
     }
         template <typename T>
@@ -752,16 +756,16 @@ namespace hikari
 
                 if (type != json.end())
                 {
-                  if (!type.value().is_string())
-                  {
-                    return std::nullopt;
-                  }
-                  if (type.value().get<Str>() != Type2String<Quat>::value)
-                  {
-                    return std::nullopt;
-                  }
+                    if (!type.value().is_string())
+                    {
+                        return std::nullopt;
+                    }
+                    if (type.value().get<Str>() != Type2String<Quat>::value)
+                    {
+                        return std::nullopt;
+                    }
                 }
-                
+
                 auto quat_value = json.find("value");
                 auto euler_value = json.find("euler_angles");
                 if (quat_value != json.end())
@@ -1060,7 +1064,7 @@ namespace hikari
         template <typename T, std::enable_if_t<std::is_same<T, Property>::value, nullptr_t> = nullptr>
         auto deserialize(const Json &v) -> T
         {
-            T prop = {};
+            T prop = T();
             {
                 auto tmp = PropertyTypeDeserializer<I8>::eval(v);
                 if (tmp)

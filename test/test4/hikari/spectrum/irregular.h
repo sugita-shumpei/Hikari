@@ -188,6 +188,5 @@ namespace hikari {
       auto getTypeString() const noexcept -> Str override;
       auto eval(const Json& json) const->std::shared_ptr<Object> override;
     };
-
   }
 }

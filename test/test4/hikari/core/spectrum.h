@@ -191,6 +191,18 @@ namespace hikari
 
         struct SpectrumXYZLUT
         {
+            static auto sample(F32 wavelen) noexcept -> Vec3 {
+              if (wavelen < 360.0f) { return Vec3(0.0f); }
+              if (wavelen > 830.0f) { return Vec3(0.0f); }
+              int  idx = floorf(wavelen);
+              auto flt = wavelen - idx;
+              auto xyz = Vec3(
+                (1 - flt) * color_matching_functions[4 * idx + 1] + flt * color_matching_functions[4 * idx + 5],
+                (1 - flt) * color_matching_functions[4 * idx + 2] + flt * color_matching_functions[4 * idx + 6],
+                (1 - flt) * color_matching_functions[4 * idx + 3] + flt * color_matching_functions[4 * idx + 7]
+              );
+              
+            }
             static inline constexpr F32 color_matching_functions[] = {
                 360, 0.000129900000, 0.0000039170000, 0.000606100000,
                 361, 0.000145847000, 0.0000043935810, 0.000680879200,

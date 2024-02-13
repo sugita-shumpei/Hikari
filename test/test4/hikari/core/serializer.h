@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdio>
 #include <nlohmann/json.hpp>
 #include <hikari/core/object.h>
 namespace hikari
@@ -303,9 +304,10 @@ namespace hikari
             template <Bool CheckType = true>
             static auto eval(const Array<T> &val) -> Json
             {
-                Json json     = {};
-                if constexpr (CheckType) {
-                  json["type"]  = Type2String<Array<T>>::value;
+                Json json = {};
+                if constexpr (CheckType)
+                {
+                    json["type"] = Type2String<Array<T>>::value;
                 }
                 auto arr = std::vector<Json>();
                 for (const auto &elm : val)
@@ -313,11 +315,13 @@ namespace hikari
                     auto tmp = PropertyTypeSerializer<T>::eval<false>(elm);
                     arr.push_back(tmp);
                 }
-                if constexpr (CheckType) {
-                  json["value"] = arr;
+                if constexpr (CheckType)
+                {
+                    json["value"] = arr;
                 }
-                else {
-                  json = arr;
+                else
+                {
+                    json = arr;
                 }
 
                 return json;
@@ -326,12 +330,13 @@ namespace hikari
         template <>
         struct PropertyTypeSerializer<Array<std::shared_ptr<Object>>>
         {
-          template <Bool CheckType = true>
+            template <Bool CheckType = true>
             static auto eval(const Array<std::shared_ptr<Object>> &val) -> Json
             {
                 Json json = {};
-                if constexpr (CheckType) {
-                  json["type"] = "Array<Object>";
+                if constexpr (CheckType)
+                {
+                    json["type"] = "Array<Object>";
                 }
                 auto arr = std::vector<Json>();
                 for (auto &elm : val)
@@ -339,11 +344,13 @@ namespace hikari
                     auto tmp = PropertyTypeSerializer<std::shared_ptr<Object>>::eval(elm);
                     arr.push_back(tmp);
                 }
-                if constexpr (CheckType) {
-                  json["value"] = arr;
+                if constexpr (CheckType)
+                {
+                    json["value"] = arr;
                 }
-                else {
-                  json = arr;
+                else
+                {
+                    json = arr;
                 }
                 return json;
             }
@@ -362,8 +369,16 @@ namespace hikari
             static auto eval(const Property &prop) -> Json
             {
                 auto json = std::visit([](const auto &p)
-                                       { return PropertyTypeSerializer<std::remove_cv_t<std::remove_reference_t<decltype(p)>>>::eval(p); },
+                                       {
+                      //if constexpr (
+                      //  !std::is_same_v<std::shared_ptr<Object>, std::remove_cv_t<std::remove_reference_t<decltype(p)>>> &&
+                      //  !std::is_same_v<std::vector<std::shared_ptr<Object>>, std::remove_cv_t<std::remove_reference_t<decltype(p)>>>
+                      // ) {
+                      //  printf("%s\n", Type2String<std::remove_cv_t<std::remove_reference_t<decltype(p)>>>::value);
+                      //}
+                      return PropertyTypeSerializer<std::remove_cv_t<std::remove_reference_t<decltype(p)>>>::eval(p); },
                                        prop.toVariant());
+
                 return json;
             }
         };
