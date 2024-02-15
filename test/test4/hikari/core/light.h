@@ -7,8 +7,6 @@ namespace hikari {
     // 
     struct LightObject : public Object {
       virtual ~LightObject() {}
-      virtual auto getMinBBox() const->Vec3 = 0;
-      virtual auto getMaxBBox() const->Vec3 = 0;
     };
   }
 }

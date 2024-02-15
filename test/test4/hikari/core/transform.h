@@ -144,6 +144,16 @@ namespace hikari {
         auto& trs = std::get<0>(m_data);
         return ((trs.scale.x == trs.scale.y) && (trs.scale.x == trs.scale.z));
       }
+
+      static auto fromTranslate(const Vec3& t) noexcept -> Transform {
+        return Transform(t, glm::identity<Quat>(), Vec3(1.0f));
+      }
+      static auto fromRotation(const Quat& r) noexcept -> Transform {
+        return Transform(Vec3(0.0f), r, Vec3(1.0f));
+      }
+      static auto fromScale(const Quat& r) noexcept -> Transform {
+        return Transform(Vec3(0.0f), glm::identity<Quat>(), Vec3(1.0f));
+      }
     private:
       std::variant<TransformTRSData, TransformMatData> m_data;
     };

@@ -32,6 +32,56 @@ namespace hikari
             virtual auto getName() const -> Str override final;
             virtual auto getNode() const -> std::shared_ptr<NodeObject> = 0;
         };
+        struct NodeComponentSerializer : public ObjectSerializer {
+          virtual ~NodeComponentSerializer() noexcept {}
+        };
+        struct NodeComponentDeserializer  {
+          virtual ~NodeComponentDeserializer() noexcept {}
+          virtual auto getTypeString() const noexcept -> Str = 0;
+          virtual auto eval(const std::shared_ptr<NodeObject>& node, const Json& json) const->std::shared_ptr<NodeComponentObject> = 0;
+        };
+        struct NodeComponentDeserializeManager {
+          static auto getInstance() -> NodeComponentDeserializeManager&
+          {
+            static NodeComponentDeserializeManager manager;
+            return manager;
+          }
+          auto deserialize(const std::shared_ptr<NodeObject>& node, const Json& json) const -> std::shared_ptr<NodeComponentObject>
+          {
+            auto type = json.find("type");
+            if (type == json.end())
+            {
+              return nullptr;
+            }
+            if (!type.value().is_string())
+            {
+              return nullptr;
+            }
+            auto iter = m_deserializer.find(type.value().get<std::string>());
+            if (iter != m_deserializer.end())
+            {
+              return iter->second->eval(node,json);
+            }
+            return nullptr;
+          }
+          void add(const std::shared_ptr<NodeComponentDeserializer>& serializer)
+          {
+            if (!serializer)
+            {
+              return;
+            }
+            m_deserializer[serializer->getTypeString()] = serializer;
+          }
+          ~NodeComponentDeserializeManager() noexcept {}
+          NodeComponentDeserializeManager(const NodeComponentDeserializeManager&) = delete;
+          NodeComponentDeserializeManager& operator=(const NodeComponentDeserializeManager&) = delete;
+          NodeComponentDeserializeManager(NodeComponentDeserializeManager&&) = delete;
+          NodeComponentDeserializeManager& operator=(const NodeComponentDeserializeManager&&) = delete;
+
+        private:
+          NodeComponentDeserializeManager() noexcept : m_deserializer{} {}
+          Dict<Str, std::shared_ptr<NodeComponentDeserializer>> m_deserializer;
+        };
 
         template <typename NodeT, typename NodeComponentObjectT, std::enable_if_t<std::is_base_of_v<NodeComponentObject, NodeComponentObjectT>, nullptr_t> = nullptr>
         struct NodeComponentImplBase : protected ObjectWrapperImpl<impl::ObjectWrapperHolderWeakRef, NodeComponentObjectT>
@@ -228,13 +278,13 @@ namespace hikari
             void setChildren(const std::vector<std::shared_ptr<NodeObject>> &children);
             void popChildren();
 
-            auto getChild(size_t idx) const -> std::shared_ptr<NodeObject>;
-            void setChild(size_t idx, const std::shared_ptr<NodeObject> &child);
+            auto getChild(U32 idx) const -> std::shared_ptr<NodeObject>;
+            void setChild(U32 idx, const std::shared_ptr<NodeObject> &child);
             void addChild(const std::shared_ptr<NodeObject> &child);
-            void popChild(size_t idx);
+            void popChild(U32 idx);
 
-            auto getChildCount() const -> size_t;
-            void setChildCount(size_t count);
+            auto getChildCount() const -> U32;
+            void setChildCount(U32 count);
 
             void setGlobalTransform(const Transform &transform);
             void getGlobalTransform(Transform &transform) const;
@@ -312,8 +362,8 @@ namespace hikari
                 return *this;
             }
 
-            auto operator[](size_t idx) const -> Node;
-            auto operator[](size_t idx) -> NodeRef;
+            auto operator[](U32 idx) const -> Node;
+            auto operator[](U32 idx) -> NodeRef;
 
             using impl_type::operator[];
             using impl_type::operator!;
@@ -518,22 +568,22 @@ namespace hikari
                 return res;
             }
 
-            auto getSize() const -> size_t { return getChildCount(); }
-            void setSize(size_t count) { setChildCount(count); }
+            auto getSize() const -> U32 { return getChildCount(); }
+            void setSize(U32 count) { setChildCount(count); }
 
             HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setName, Str);
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getChildCount, size_t, 0);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setChildCount, size_t);
+            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getChildCount, U32, 0);
+            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setChildCount, U32);
 
             auto getChildren() const -> std::vector<Node>;
             void setChildren(const std::vector<Node> &children);
             void popChildren();
 
-            auto getChild(size_t idx) const -> Node;
-            void setChild(size_t idx, const Node &child);
+            auto getChild(U32 idx) const -> Node;
+            void setChild(U32 idx, const Node &child);
             void addChild(const Node &field);
-            void popChild(size_t idx);
+            void popChild(U32 idx);
 
             HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setGlobalTransform, Transform);
             HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getGlobalTransform, Transform);
@@ -568,8 +618,8 @@ namespace hikari
             NodeRef &operator=(const NodeRef &) = delete;
             NodeRef &operator=(NodeRef &&) = delete;
 
-            auto operator[](size_t idx) const -> Node;
-            auto operator[](size_t idx) -> Ref;
+            auto operator[](U32 idx) const -> Node;
+            auto operator[](U32 idx) -> Ref;
 
             using impl_type::operator[];
             using impl_type::operator!;
@@ -771,11 +821,11 @@ namespace hikari
             }
 
 
-            auto getSize() const->size_t { return getChildCount(); }
-            void setSize(size_t count) { return setChildCount(count); }
+            auto getSize() const->U32 { return getChildCount(); }
+            void setSize(U32 count) { return setChildCount(count); }
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getChildCount, size_t, 0);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setChildCount, size_t);
+            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getChildCount, U32, 0);
+            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setChildCount, U32);
 
             HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setName, Str);
 
@@ -783,10 +833,10 @@ namespace hikari
             void setChildren(const std::vector<Node> &children);
             void popChildren();
 
-            auto getChild(size_t idx) const -> Node;
-            void setChild(size_t idx, const Node &child);
+            auto getChild(U32 idx) const -> Node;
+            void setChild(U32 idx, const Node &child);
             void addChild(const Node &field);
-            void popChild(size_t idx);
+            void popChild(U32 idx);
 
             HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setGlobalTransform, Transform);
             HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getGlobalTransform, Transform);
@@ -811,7 +861,7 @@ namespace hikari
             HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalScale, Vec3);
         private:
             friend class Node;
-            NodeRef(const std::shared_ptr<NodeObject> &object, size_t idx) : impl_type(impl::ObjectWrapperHolderChildObjectRef(object, idx)) {}
+            NodeRef(const std::shared_ptr<NodeObject> &object, U32 idx) : impl_type(impl::ObjectWrapperHolderChildObjectRef(object, idx)) {}
         };
         using  NodeComponent = NodeComponentBase<Node, NodeComponentObject>;
 
@@ -964,5 +1014,9 @@ namespace hikari
             auto getTypeString() const noexcept -> Str override;
             virtual auto eval(const Json &json) const -> std::shared_ptr<Object> override;
         };
+
+        template <typename NodeComponentObjectT>
+        using NodeComponentImpl = NodeComponentImplBase<Node, NodeComponentObjectT>;
+
     }
 }

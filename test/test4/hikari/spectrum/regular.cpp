@@ -74,10 +74,10 @@ void hikari::spectrum::SpectrumRegularObject::getPropertyBlock(PropertyBlockBase
 
 void hikari::spectrum::SpectrumRegularObject::setPropertyBlock(const PropertyBlockBase<Object> &pb)
 {
-    auto min_wavelength = pb.getValue("min_wavelength").getValueTo<F32>();
-    auto max_wavelength = pb.getValue("max_wavelength").getValueTo<F32>();
-    auto intensities = pb.getValue("intensities").getValue<Array<F32>>();
-    auto color_setting = pb.getValue("color_setting").getValue<ColorSetting>();
+    auto min_wavelength = safe_numeric_cast<F32>(pb.getValue("min_wavelength"));
+    auto max_wavelength = safe_numeric_cast<F32>(pb.getValue("max_wavelength"));
+    auto intensities    = pb.getValue<Array<F32>>("intensities");
+    auto color_setting  = pb.getValue<ColorSetting>("color_setting");
     if (min_wavelength)
     {
         setMinWaveLength(*min_wavelength);
@@ -155,7 +155,7 @@ bool hikari::spectrum::SpectrumRegularObject::setProperty(const Str &name, const
 {
     if (name == "min_wavelength")
     {
-        auto val = prop.getValueTo<F32>();
+        auto val = safe_numeric_cast<F32>(prop);
         if (val)
         {
             setMinWaveLength(*val);
@@ -165,7 +165,7 @@ bool hikari::spectrum::SpectrumRegularObject::setProperty(const Str &name, const
     }
     if (name == "max_wavelength")
     {
-        auto val = prop.getValueTo<F32>();
+        auto val = safe_numeric_cast<F32>(prop);
         if (val)
         {
             setMaxWaveLength(*val);
@@ -175,17 +175,17 @@ bool hikari::spectrum::SpectrumRegularObject::setProperty(const Str &name, const
     }
     if (name == "intensities")
     {
-        auto val = prop.getValueTo<Array<F32>>();
-        if (val)
+        auto val = prop.getValue<Array<F32>>();
+        if (!val.empty())
         {
-            setIntensities(*val);
+            setIntensities(val);
             return true;
         }
         return false;
     }
     if (name == "intensities.size")
     {
-        auto val = prop.getValueTo<U32>();
+        auto val = prop.getValue<U32>();
         if (val)
         {
             setIntensityCount(*val);

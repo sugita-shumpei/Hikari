@@ -20,15 +20,14 @@ void hikari::spectrum::SpectrumIrregularObject::getPropertyBlock(PropertyBlockBa
 
 void hikari::spectrum::SpectrumIrregularObject::setPropertyBlock(const PropertyBlockBase<Object>& pb)
 {
-  auto wavelengths = pb.getValue("wavelengths").getValueTo<Array<F32>>();
-  auto intensities = pb.getValue("intensities").getValueTo<Array<F32>>();
-  if (!wavelengths || !intensities) { return; }
-  if (wavelengths->size() == intensities->size()) {
-    if (wavelengths->size() < 2) { return; }
+  auto wavelengths = pb.getValue<Array<F32>>("wavelengths");
+  auto intensities = pb.getValue<Array<F32>>("intensities");
+  if (wavelengths.size() == intensities.size()) {
+    if (wavelengths.size() < 2) { return; }
     auto res = std::vector<Pair<F32, F32>>();
-    res.reserve(wavelengths->size());
+    res.reserve(wavelengths.size());
     for (size_t i = 0; i < res.capacity(); ++i) {
-      res.push_back({ (*wavelengths)[i],(*intensities)[i] });
+      res.push_back({ (wavelengths)[i],(intensities)[i] });
     }
     setWaveLengthsAndIntensities(res);
   }

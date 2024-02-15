@@ -31,7 +31,8 @@ namespace hikari
                 {
                     return Json();
                 }
-                auto iter = m_serializer.find(object->getTypeString());
+                auto type_str = object->getTypeString();
+                auto iter = m_serializer.find(type_str);
                 if (iter != m_serializer.end())
                 {
                     return iter->second->eval(object);

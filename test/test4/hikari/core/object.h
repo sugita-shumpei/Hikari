@@ -54,7 +54,7 @@ namespace hikari {
       void operator=(const char(&value)[N]) noexcept
       {
         auto pb = m_holder.lock();
-        pb->setProperty(m_name, Property(Str(value)));
+        if (pb) pb->setProperty(m_name, Property(Str(value)));
       }
 
       operator PropertyBase<ObjectT>() const noexcept

@@ -40,10 +40,10 @@ void hikari::spectrum::SpectrumUniformObject::getPropertyBlock(PropertyBlockBase
 }
 
 void hikari::spectrum::SpectrumUniformObject::setPropertyBlock(const PropertyBlockBase<Object>& pb) {
-  auto min_wavelength = pb.getValue("min_wavelength").getValueTo<F32>();
-  auto max_wavelength = pb.getValue("max_wavelength").getValueTo<F32>();
-  auto intensity = pb.getValue("intensity").getValueTo<F32>();
-  auto color_setting = pb.getValue("color_setting").getValue<ColorSetting>();
+  auto min_wavelength = pb.getValue<F32>("min_wavelength");
+  auto max_wavelength = pb.getValue<F32>("max_wavelength");
+  auto intensity      = pb.getValue<F32>("intensity");
+  auto color_setting  = pb.getValue("color_setting").getValue<ColorSetting>();
   if (min_wavelength) { setMinWaveLength(*min_wavelength); }
   if (max_wavelength) { setMaxWaveLength(*max_wavelength); }
   if (intensity) { setIntensity(*intensity); }
@@ -70,9 +70,9 @@ bool hikari::spectrum::SpectrumUniformObject::getProperty(const Str& name, Prope
 }
 
 bool hikari::spectrum::SpectrumUniformObject::setProperty(const Str& name, const PropertyBase<Object>& prop) {
-  if (name == "min_wavelength") { auto value = prop.getValueTo<F32>(); if (value) { setMinWaveLength(*value); return true; } return false; }
-  if (name == "max_wavelength") { auto value = prop.getValueTo<F32>(); if (value) { setMaxWaveLength(*value); return true; } return false; }
-  if (name == "intensity") { auto value = prop.getValueTo<F32>(); if (value) { setIntensity(*value); return true; } return false; }
+  if (name == "min_wavelength") { auto value = prop.getValue<F32>(); if (value) { setMinWaveLength(*value); return true; } return false; }
+  if (name == "max_wavelength") { auto value = prop.getValue<F32>(); if (value) { setMaxWaveLength(*value); return true; } return false; }
+  if (name == "intensity") { auto value = prop.getValue<F32>(); if (value) { setIntensity(*value); return true; } return false; }
   if (name == "color_setting") { auto color_setting = prop.getValue<ColorSetting>(); setColorSetting(color_setting.getObject()); }
   return false;
 }

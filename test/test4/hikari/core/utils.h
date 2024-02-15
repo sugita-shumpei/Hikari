@@ -126,5 +126,12 @@ namespace hikari {
       return {};
     }
 
+    template<typename From, typename Functor>
+    auto transformArray(const Array<From>& from, Functor&& functor) -> Array<decltype(functor(std::declval<From>()))> {
+      Array<decltype(functor(std::declval<From>()))> to; to.reserve(from.size());
+      std::transform(std::begin(from), std::end(from), std::back_inserter(to), functor);
+      return to;
+    }
+
   }
 }

@@ -117,7 +117,7 @@ hikari::Bool hikari::core::NodeObject::setProperty(const Str& name, const Proper
     return false;
   }
   if (name == "child_count") {
-    auto childCount = value.toU64();
+    auto childCount = safe_numeric_cast<U32>(value);
     if (childCount) { setChildCount(*childCount); }
     return true;
   }
@@ -138,12 +138,12 @@ hikari::Bool hikari::core::NodeObject::setProperty(const Str& name, const Proper
     return false;
   }
   if (name == "global_matrix") {
-    auto global_matrix = value.toMat();
+    auto global_matrix = value.getValue<Mat4>();
     if (global_matrix) { setGlobalTransform(Transform(*global_matrix)); return true; }
     return false;
   }
   if (name == "local_matirx") {
-    auto local_matrix = value.toMat();
+    auto local_matrix = value.getValue<Mat4>();
     if (local_matrix) { setLocalTransform(Transform(*local_matrix)); return true; }
     return false;
   }
@@ -171,7 +171,7 @@ hikari::Bool hikari::core::NodeObject::getProperty(const Str& name, Property& va
     return true;
   }
   if (name == "child_count") {
-    value = (U64)getChildCount();
+    value = (U32)getChildCount();
     return true;
   }
   if (name == "global_transform") {
@@ -230,7 +230,7 @@ void hikari::core::NodeObject::popComponent(const Str& componentType) {
 }
 
 auto hikari::core::NodeObject::getComponent(const Str& componentType) const -> std::shared_ptr<NodeComponentObject> {
-  if (componentType == NodeObject::TypeString()) { return m_transform; }
+  if (componentType == NodeComponentObject::TypeString()) { return m_transform; }
   if (componentType == NodeTransformObject::TypeString()) { return m_transform; }
   auto iter = std::find_if(std::begin(m_components), std::end(m_components), [&componentType](const auto& v) {  return v->isConvertible(componentType); });
   if (iter != std::end(m_components)) {
@@ -265,7 +265,7 @@ auto hikari::core::NodeObject::getComponents(const Str& componentType) const -> 
     return { m_transform };
   }
   auto res = std::vector<std::shared_ptr<NodeComponentObject>>();
-  if (componentType == NodeObject::TypeString()) { res.push_back(m_transform); }
+  if (componentType == NodeComponentObject::TypeString()) { res.push_back(m_transform); }
   for (auto& component : m_components) {
     if (component->isConvertible(componentType)) {
       res.push_back(component);
@@ -348,13 +348,13 @@ void hikari::core::NodeObject::popChildren()
   m_children.clear();
 }
 
-auto hikari::core::NodeObject::getChild(size_t idx) const -> std::shared_ptr<NodeObject>
+auto hikari::core::NodeObject::getChild(U32 idx) const -> std::shared_ptr<NodeObject>
 {
   if (m_children.size() > idx) { return m_children[idx]; }
   return std::shared_ptr<NodeObject>();
 }
 
-void hikari::core::NodeObject::setChild(size_t idx, const std::shared_ptr<NodeObject>& child)
+void hikari::core::NodeObject::setChild(U32 idx, const std::shared_ptr<NodeObject>& child)
 {
   if (m_children.size() > idx) {
     if (!child) {
@@ -382,7 +382,7 @@ void hikari::core::NodeObject::addChild(const std::shared_ptr<NodeObject>& child
   child->setParent(parent);
 }
 
-void hikari::core::NodeObject::popChild(size_t idx)
+void hikari::core::NodeObject::popChild(U32 idx)
 {
   if (m_children.size() > idx) {
     auto iter_child = m_children.begin() + idx;
@@ -393,16 +393,16 @@ void hikari::core::NodeObject::popChild(size_t idx)
   }
 }
 
-auto hikari::core::NodeObject::getChildCount() const -> size_t
+auto hikari::core::NodeObject::getChildCount() const -> U32
 {
   return m_children.size();
 }
 
-void hikari::core::NodeObject::setChildCount(size_t count)
+void hikari::core::NodeObject::setChildCount(U32 count)
 {
-  size_t old_size = m_children.size();
+  U32 old_size = m_children.size();
   if (count <= old_size) {
-    for (size_t i = count; i < old_size; ++i) {
+    for (U32 i = count; i < old_size; ++i) {
       auto child = m_children[i];
       child->m_parent = {};
       child->updateParentGlobalTransform(Transform());
@@ -410,7 +410,7 @@ void hikari::core::NodeObject::setChildCount(size_t count)
     m_children.resize(count);
   }
   else {
-    for (size_t i = old_size; i < count; ++i) {
+    for (U32 i = old_size; i < count; ++i) {
       auto child = NodeObject::create("", {});
       child->setParent(shared_from_this());
     }
@@ -510,12 +510,12 @@ auto hikari::core::NodeObject::getLocalRotation() const -> Option<Quat> { return
 auto hikari::core::NodeObject::getLocalScale() const -> Option<Vec3> { return m_local_transform.getScale(); }
 
 
-auto hikari::core::Node::operator[](size_t idx) const -> Node
+auto hikari::core::Node::operator[](U32 idx) const -> Node
 {
   return Node(getChild(idx));
 }
 
-auto hikari::core::Node::operator[](size_t idx) -> NodeRef
+auto hikari::core::Node::operator[](U32 idx) -> NodeRef
 {
   auto object = getObject();
   return NodeRef(object, idx);
@@ -560,14 +560,14 @@ void hikari::core::Node::popChildren()
 
 }
 
-auto hikari::core::Node::getChild(size_t idx) const -> Node
+auto hikari::core::Node::getChild(U32 idx) const -> Node
 {
   auto object = getObject();
   if (!object) { return Node(); }
   return Node(object->getChild(idx));
 }
 
-void hikari::core::Node::setChild(size_t idx, const Node& child)
+void hikari::core::Node::setChild(U32 idx, const Node& child)
 {
   auto object = getObject();
   if (!object) { return; }
@@ -581,7 +581,7 @@ void hikari::core::Node::addChild(const Node& child)
   object->addChild(child.getObject());
 }
 
-void hikari::core::Node::popChild(size_t idx)
+void hikari::core::Node::popChild(U32 idx)
 {
   auto object = getObject();
   if (!object) { return; }
@@ -616,12 +616,12 @@ void hikari::core::NodeRef::setChildren(const std::vector<Node>& nodes)
   object->setChildren(children);
 }
 
-auto hikari::core::NodeRef::operator[](size_t idx) const -> Node
+auto hikari::core::NodeRef::operator[](U32 idx) const -> Node
 {
   return getChild(idx);
 }
 
-auto hikari::core::NodeRef::operator[](size_t idx) -> Ref
+auto hikari::core::NodeRef::operator[](U32 idx) -> Ref
 {
   return NodeRef(getObject(), idx);
 }
@@ -634,13 +634,13 @@ void hikari::core::NodeRef::popChildren()
   }
 }
 
-auto hikari::core::NodeRef::getChild(size_t idx) const -> Node
+auto hikari::core::NodeRef::getChild(U32 idx) const -> Node
 {
   auto object = getObject();
   return NodeRef(object, idx);
 }
 
-void hikari::core::NodeRef::setChild(size_t idx, const Node& child)
+void hikari::core::NodeRef::setChild(U32 idx, const Node& child)
 {
   auto object = getObject();
   if (!object) { return; }
@@ -654,7 +654,7 @@ void hikari::core::NodeRef::addChild(const Node& child)
   object->addChild(child.getObject());
 }
 
-void hikari::core::NodeRef::popChild(size_t idx)
+void hikari::core::NodeRef::popChild(U32 idx)
 {
   auto object = getObject();
   if (!object) { return; }
@@ -972,12 +972,12 @@ hikari::core::NodeSerializer::~NodeSerializer() noexcept
   json["properties"]["components"] = Array<Json>();
   auto components = node.getComponents<NodeComponent>();
   {
-    size_t i = 0;
+    U32 i = 0;
     for (auto& component : components) {
       if (i != 0) {
         auto tmp = ObjectSerializeManager::getInstance().serialize(component.getObject());
-        if (tmp) {
-          json["properties"].push_back(tmp);
+        if (!tmp.is_null()) {
+          json["properties"]["components"].push_back(tmp);
         }
       }
       ++i;
@@ -1023,6 +1023,14 @@ hikari::core::NodeSerializer::~NodeSerializer() noexcept
      auto child_node  = eval(child);
      if (!child_node) { return nullptr; }
      node.addChild(Node(std::static_pointer_cast<NodeObject>(child_node)));
+   }
+   auto components = prop.value().find("components");
+   if (components == prop.value().end()) { return nullptr; }
+   if (!components.value().is_array()) { return nullptr; }
+   auto val_component = components.value().get<Array<Json>>();
+   for (auto& component : val_component) {
+     auto comp = NodeComponentDeserializeManager::getInstance().deserialize(node.getObject(), component);
+     if (!comp) { return nullptr; }
    }
    return node.getObject();
  }

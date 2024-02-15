@@ -24,9 +24,9 @@ void hikari::spectrum::SpectrumColorObject::getPropertyBlock(PropertyBlockBase<O
 
 void hikari::spectrum::SpectrumColorObject::setPropertyBlock(const PropertyBlockBase<Object>& pb)
 {
-  auto rgb_color = pb.getValue("color.rgb").toVec();
+  auto rgb_color = pb.getValue<Vec3>("color.rgb");
   if (!rgb_color) {
-    rgb_color = pb.getValue("color.rgb.value").toVec();
+    rgb_color    = pb.getValue<Vec3>("color.rgb.value");
     if (rgb_color) {
       auto p_rgb_color_space = pb.getValue("color.rgb.color_space").getValue<Str>();
       auto pp_rgb_linear = pb.getValue("color.rgb.linear");
@@ -46,7 +46,7 @@ void hikari::spectrum::SpectrumColorObject::setPropertyBlock(const PropertyBlock
   else {
     setRGBColor(ColorRGB{ rgb_color->x,rgb_color->y,rgb_color->z }, ColorSpace::eDefault, true);
   }
-  auto xyz_color = pb.getValue("color.xyz").toVec();
+  auto xyz_color = pb.getValue<Vec3>("color.xyz");
   if (xyz_color) {
     setXYZColor(ColorXYZ{ xyz_color->x,xyz_color->y,xyz_color->z });
   }
@@ -102,8 +102,8 @@ bool  hikari::spectrum::SpectrumColorObject::getProperty(const Str& name, Proper
 
 bool  hikari::spectrum::SpectrumColorObject::setProperty(const Str& name, const PropertyBase<Object>& prop)
 {
-  if (name == "color.xyz") { auto color = prop.toVec(); if (!color) { return false; }; setXYZColor(ColorXYZ{ color->x,color->y,color->z }); return true; }
-  if (name == "color.rgb") { auto color = prop.toVec(); if (!color) { return false; }; setRGBColor(ColorRGB{ color->x,color->y,color->z }); return true; }
+  if (name == "color.xyz") { auto color = prop.getValue<Vec3>(); if (!color) { return false; }; setXYZColor(ColorXYZ{ color->x,color->y,color->z }); return true; }
+  if (name == "color.rgb") { auto color = prop.getValue<Vec3>(); if (!color) { return false; }; setRGBColor(ColorRGB{ color->x,color->y,color->z }); return true; }
   if (name == "color_setting") { auto color_setting = prop.getValue<ColorSetting>(); setColorSetting(color_setting.getObject()); return true; }
   return false;
 }

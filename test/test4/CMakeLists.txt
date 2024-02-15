@@ -65,11 +65,24 @@ add_executable(hikari-test-test4
  hikari/shape/mesh.cpp 
  hikari/shape/cube.h 
  hikari/shape/cube.cpp 
- hikari/shape/quad.h 
- hikari/shape/quad.cpp 
+ hikari/shape/rect.h
+ hikari/shape/rect.cpp 
  hikari/shape/sphere.h 
  hikari/shape/sphere.cpp 
-)
+ hikari/core/bbox.h
+ hikari/core/bbox.cpp
+ "hikari/render/buffer.h"
+ "hikari/render/buffer.cpp"
+ "hikari/render/texture.h"
+ "hikari/render/texture.cpp"
+ "hikari/render/sampler.h"
+ "hikari/render/sampler.cpp"
+ "hikari/render/image.h"
+ "hikari/render/image.cpp"
+ "hikari/render/compiler.h"
+ "hikari/render/compiler.cpp"
+ "hikari/render/shader.h"
+ "hikari/render/shader.cpp" "hikari/render/pipeline.h" "hikari/render/pipeline.cpp")
 target_compile_features(hikari-test-test4 PRIVATE cxx_std_17)
 target_compile_options(hikari-test-test4 PRIVATE /utf-8)
 target_include_directories(hikari-test-test4
