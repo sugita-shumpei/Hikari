@@ -95,6 +95,7 @@ namespace hikari {
         }
         return *this;
       }
+      HK_METHOD_OVERLOAD_COMPARE_OPERATORS(SpectrumColor);
 
       bool getRGBColor(ColorRGB& rgb, ColorSpace& color_space, Bool& is_linear) const {
         auto object = getObject();
@@ -106,11 +107,11 @@ namespace hikari {
         auto object = getObject();
         if (object) { return object->setRGBColor(rgb, color_space, is_linear); }
       }
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setXYZColor, ColorXYZ);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE(getColorSpace, ColorSpace);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setColorSpace, ColorSpace);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setLinear, Bool);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE(isLinear, Bool);
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setXYZColor, ColorXYZ);
+      HK_METHOD_OVERLOAD_GETTER_LIKE(getColorSpace, ColorSpace);
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setColorSpace, ColorSpace);
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setLinear, Bool);
+      HK_METHOD_OVERLOAD_GETTER_LIKE(isLinear, Bool);
 
       using impl_type::operator!;
       using impl_type::operator bool;

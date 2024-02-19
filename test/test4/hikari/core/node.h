@@ -95,7 +95,7 @@ namespace hikari
             NodeComponentImplBase(const std::shared_ptr<NodeComponentObjectT> &object) noexcept : impl_type(object) {}
             ~NodeComponentImplBase() noexcept {}
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getNode, NodeT, nullptr);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getNode, NodeT, nullptr);
 
             using impl_type::operator!;
             using impl_type::operator bool;
@@ -129,6 +129,7 @@ namespace hikari
                 return *this;
             }
             ~NodeComponentBase() noexcept {}
+            HK_METHOD_OVERLOAD_COMPARE_OPERATORS(NodeComponentBase);
 
             using impl_type::operator!;
             using impl_type::operator bool;
@@ -362,6 +363,8 @@ namespace hikari
                 return *this;
             }
 
+            HK_METHOD_OVERLOAD_COMPARE_OPERATORS(Node);
+
             auto operator[](U32 idx) const -> Node;
             auto operator[](U32 idx) -> NodeRef;
 
@@ -571,10 +574,10 @@ namespace hikari
             auto getSize() const -> U32 { return getChildCount(); }
             void setSize(U32 count) { setChildCount(count); }
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setName, Str);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setName, Str);
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getChildCount, U32, 0);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setChildCount, U32);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getChildCount, U32, 0);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setChildCount, U32);
 
             auto getChildren() const -> std::vector<Node>;
             void setChildren(const std::vector<Node> &children);
@@ -585,27 +588,27 @@ namespace hikari
             void addChild(const Node &field);
             void popChild(U32 idx);
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setGlobalTransform, Transform);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getGlobalTransform, Transform);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getGlobalTransform, Transform, TransformTRSData());
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getGlobalMatrix, Mat4, 1.0f);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalPosition, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalRotation, Quat);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalScale, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalPosition, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalRotation, Quat);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalScale, Vec3);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setGlobalTransform, Transform);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getGlobalTransform, Transform);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getGlobalTransform, Transform, TransformTRSData());
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getGlobalMatrix, Mat4, 1.0f);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalPosition, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalRotation, Quat);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalScale, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalPosition, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalRotation, Quat);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalScale, Vec3);
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setLocalTransform, Transform);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getLocalTransform, Transform);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getLocalTransform, Transform, TransformTRSData());
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getLocalMatrix, Mat4, 1.0f);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalPosition, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalRotation, Quat);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalScale, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalPosition, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalRotation, Quat);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalScale   , Vec3);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setLocalTransform, Transform);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getLocalTransform, Transform);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getLocalTransform, Transform, TransformTRSData());
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getLocalMatrix, Mat4, 1.0f);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalPosition, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalRotation, Quat);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalScale, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalPosition, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalRotation, Quat);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalScale   , Vec3);
         };
         struct NodeRef : protected ObjectWrapperRefImpl<impl::ObjectWrapperHolderChildObjectRef, NodeObject>
         {
@@ -824,10 +827,10 @@ namespace hikari
             auto getSize() const->U32 { return getChildCount(); }
             void setSize(U32 count) { return setChildCount(count); }
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getChildCount, U32, 0);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setChildCount, U32);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getChildCount, U32, 0);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setChildCount, U32);
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setName, Str);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setName, Str);
 
             auto getChildren() const -> std::vector<Node>;
             void setChildren(const std::vector<Node> &children);
@@ -838,27 +841,27 @@ namespace hikari
             void addChild(const Node &field);
             void popChild(U32 idx);
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setGlobalTransform, Transform);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getGlobalTransform, Transform);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getGlobalTransform, Transform, TransformTRSData());
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getGlobalMatrix, Mat4, 1.0f);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalPosition, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalRotation, Quat);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalScale, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalPosition, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalRotation, Quat);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalScale, Vec3);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setGlobalTransform, Transform);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getGlobalTransform, Transform);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getGlobalTransform, Transform, TransformTRSData());
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getGlobalMatrix, Mat4, 1.0f);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalPosition, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalRotation, Quat);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getGlobalScale, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalPosition, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalRotation, Quat);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getGlobalScale, Vec3);
 
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setLocalTransform, Transform);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getLocalTransform, Transform);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getLocalTransform, Transform, TransformTRSData());
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getLocalMatrix, Mat4, 1.0f);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalPosition, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalRotation, Quat);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalScale, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalPosition, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalRotation, Quat);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalScale, Vec3);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setLocalTransform, Transform);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK_FROM_VOID(getLocalTransform, Transform);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getLocalTransform, Transform, TransformTRSData());
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getLocalMatrix, Mat4, 1.0f);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalPosition, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalRotation, Quat);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_CHECK(getLocalScale, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalPosition, Vec3);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalRotation, Quat);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_OPTION(getLocalScale, Vec3);
         private:
             friend class Node;
             NodeRef(const std::shared_ptr<NodeObject> &object, U32 idx) : impl_type(impl::ObjectWrapperHolderChildObjectRef(object, idx)) {}
@@ -959,6 +962,7 @@ namespace hikari
                 return *this;
             }
             ~NodeTransform() noexcept {}
+            HK_METHOD_OVERLOAD_COMPARE_OPERATORS(NodeTransform);
 
             using impl_type::operator!;
             using impl_type::operator bool;

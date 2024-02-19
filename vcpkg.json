@@ -21,6 +21,9 @@
     "pybind11",
     "fmt",
     "matplotplusplus",
+    "spdlog",
+    "function2",
+    "bshoshany-thread-pool",
     {
       "name": "imgui",
       "features": [

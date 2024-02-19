@@ -77,6 +77,8 @@ namespace hikari
                 static constexpr char value[] = "Array";
             };
         }
+        template <typename T, size_t IDX>
+        using StaticArray = std::array<T, IDX>;
 
         template <>                                
         struct Type2String<std::monostate>
@@ -151,6 +153,17 @@ namespace hikari
         typedef nlohmann::json Json;
         HK_TYPE_2_STRING_DEFINE(Json);
 
+        template <typename EnumT>
+        struct EnumTraits : std::false_type {};
+
+        template<typename EnumT, std::enable_if_t<EnumTraits<EnumT>::value, nullptr_t> = nullptr>
+        inline auto convertEnum2Str(const EnumT& e) -> Str {
+          return EnumTraits<EnumT>::toStr(e);
+        }
+        template<typename EnumT, std::enable_if_t<EnumTraits<EnumT>::value, nullptr_t> = nullptr>
+        inline auto convertStr2Enum(const Str& s) -> Option<EnumT> {
+          return EnumTraits<EnumT>::toEnum(s);
+        }
     }
 }
 

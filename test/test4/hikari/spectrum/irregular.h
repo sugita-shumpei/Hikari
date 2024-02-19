@@ -127,14 +127,16 @@ namespace hikari {
       auto operator[](U32 idx) const -> F32 { return getIntensity(idx); }
       auto operator[](U32 idx) ->IndexAccesorRef { return IndexAccesorRef(getObject(), idx); }
 
+      HK_METHOD_OVERLOAD_COMPARE_OPERATORS(SpectrumIrregular);
+
 #define HK_ARRAY_PAIR_F32_F32 Array<Pair<F32,F32>>
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getWaveLengthsAndIntensities, HK_ARRAY_PAIR_F32_F32, {});
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setWaveLengthsAndIntensities, HK_ARRAY_PAIR_F32_F32);
+      HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getWaveLengthsAndIntensities, HK_ARRAY_PAIR_F32_F32, {});
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setWaveLengthsAndIntensities, HK_ARRAY_PAIR_F32_F32);
 #undef  HK_ARRAY_PAIR_F32_F32
 
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getIntensities, Array<F32>, {});
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getWaveLengths, Array<F32>, {});
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getSize, U32, 0);
+      HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getIntensities, Array<F32>, {});
+      HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getWaveLengths, Array<F32>, {});
+      HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getSize, U32, 0);
       auto getIntensity(F32 wavelength)const->F32 {
         auto object = getObject();
         if (!object) { return 0.0f; }

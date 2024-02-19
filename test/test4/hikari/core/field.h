@@ -124,6 +124,8 @@ namespace hikari {
         return *this;
       }
 
+      HK_METHOD_OVERLOAD_COMPARE_OPERATORS(Field);
+
       auto operator[](size_t idx) const->Field;
       auto operator[](size_t idx)->FieldRef;
 

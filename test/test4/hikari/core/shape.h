@@ -37,7 +37,7 @@ namespace hikari {
       //  return *this;
       //}
 
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getBBox, BBox3, {});
+      HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getBBox, BBox3, {});
 
       using impl_type::operator[];
       using impl_type::operator!;
@@ -67,6 +67,7 @@ namespace hikari {
         setObject(obj);
         return *this;
       }
+      HK_METHOD_OVERLOAD_COMPARE_OPERATORS(Shape);
 
       using impl_type::operator[];
       using impl_type::operator!;
@@ -142,6 +143,7 @@ namespace hikari {
         if (object) { return Shape(object->getShape()); }
         else { return Shape(); }
       }
+      HK_METHOD_OVERLOAD_COMPARE_OPERATORS(ShapeFilter);
 
       using impl_type::operator!;
       using impl_type::operator bool;
@@ -203,6 +205,7 @@ namespace hikari {
         return *this;
       }
       ~ShapeRender() noexcept {}
+      HK_METHOD_OVERLOAD_COMPARE_OPERATORS(ShapeRender);
 
       using impl_type::operator!;
       using impl_type::operator bool;

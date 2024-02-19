@@ -52,6 +52,7 @@ namespace hikari
                 setObject(obj);
                 return *this;
             }
+            HK_METHOD_OVERLOAD_COMPARE_OPERATORS(ShapeRect);
 
             using impl_type::operator[];
             using impl_type::operator!;

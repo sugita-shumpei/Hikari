@@ -2,5 +2,6 @@ add_subdirectory(test0)
 add_subdirectory(test1)
 add_subdirectory(test2)
 add_subdirectory(test4)
+add_subdirectory(test5)
 
 

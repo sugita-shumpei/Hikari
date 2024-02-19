@@ -11,52 +11,74 @@
 #include <hikari/shape/rect.h>
 #include <hikari/shape/cube.h>
 #include <hikari/shape/sphere.h>
+#include <hikari/render/gfx_window.h>
+#include <glad/glad.h>
+#include <hikari/platform/common/render/gfx_common_instance.h>
+#include <hikari/platform/glfw/glfw_window_manager.h>
 using namespace hikari;
 void registerObjects(){
+  auto& serialize_manager                  = ObjectSerializeManager::getInstance();
+  auto& deserialize_manager                = ObjectDeserializeManager::getInstance();
+  auto& node_component_deserialize_manager = NodeComponentDeserializeManager::getInstance();
   // Serializer
-  ObjectSerializeManager::getInstance().add(std::make_shared<NodeSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<FieldSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<SpectrumRegularSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<SpectrumIrregularSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<SpectrumUniformSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<SpectrumColorSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<ShapeFilterSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<ShapeRenderSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<ShapeMeshSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<ShapeRectSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<ShapeCubeSerializer>());
-  ObjectSerializeManager::getInstance().add(std::make_shared<ShapeSphereSerializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<NodeDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<FieldDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<SpectrumRegularDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<SpectrumIrregularDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<SpectrumUniformDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<SpectrumColorDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<ShapeMeshDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<ShapeRectDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<ShapeCubeDeserializer>());
-  ObjectDeserializeManager::getInstance().add(std::make_shared<ShapeSphereDeserializer>());
-  NodeComponentDeserializeManager::getInstance().add(std::make_shared<ShapeFilterDeserializer>());
-  NodeComponentDeserializeManager::getInstance().add(std::make_shared<ShapeRenderDeserializer>());
+  serialize_manager.add(std::make_shared<NodeSerializer>());
+  serialize_manager.add(std::make_shared<FieldSerializer>());
+  serialize_manager.add(std::make_shared<SpectrumRegularSerializer>());
+  serialize_manager.add(std::make_shared<SpectrumIrregularSerializer>());
+  serialize_manager.add(std::make_shared<SpectrumUniformSerializer>());
+  serialize_manager.add(std::make_shared<SpectrumColorSerializer>());
+  serialize_manager.add(std::make_shared<ShapeFilterSerializer>());
+  serialize_manager.add(std::make_shared<ShapeRenderSerializer>());
+  serialize_manager.add(std::make_shared<ShapeMeshSerializer>());
+  serialize_manager.add(std::make_shared<ShapeRectSerializer>());
+  serialize_manager.add(std::make_shared<ShapeCubeSerializer>());
+  serialize_manager.add(std::make_shared<ShapeSphereSerializer>());
+  // Deserializer
+  deserialize_manager.add(std::make_shared<NodeDeserializer>());
+  deserialize_manager.add(std::make_shared<FieldDeserializer>());
+  deserialize_manager.add(std::make_shared<SpectrumRegularDeserializer>());
+  deserialize_manager.add(std::make_shared<SpectrumIrregularDeserializer>());
+  deserialize_manager.add(std::make_shared<SpectrumUniformDeserializer>());
+  deserialize_manager.add(std::make_shared<SpectrumColorDeserializer>());
+  deserialize_manager.add(std::make_shared<ShapeMeshDeserializer>());
+  deserialize_manager.add(std::make_shared<ShapeRectDeserializer>());
+  deserialize_manager.add(std::make_shared<ShapeCubeDeserializer>());
+  deserialize_manager.add(std::make_shared<ShapeSphereDeserializer>());
+  node_component_deserialize_manager.add(std::make_shared<ShapeFilterDeserializer>());
+  node_component_deserialize_manager.add(std::make_shared<ShapeRenderDeserializer>());
   return;
 }
-int main() {
-  registerObjects();
-  Node node("");
-  node.setChildCount(4);
-  node[0].addComponent<ShapeFilter>(ShapeMesh("mesh"));
-  node[1].addComponent<ShapeFilter>(ShapeRect("rect"));
-  node[2].addComponent<ShapeFilter>(ShapeCube("cube"));
-  node[3].addComponent<ShapeFilter>(ShapeSphere("sphere", Vec3(0.5f), 2.0f));
-  auto mesh         = ObjectWrapperUtils::convert<ShapeMesh>(node[0].getComponent<ShapeFilter>().getShape());
-  mesh["positions"] = Array<Vec3>({ Vec3(0.0f,0.0f,0.0f)     , Vec3(1.0f,0.0f,0.0f)       , Vec3(1.0f,1.0f,0.0f) , Vec3(0.0f,1.0f,0.0f) });
-  mesh["normals"]   = Array<Vec3>({ Vec3(0.0f,0.0f,1.0f)     , Vec3(0.0f,0.0f,1.0f)       , Vec3(0.0f,0.0f,1.0f) , Vec3(0.0f,0.0f,1.0f) });
-  mesh["tangents"]  = Array<Vec4>({ Vec4(0.0f,1.0f,0.0f,1.0f), Vec4(0.0f,1.0f , 0.0f,1.0f), Vec4(0.0f,1.0f,0.0f  , 1.0f), Vec4(0.0f,1.0f,0.0f,1.0f) });
-  mesh["uv"]        = Array<Vec2>({ Vec2(0.0f,0.0f)          , Vec2(1.0f,0.0f)            , Vec2(1.0f,1.0f)      , Vec2(0.0f,1.0f) });
-  mesh["colors"]    = Array<Vec4>({ Vec4(1), Vec4(1), Vec4(1), Vec4(1) });
-  mesh["indices"]   = Array<U16>{ 0,1,2,2,3,0 };
-  mesh["index_format"] = "U32";
-  std::cout << serialize(node).dump() << std::endl;
-  std::cout << serialize(deserialize<ObjectWrapper>(serialize(node))).dump() << std::endl;
+int main(int argc, const char** argv) {
+  // Instanceの作成
+  auto  instance       = hikari::platforms::common::render::createGFXInstance(hikari::render::GFXAPI::eOpenGL);
+  // WindowManagerの取得
+  auto& window_manager = hikari::render::GFXWindowManager::getInstance();
+  // Windowの作成
+  auto window = instance.createWindow(hikari::render::GFXWindowDesc{ 800,600 });
+  window.setTitle("window");
+  window.setBorderless(false);
+  // Windowの表示
+  window.show();
+  // MainLoopの実行
+  while (true) {
+    window_manager.update();
+    bool is_window_open = !window.isClosed();
+    if (!is_window_open) { window.hide(); window = nullptr; break; }
+    if (window) {
+      if (window.isFocused()) { std::cout << "window Focused!\n"; }
+    }
+    auto clip_board = window.getClipboard();
+    if (clip_board != "") { std::cout << "clipboard: " << clip_board << std::endl; }
+
+    {
+      auto& glfw_manager = hikari::platforms::glfw::WindowManager::getInstance();
+      glfw_manager.setCurrentContext(window.getHandle());
+      {
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+      }
+      glfw_manager.swapBuffers(window.getHandle());
+    }
+  }
   return 0;
 }

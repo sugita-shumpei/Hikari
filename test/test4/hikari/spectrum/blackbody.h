@@ -90,10 +90,11 @@ namespace hikari {
         return *this;
       }
 
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setMinWaveLength, F32);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setMaxWaveLength, F32);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setTemperature, F32);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE(getTemperature, F32);
+      HK_METHOD_OVERLOAD_COMPARE_OPERATORS(SpectrumBlackbody);
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setMinWaveLength, F32);
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setMaxWaveLength, F32);
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setTemperature, F32);
+      HK_METHOD_OVERLOAD_GETTER_LIKE(getTemperature, F32);
 
       using impl_type::operator!;
       using impl_type::operator bool;

@@ -175,13 +175,14 @@ namespace hikari
                 setObject(obj);
                 return *this;
             }
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getCenter, Vec3, {});
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getRadius, F32, 0.0f);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getFlipNormals, Bool, false);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setCenter, Vec3);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setRadius, F32);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setFlipNormals, Bool);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setName, Str);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getCenter, Vec3, {});
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getRadius, F32, 0.0f);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getFlipNormals, Bool, false);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setCenter, Vec3);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setRadius, F32);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setFlipNormals, Bool);
+            HK_METHOD_OVERLOAD_SETTER_LIKE(setName, Str);
+            HK_METHOD_OVERLOAD_COMPARE_OPERATORS(ShapeSphere);
             using impl_type::operator[];
             using impl_type::operator!;
             using impl_type::operator bool;

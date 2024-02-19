@@ -12,6 +12,19 @@
 namespace hikari {
   inline namespace core {
     enum class TransformType { eTRS, eMat };
+    template<>
+    struct EnumTraits<TransformType> : std::true_type {
+      static auto toStr(const TransformType& t) -> Str {
+        if (t == TransformType::eTRS) { return"TRS"; }
+        if (t == TransformType::eMat) { return"Mat"; }
+        return "TRS";
+      }
+      static auto toEnum(const Str& s) -> Option<TransformType> {
+        if (s=="TRS") { return TransformType::eTRS; }
+        if (s=="Mat") { return TransformType::eMat; }
+        return std::nullopt;
+      }
+    };
     struct TransformTRSData {
       Vec3 position = Vec3(0.0f);
       Quat rotation = Quat(1.0f, 0.0f, 0.0f, 0.0f);

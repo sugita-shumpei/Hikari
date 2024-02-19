@@ -83,10 +83,10 @@ namespace hikari
                 }
                 return object->getRGBColor(to_color_space, is_linear);
             }
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE(getXYZColor, ColorXYZ);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getMinWaveLength, F32, 360.0f);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getMaxWaveLength, F32, 830.0f);
-            HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getColorSetting, ColorSetting, nullptr);
+            HK_METHOD_OVERLOAD_GETTER_LIKE(getXYZColor, ColorXYZ);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getMinWaveLength, F32, 360.0f);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getMaxWaveLength, F32, 830.0f);
+            HK_METHOD_OVERLOAD_GETTER_LIKE_WITH_DEF(getColorSetting, ColorSetting, nullptr);
             void setColorSetting(const ColorSetting &setting)
             {
                 auto object = getObject();
@@ -167,6 +167,7 @@ namespace hikari
                 }
                 return *this;
             }
+            HK_METHOD_OVERLOAD_COMPARE_OPERATORS(Spectrum);
 
             using impl_type::operator!;
             using impl_type::operator bool;

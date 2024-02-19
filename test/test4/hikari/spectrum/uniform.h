@@ -89,10 +89,13 @@ namespace hikari {
         return *this;
       }
 
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setMinWaveLength, F32);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setMaxWaveLength, F32);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_SETTER_LIKE(setIntensity, F32);
-      HK_OBJECT_WRAPPER_METHOD_OVERLOAD_GETTER_LIKE(getIntensity, F32);
+      HK_METHOD_OVERLOAD_COMPARE_OPERATORS(SpectrumUniform);
+
+
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setMinWaveLength, F32);
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setMaxWaveLength, F32);
+      HK_METHOD_OVERLOAD_SETTER_LIKE(setIntensity, F32);
+      HK_METHOD_OVERLOAD_GETTER_LIKE(getIntensity, F32);
 
       using impl_type::operator!;
       using impl_type::operator bool;

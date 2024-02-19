@@ -60,7 +60,7 @@ bool hikari::shape::ShapeMeshObject::getProperty(const Str& name, PropertyBase<O
   }
   if (name == "vertex_count") { prop.setValue(getVertexCount()); return true; }
   if (name == "index_count") { prop.setValue(getIndexCount()); return true; }
-  if (name == "index_format") { prop.setValue(convertMeshIndexFormat2Str(getIndexFormat())); return true; }
+  if (name == "index_format") { prop.setValue(convertEnum2Str(getIndexFormat())); return true; }
   if (name == "indices") { return impl_getIndices(prop); }
   if (name == "positions") { return impl_getPositions(prop); }
   if (name == "normals") { return impl_getNormals(prop); }
@@ -86,7 +86,7 @@ bool hikari::shape::ShapeMeshObject::setProperty(const Str& name, const Property
       if (m_immutable) { return false; }
       auto str = prop.getValue<Str>();
       if (str) {
-        auto tmp = convertStr2MeshIndexFormat(*str);
+        auto tmp = convertStr2Enum<MeshIndexFormat>(*str);
         if (tmp) { setIndexFormat(*tmp); return true; }
       }
       return false;
@@ -341,7 +341,7 @@ auto hikari::shape::ShapeMeshDeserializer::eval(const Json& json) const -> std::
       auto& iter_format = indices.find("format");
       if (iter_format != indices.end()) {
         if (iter_format.value().is_string()) {
-          auto format = convertStr2MeshIndexFormat(iter_format.value().get<Str>());
+          auto format = convertStr2Enum<MeshIndexFormat>(iter_format.value().get<Str>());
           if (format) {
             mesh.setIndexFormat(*format);
           }
@@ -391,7 +391,7 @@ auto hikari::shape::ShapeMeshSerializer::eval(const std::shared_ptr<Object>& obj
   }
   if (shape_mesh->hasIndices()) {
     json["properties"]["indices"] = {};
-    json["properties"]["indices"]["format"] = convertMeshIndexFormat2Str(shape_mesh->getIndexFormat());
+    json["properties"]["indices"]["format"] = convertEnum2Str(shape_mesh->getIndexFormat());
     json["properties"]["indices"]["data"]   = serialize(shape_mesh->getIndices());
   }
   json["properties"]["bbox"] = {};
