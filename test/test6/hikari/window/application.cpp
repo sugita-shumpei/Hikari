@@ -51,32 +51,24 @@ void hikari::WindowApplication::freeGrapihcs() {
 }
 
 bool hikari::WindowApplication::initWindow() {
-  if (m_graphics_api == GraphicsAPIType::eOpenGL) {
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-  }
-  else {
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  }
-  glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-  GLFWwindow* main_window = glfwCreateWindow(800, 600, "main_window", nullptr, nullptr);
-  glfwDefaultWindowHints();
+  auto& window_system = WindowSystem::getInstance();
+  auto main_window = window_system.createWindow("title",800,600,300,300,GraphicsAPIType::eOpenGL,false,true,true,false);
   if (!main_window) { return false; }
   m_main_window = main_window;
   return true;
 }
 
 void hikari::WindowApplication::freeWindow() {
-  glfwDestroyWindow(m_main_window);
+  if (!m_main_window) { return; }
+  auto& window_system = WindowSystem::getInstance();
+  window_system.destroyWindow(m_main_window);
   m_main_window = nullptr;
 }
 
 bool hikari::WindowApplication::initRenderThread() {
   m_render_thread = std::make_unique<BS::thread_pool>(1, [this]() {
-    if (m_graphics_api == GraphicsAPIType::eOpenGL) { glfwMakeContextCurrent(m_main_window); }
+    auto handle = m_main_window->getHandle();
+    if (m_graphics_api == GraphicsAPIType::eOpenGL) { glfwMakeContextCurrent(handle); }
     return;
   });
   return true;
@@ -93,23 +85,22 @@ bool hikari::WindowApplication::initUI() {
   ImGui::StyleColorsDark();
 
   if (m_graphics_api == GraphicsAPIType::eOpenGL) {
-    ImGui_ImplGlfw_InitForOpenGL(m_main_window, true);
+    auto handle = m_main_window->getHandle();
+    ImGui_ImplGlfw_InitForOpenGL(handle, true);
     auto init = m_render_thread->submit_task([&]()->bool {
       return ImGui_ImplOpenGL3_Init("#version 460 core");
       });
     if (!init.get()) { return false; }
   }
   if (m_graphics_api == GraphicsAPIType::eVulkan) {
-    ImGui_ImplGlfw_InitForVulkan(m_main_window, true);
+    auto handle = m_main_window->getHandle();
+    ImGui_ImplGlfw_InitForVulkan(handle, true);
   }
   return true;
 }
 
 void hikari::WindowApplication::freeUI() {
-  auto free = m_render_thread->submit_task([&]()->void {
-    ImGui_ImplOpenGL3_Shutdown();
-  });
-  free.get();
+  auto free = m_render_thread->submit_task([&]()->void { ImGui_ImplOpenGL3_Shutdown(); }); free.get();
   ImGui_ImplGlfw_Shutdown();
 }
 
@@ -117,21 +108,13 @@ void hikari::WindowApplication::eventsLoop() {
   {
     while (m_is_running) {
       // 同期可能を待機
-      {
-        std::unique_lock<std::mutex> lk(m_mtx_ready_sync);
-        m_cv_ready_sync.wait(lk, [this]() { return m_is_ready_sync; });
-        m_is_ready_sync = false;
-      }
+      m_ready_sync.lock();
       syncFrame();
       // 同期終了を通知
-      {
-        std::lock_guard<std::mutex> lk(m_mtx_finish_sync);
-        m_is_finish_sync = true;
-        m_cv_finish_sync.notify_one();
-      }
-      // 入力イベントは同期をとる必要なし
+      m_finish_sync.unlock();
+      // 入力受付は同期をとる必要なし
       processInput();
-      // 非同期IO: 別スレッドで大きなテキストファイルの読み込みを行う
+      // 入力を処理する
       eventsFrame();
     }
   }
@@ -139,29 +122,28 @@ void hikari::WindowApplication::eventsLoop() {
 
 void hikari::WindowApplication::renderLoop() {
   while (m_is_running) {
+    m_finish_sync.lock();
     // 同期終了を待機
-    {
-      std::unique_lock<std::mutex> lk(m_mtx_finish_sync);
-      m_cv_finish_sync.wait(lk, [this]() { return m_is_finish_sync; });
-      m_is_finish_sync = false;
-    }
     renderFrame();
-    // 同期可能を通知
-    {
-      std::lock_guard<std::mutex> lk(m_mtx_ready_sync);
-      m_is_ready_sync = true;
-      m_cv_ready_sync.notify_one();
-    }
+    // 同期可能を待機
+    m_ready_sync.unlock();
   }
 }
 
 void hikari::WindowApplication::syncFrame() {// GLFWのWindow関数はメインスレッドから呼び出す必要あり
-  m_is_running = !glfwWindowShouldClose(m_main_window);
+  // 受け付けた入力値を更新する
+  m_main_window->update();
+  m_is_running = !m_main_window->isClose();
   ImGui_ImplGlfw_NewFrame();
 }
 
 void hikari::WindowApplication::eventsFrame()
 {
+  // F11 KEYが設定されていたら画面を最大化する
+  auto key_f11 = m_main_window->getKey(KeyInput::eF11);
+  if (key_f11 == (KeyStateFlagBits::ePress | KeyStateFlagBits::eUpdate)) {
+    m_main_window->setFullscreen(!m_main_window->isFullscreen());
+  }
 }
 
 void hikari::WindowApplication::processInput() {
@@ -174,7 +156,8 @@ void hikari::WindowApplication::renderFrame() {
   renderUI();
   // OpenGLの場合, ここでスワップを行う
   if (m_graphics_api == GraphicsAPIType::eOpenGL) {
-    glfwSwapBuffers(m_main_window);
+    auto handle = m_main_window->getHandle();
+    glfwSwapBuffers(handle);
   }
 }
 

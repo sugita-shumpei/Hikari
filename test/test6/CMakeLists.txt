@@ -24,22 +24,27 @@ add_executable(hikari-test-test6
  hikari/core/data_types.h
  hikari/core/conversion.h
  hikari/core/platform.h
+ hikari/thread/spin_lock.h
+ hikari/thread/spin_lock.cpp
  hikari/window/system.h
  hikari/window/system.cpp
  hikari/window/application.h
  hikari/window/application.cpp
  hikari/window/window.h
  hikari/window/window.cpp
+ hikari/window/common.h
+ hikari/window/common.cpp
  hikari/graphics/system.h
  hikari/graphics/system.cpp
  hikari/graphics/common.h
  hikari/graphics/opengl/instance.h
  hikari/graphics/opengl/instance.cpp
+ hikari/graphics/opengl/common.h
  hikari/ui/system.h
  hikari/ui/system.cpp
  hikari/console/application.h
  hikari/console/system.h
-  "hikari/graphics/opengl/common.h")
+ "hikari/core/flags.h")
 target_compile_features(hikari-test-test6 PRIVATE cxx_std_20)
 target_compile_options(hikari-test-test6 PRIVATE /utf-8 /Zc:__cplusplus)
 target_include_directories(hikari-test-test6

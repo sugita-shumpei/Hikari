@@ -1,14 +1,18 @@
 #pragma once
 #include <thread>
 #include <iostream>
+#include <atomic>
 #include <BS_thread_pool.hpp>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+//#include <glad/glad.h>
+//#include <GLFW/glfw3.h>
+#include <hikari/window/system.h>
+#include <hikari/window/window.h>
+#include <hikari/graphics/system.h>
+#include <hikari/graphics/opengl/common.h>
+#include <hikari/thread/spin_lock.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <hikari/window/system.h>
-#include <hikari/graphics/system.h>
 namespace hikari {
   struct WindowApplication {
     WindowApplication(GraphicsAPIType api = GraphicsAPIType::eOpenGL)noexcept :m_graphics_api{ api } {}
@@ -40,15 +44,11 @@ namespace hikari {
     void renderMain();
     void renderUI();
   private:
-    GraphicsAPIType                  m_graphics_api    = GraphicsAPIType::eOpenGL;
-    GLFWwindow*                      m_main_window     = nullptr;
-    std::mutex                       m_mtx_ready_sync  = {};
-    std::mutex                       m_mtx_finish_sync = {};
-    std::condition_variable          m_cv_ready_sync   = {};
-    std::condition_variable          m_cv_finish_sync  = {};
-    bool                             m_is_ready_sync   = true;
-    bool                             m_is_finish_sync  = false;
-    bool                             m_is_running      = true;
+    GraphicsAPIType m_graphics_api    = GraphicsAPIType::eOpenGL;
+    Window* m_main_window = nullptr;
+    SpinLock m_ready_sync = false  ; // アンロックの状態で待機する
+    SpinLock m_finish_sync = true   ; // 　　ロックの状態で待機する
+    bool m_is_running = true;
     std::unique_ptr<BS::thread_pool> m_render_thread   = nullptr;
   };
 

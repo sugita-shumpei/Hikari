@@ -12,6 +12,17 @@ namespace hikari {
     bool isInitialized();
     bool initialize();
     void terminate();
+    auto createWindow(
+      const std::string& title,
+      U32 width, U32    height,
+      I32 pos_x, I32     pos_y,
+      GraphicsAPIType api_type,
+      Bool is_floating = false,
+      Bool is_resizable = false,
+      Bool is_visible = false,
+      Bool is_fullscreen = false
+    ) -> Window*;
+    void destroyWindow(Window* window);
   private:
     WindowSystem() noexcept {}
     WindowSystem(const WindowSystem&) noexcept = delete;

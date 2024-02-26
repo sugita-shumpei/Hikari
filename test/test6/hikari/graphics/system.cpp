@@ -37,7 +37,7 @@ void hikari::GraphicsSystem::freeGraphics(GraphicsAPIType api)
   m_instances[(size_t)api] = nullptr;
 }
 
-auto hikari::GraphicsSystem::getGraphics(GraphicsAPIType api) -> GraphicsInstance*
+auto hikari::GraphicsSystem::getGraphics (GraphicsAPIType api) -> GraphicsInstance*
 {
   return m_instances[(size_t)api];
 }
