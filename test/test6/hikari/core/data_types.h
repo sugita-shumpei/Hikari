@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <imath/half.h>
+#include <string>
 #endif
 
 
@@ -89,6 +90,7 @@ namespace hikari {
   typedef float              F32;
   typedef double             F64;
   typedef bool               Bool;
+  typedef char               Char;
   // CUDA
 #if defined(HK_LANG_CUDA_CXX)
   using  Vec2 = float2;
@@ -142,7 +144,8 @@ namespace hikari {
   using Mat4x4 = glm::mat4x4;
   using Quat   = glm::vec4;
   using F16    = Imath::half;
-
+  using CStr   = const Char*;
+  using String = std::string;
 #endif
 
 #endif

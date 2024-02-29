@@ -1,5 +1,4 @@
 configure_file(test4_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/test4_config.h)
-find_package(fmt           CONFIG REQUIRED)
 find_package(glm           CONFIG REQUIRED)
 find_package(tinyxml2      CONFIG REQUIRED)
 find_package(scn           CONFIG REQUIRED)

@@ -1,8 +1,8 @@
-﻿{
+{
   "configurations": [
     {
       "name": "x64-Debug",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Debug",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${projectDir}\\build\\${name}",
@@ -13,7 +13,7 @@
     },
     {
       "name": "x64-Release",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "RelWithDebInfo",
       "buildRoot": "${projectDir}\\build\\${name}",
       "installRoot": "${projectDir}\\out\\install\\${name}",

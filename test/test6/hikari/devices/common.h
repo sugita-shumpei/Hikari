@@ -3,7 +3,6 @@
 #include <GLFW/glfw3.h>
 #include <hikari/core/data_types.h>
 #include <hikari/core/flags.h>
-#include <hikari/window/common.h>
 
 #define HK_DECLARE_KEY_INPUT(KEY, GLFW_KEY) KEY
 #define HK_DECLARE_CASE_CONVERT_KEY_2_INT(KEY, GLFW_KEY) \
@@ -392,6 +391,40 @@ namespace hikari
         }
         return KeyInput::eCount;
     }
+
+    enum class MouseButtonInput : U8 {
+      e1, e2, e3, e4, e5, e6, e7, e8, eCount
+    };
+    static constexpr MouseButtonInput MouseButtonInputLast = MouseButtonInput::e8;
+    static constexpr MouseButtonInput MouseButtonInputLeft = MouseButtonInput::e1;
+    static constexpr MouseButtonInput MouseButtonInputRight = MouseButtonInput::e2;
+    static constexpr MouseButtonInput MouseButtonInputMiddle = MouseButtonInput::e3;
+
+    inline constexpr auto convertMouseButtonInput2Int(MouseButtonInput i) -> I32 {
+      I32 res = 0;
+      if (i == MouseButtonInput::e1) { return GLFW_MOUSE_BUTTON_1; }
+      if (i == MouseButtonInput::e2) { return GLFW_MOUSE_BUTTON_2; }
+      if (i == MouseButtonInput::e3) { return GLFW_MOUSE_BUTTON_3; }
+      if (i == MouseButtonInput::e4) { return GLFW_MOUSE_BUTTON_4; }
+      if (i == MouseButtonInput::e5) { return GLFW_MOUSE_BUTTON_5; }
+      if (i == MouseButtonInput::e6) { return GLFW_MOUSE_BUTTON_6; }
+      if (i == MouseButtonInput::e7) { return GLFW_MOUSE_BUTTON_7; }
+      if (i == MouseButtonInput::e8) { return GLFW_MOUSE_BUTTON_8; }
+      return res;
+    }
+    inline constexpr auto convertInt2MouseButtonInput(I32 i) -> MouseButtonInput {
+      MouseButtonInput res = {};
+      if (i == GLFW_MOUSE_BUTTON_1) { return MouseButtonInput::e1; }
+      if (i == GLFW_MOUSE_BUTTON_2) { return MouseButtonInput::e2; }
+      if (i == GLFW_MOUSE_BUTTON_3) { return MouseButtonInput::e3; }
+      if (i == GLFW_MOUSE_BUTTON_4) { return MouseButtonInput::e4; }
+      if (i == GLFW_MOUSE_BUTTON_5) { return MouseButtonInput::e5; }
+      if (i == GLFW_MOUSE_BUTTON_6) { return MouseButtonInput::e6; }
+      if (i == GLFW_MOUSE_BUTTON_7) { return MouseButtonInput::e7; }
+      if (i == GLFW_MOUSE_BUTTON_8) { return MouseButtonInput::e8; }
+      return res;
+    }
+
     enum class KeyModFlagBits : U8 {
       eNone     = 0x0000,
       eShift    = 0x0001,
@@ -405,9 +438,9 @@ namespace hikari
     template<> struct FlagsTraits<KeyModFlagBits>:std::true_type {
       using base_type = U8;
       static constexpr base_type none_mask = 0;
-      static constexpr base_type all_mask  = 0x3F;
+      static constexpr base_type all_mask  = static_cast<U8>(KeyModFlagBits::eMask);
     };
-    using KeyModFlags = Flags<KeyModFlagBits>;
+    using      KeyModFlags = Flags<KeyModFlagBits>;
     inline constexpr auto convertKeyMods2Int(KeyModFlags i) -> I32 {
       I32 res = 0;
       if (i & KeyModFlagBits::eShift) { res |= GLFW_MOD_SHIFT; }
@@ -428,18 +461,85 @@ namespace hikari
       if (i & GLFW_MOD_NUM_LOCK) { res |= KeyModFlagBits::eNumLock; }
       return res;
     }
+
     enum class KeyStateFlagBits : U8 {
       eRelease = 0x00,
       ePress   = 0x01,
-      eUpdate  = 0x02
+      eUpdate  = 0x02,
+      eMask    = 0x03
     };
-    template<> struct FlagsTraits<KeyStateFlagBits> :std::true_type {
-      using base_type = U8;
-      static constexpr base_type none_mask = 0;
-      static constexpr base_type all_mask  = 0x3;
+    template<> struct FlagsTraits<KeyStateFlagBits> :FlagsTraitsDefineUtils<KeyStateFlagBits> {};
+    using      KeyStateFlags = Flags<KeyStateFlagBits>;
+
+    static inline constexpr KeyStateFlags KeyStateFlagsRelease = KeyStateFlagBits::eRelease | KeyStateFlagBits::eUpdate;
+    static inline constexpr KeyStateFlags KeyStateFlagsPress   = KeyStateFlagBits::ePress   | KeyStateFlagBits::eUpdate;
+    static inline constexpr KeyStateFlags KeyStateFlagsRepeat  = KeyStateFlagBits::ePress;
+
+    inline constexpr auto convertKeyState2Int(KeyStateFlags i) -> int {
+      if (i == KeyStateFlagsRelease) {
+        return GLFW_RELEASE;
+      }
+      if (i == KeyStateFlagsPress) {
+        return GLFW_PRESS;
+      }
+      if (i == KeyStateFlagsRepeat) {
+        return GLFW_REPEAT;
+      }
+      return  GLFW_REPEAT;
+    }
+    inline constexpr auto convertInt2KeyState(int i) -> KeyStateFlags {
+      if (i == GLFW_PRESS) {
+        return KeyStateFlagsPress;
+      }
+      if (i == GLFW_RELEASE) {
+        return KeyStateFlagsRelease;
+      }
+      if (i == GLFW_REPEAT) {
+        return KeyStateFlagsRepeat;
+      }
+      return  KeyStateFlagsRepeat;
+    }
+    enum class WindowFlagBits: U8 {
+      eNone           = 0x00,
+      eVisible        = 0x01,
+      eResizable      = 0x02,
+      eFloating       = 0x04,
+      eFullscreen     = 0x08,
+      eGraphicsOpenGL = 0x10,
+      eGraphicsVulkan = 0x20,
+      eMask           = 0x3F
     };
-    using KeyStateFlags = Flags<KeyStateFlagBits>;
-    static_assert((U8)(KeyStateFlagBits::ePress  | KeyStateFlagBits::eUpdate ) == 0x03, "");
-    static_assert((U8)(KeyStateFlagBits::eRelease| KeyStateFlagBits::eUpdate ) == 0x02, "");
-    static_assert((U8)(KeyStateFlagBits::ePress  ) == 0x01, "");
+
+    template<>
+    struct     FlagsTraits<WindowFlagBits> :FlagsTraitsDefineUtils<WindowFlagBits> {};
+    using      WindowFlags = Flags<WindowFlagBits>;
+    //static constexpr MouseButton MouseButtonLast = MouseButton::e8;
+    //static constexpr MouseButton MouseButtonLeft = MouseButton::e1;
+
+    struct Monitor;
+    struct WindowCreateDescBuilder;
+    struct WindowCreateDesc {
+      using Flags      = WindowFlags;
+      using FlagBits   = WindowFlagBits;
+      using Builder    = WindowCreateDescBuilder;
+      U32      width   = 0u;
+      U32      height  = 0u;
+      I32      x       = 0;
+      I32      y       = 0;
+      String   title   = "";
+      Monitor* monitor = nullptr;
+      Flags    flags   = FlagBits::eNone;
+    };
+
+    struct WindowCreateDescBuilder {
+      auto setWidth (U32 w) noexcept -> WindowCreateDescBuilder& { m_desc.width  = w; return *this; }
+      auto setHeight(U32 h) noexcept -> WindowCreateDescBuilder& { m_desc.height = h; return *this; }
+      auto setPosX(U32 x) noexcept -> WindowCreateDescBuilder& { m_desc.x  = x; return *this; }
+      auto setPosY(U32 y) noexcept -> WindowCreateDescBuilder& { m_desc.y = y; return *this; }
+      auto setTitle(const String& title) noexcept -> WindowCreateDescBuilder& { m_desc.title = title;  return *this; }
+      auto setFlags(WindowFlags flags)noexcept -> WindowCreateDescBuilder& { m_desc.flags = flags;  return *this; }
+      auto build() noexcept -> WindowCreateDesc& { return m_desc; }
+    private:
+      WindowCreateDesc m_desc = {};
+    };
 }

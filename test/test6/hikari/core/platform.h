@@ -29,3 +29,7 @@
 #elif defined(__ANDROID__)
 #define HK_PLATFORM_ANDROID   1
 #endif
+
+#ifndef NDEBUG
+#define HK_DEBUG 1
+#endif

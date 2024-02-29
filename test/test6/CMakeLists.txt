@@ -15,36 +15,46 @@ find_package(glad          CONFIG REQUIRED)
 find_package(spdlog        CONFIG REQUIRED)
 find_package(CUDAToolkit          REQUIRED)
 find_package(imgui         CONFIG REQUIRED)
+find_package(tsl-robin-map CONFIG REQUIRED)
 find_path(BSHOSHANY_THREAD_POOL_INCLUDE_DIRS BS_thread_pool.hpp)
 # find_package(Python COMPONENTS Interpreter Development NumPy)
 # find_package(pybind11 CONFIG)
 # find_path(MATPLOTLIB_CPP_INCLUDE_DIRS  matplotlibcpp.h )
 add_executable(hikari-test-test6
  main.cpp
+ hikari/core/application.h
  hikari/core/data_types.h
- hikari/core/conversion.h
+ hikari/core/flags.h
  hikari/core/platform.h
+ hikari/core/singleton.h
+ hikari/core/uuid.h
+ hikari/console/application.h
+ hikari/console/log_system.h
+ hikari/console/log_system.cpp
+ hikari/devices/application.h
  hikari/thread/spin_lock.h
  hikari/thread/spin_lock.cpp
- hikari/window/system.h
- hikari/window/system.cpp
- hikari/window/application.h
- hikari/window/application.cpp
- hikari/window/window.h
- hikari/window/window.cpp
- hikari/window/common.h
- hikari/window/common.cpp
- hikari/graphics/system.h
- hikari/graphics/system.cpp
- hikari/graphics/common.h
- hikari/graphics/opengl/instance.h
- hikari/graphics/opengl/instance.cpp
- hikari/graphics/opengl/common.h
- hikari/ui/system.h
- hikari/ui/system.cpp
- hikari/console/application.h
- hikari/console/system.h
- "hikari/core/flags.h")
+ hikari/devices/system.h
+ hikari/devices/system.cpp
+ hikari/devices/window.h
+ hikari/devices/window.cpp
+ hikari/devices/monitor.h
+ hikari/devices/monitor.cpp
+ hikari/events/event.h
+ hikari/events/event.cpp
+ hikari/events/system.h
+ hikari/events/system.cpp
+ hikari/events/handler.h
+ hikari/events/handler.cpp
+ hikari/events/target.h
+ hikari/events/target.cpp
+ hikari/events/queue.h
+ hikari/events/queue.cpp
+ hikari/events/application_event.h
+ hikari/events/application_event.cpp
+ hikari/events/window_event.h
+ hikari/events/window_event.cpp
+)
 target_compile_features(hikari-test-test6 PRIVATE cxx_std_20)
 target_compile_options(hikari-test-test6 PRIVATE /utf-8 /Zc:__cplusplus)
 target_include_directories(hikari-test-test6
@@ -74,6 +84,7 @@ target_link_libraries(hikari-test-test6 PRIVATE
   spdlog::spdlog
   imgui::imgui
   glfw
+  tsl::robin_map
 #  Python::Python
 #  Python::NumPy
 )

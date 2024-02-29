@@ -5,11 +5,19 @@ namespace hikari {
   struct FlagsTraits : std::false_type {};
 
   template<typename FlagBits>
+  struct FlagsTraitsDefineUtils : std::true_type {
+    using base_type = std::underlying_type_t<FlagBits>;
+    static inline constexpr base_type none_mask = base_type(0);
+    static inline constexpr base_type  all_mask = static_cast<base_type>(FlagBits::eMask);
+  };
+
+  template<typename FlagBits>
   struct Flags {
     using Traits    = FlagsTraits<FlagBits>;
     using base_type = typename Traits::base_type;
     constexpr Flags() noexcept : m_base{ Traits::none_mask } {}
     constexpr Flags(FlagBits v) noexcept : m_base{ static_cast<base_type>(v) } {}
+    explicit constexpr Flags(base_type v) noexcept : m_base{ v } {}
     constexpr Flags(const Flags& lhs) noexcept = default;
     constexpr Flags(Flags&& lhs) noexcept = default;
     constexpr Flags& operator=(const Flags& lhs) noexcept = default;
@@ -51,8 +59,6 @@ namespace hikari {
     constexpr bool operator!=(const FlagBits& lhs) const noexcept {
       return m_base != static_cast<base_type>(lhs);
     }
-  private:
-    constexpr Flags(base_type v) noexcept : m_base{ v } {}
   private:
     base_type m_base;
   };

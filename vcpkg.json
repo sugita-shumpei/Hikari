@@ -23,10 +23,12 @@
     "matplotplusplus",
     "spdlog",
     "function2",
+    "robin-map",
     "bshoshany-thread-pool",
     {
       "name": "imgui",
       "features": [
+        "docking-experimental",
         "glfw-binding",
         "vulkan-binding",
         "opengl3-binding"
