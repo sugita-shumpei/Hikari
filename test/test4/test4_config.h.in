@@ -1,3 +1,0 @@
-#pragma once
-#cmakedefine HK_BUILD_ROOT "@HK_BUILD_ROOT@"
-#cmakedefine HK_DATA_ROOT  "@HK_DATA_ROOT@"
